@@ -1,7 +1,7 @@
-import 'dart:html' as html;
-import 'dart:ui_web' as ui_web;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'model_viewer_web_stub.dart'
+    if (dart.library.html) 'model_viewer_web.dart' as web_utils;
 
 /// Platform-aware 3D model viewer widget
 class ModelViewerWidget extends StatefulWidget {
@@ -29,18 +29,20 @@ class _ModelViewerWidgetState extends State<ModelViewerWidget> {
   void _registerViewer() {
     if (!kIsWeb || _viewerKey == null) return;
 
-    final iframe = html.IFrameElement()
-      ..id = _viewerKey!
-      ..style.border = 'none'
-      ..style.width = '100%'
-      ..style.height = '100%'
-      ..style.margin = '0'
-      ..style.padding = '0'
-      ..style.overflow = 'hidden'
-      ..style.pointerEvents = 'auto'
-      ..srcdoc = _createViewerHtml();
+    final iframe = web_utils.WebUtils.createIFrameElement();
+    if (iframe == null) return;
+    
+    iframe.id = _viewerKey!;
+    iframe.style.border = 'none';
+    iframe.style.width = '100%';
+    iframe.style.height = '100%';
+    iframe.style.margin = '0';
+    iframe.style.padding = '0';
+    iframe.style.overflow = 'hidden';
+    iframe.style.pointerEvents = 'auto';
+    iframe.srcdoc = _createViewerHtml();
 
-    ui_web.platformViewRegistry.registerViewFactory(
+    web_utils.WebUtils.registerViewFactory(
       _viewerKey!,
       (int viewId) => iframe,
     );

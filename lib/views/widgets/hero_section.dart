@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'dart:html' as html;
-import 'dart:ui_web' as ui_web;
+import '../../services/device_detection_service.dart';
+import 'hero_section_web_stub.dart'
+    if (dart.library.html) 'hero_section_web.dart'
+    as web_utils;
 
 class HeroSection extends StatelessWidget {
   final VoidCallback? onExplorePressed;
@@ -38,11 +40,14 @@ class HeroSection extends StatelessWidget {
   }
 
   Widget _buildTextContent(BuildContext context) {
+    final isMobile = DeviceDetectionService.isMobile(context);
+    final isTablet = DeviceDetectionService.isTablet(context);
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.start,
-      spacing: 24,
+      spacing: isMobile ? 16 : 24,
       children: [
         Container(
           width: double.infinity,
@@ -50,22 +55,22 @@ class HeroSection extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: 16,
+            spacing: isMobile ? 12 : 16,
             children: [
-              const Text(
+              Text(
                 'Experience Our Product in AR',
                 style: TextStyle(
                   color: Colors.black,
-                  fontSize: 40,
+                  fontSize: isMobile ? 28 : (isTablet ? 34 : 40),
                   fontFamily: 'Inter',
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const Text(
+              Text(
                 'Bridge the gap between digital and physical retail with interactive AR billboards that deliver unique product demos in high-traffic areas.',
                 style: TextStyle(
                   color: Colors.black,
-                  fontSize: 14,
+                  fontSize: isMobile ? 13 : 14,
                   fontFamily: 'Inter',
                   fontWeight: FontWeight.w400,
                   height: 1.71,
@@ -75,7 +80,10 @@ class HeroSection extends StatelessWidget {
           ),
         ),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+          padding: EdgeInsets.symmetric(
+            horizontal: isMobile ? 20 : 24,
+            vertical: isMobile ? 12 : 10,
+          ),
           decoration: ShapeDecoration(
             color: const Color(0xFFED1F24),
             shape: RoundedRectangleBorder(
@@ -84,7 +92,7 @@ class HeroSection extends StatelessWidget {
           ),
           child: InkWell(
             onTap: onExplorePressed,
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -95,7 +103,7 @@ class HeroSection extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 16,
+                    fontSize: isMobile ? 14 : 16,
                     fontFamily: 'Inter',
                     fontWeight: FontWeight.w500,
                     height: 1.50,
@@ -193,7 +201,7 @@ class _VideoPlayerWidget extends StatefulWidget {
 class _VideoPlayerWidgetState extends State<_VideoPlayerWidget> {
   String? _viewId;
   bool _isPlaying = false;
-  html.VideoElement? _videoElement;
+  dynamic _videoElement;
 
   @override
   void initState() {
@@ -208,40 +216,59 @@ class _VideoPlayerWidgetState extends State<_VideoPlayerWidget> {
     if (!kIsWeb || _viewId == null) return;
 
     // Get the base URL for assets
-    final baseUrl = html.window.location.origin;
-    _videoElement = html.VideoElement()
-      ..src = '$baseUrl/assets/img/demo.mp4'
-      ..autoplay = false
-      ..loop = true
-      ..muted = false
-      ..setAttribute('playsinline', 'true')
-      ..controls = false
-      ..style.width = '100%'
-      ..style.height = '100%'
-      ..style.objectFit = 'cover';
+    final baseUrl = web_utils.WebUtils.getBaseUrl();
+    _videoElement = web_utils.WebUtils.createVideoElement();
+    if (_videoElement == null) return;
+
+    // Try multiple video sources for better compatibility
+    _videoElement.src = '$baseUrl/assets/img/demo.mp4';
+    _videoElement.autoplay = false;
+    _videoElement.loop = true;
+    _videoElement.muted = true; // Start muted for better autoplay support
+    _videoElement.setAttribute('playsinline', 'true');
+    _videoElement.setAttribute('webkit-playsinline', 'true');
+    _videoElement.controls = false;
+    _videoElement.style.width = '100%';
+    _videoElement.style.height = '100%';
+    _videoElement.style.objectFit = 'cover';
+    _videoElement.style.backgroundColor = '#000000';
+
+    // Preload the video
+    _videoElement.setAttribute('preload', 'metadata');
 
     // Add event listeners separately to avoid scope issues
-    _videoElement!.onError.listen((event) {
-      print('Video loading error');
+    _videoElement.onError.listen((event) {
+      print('Video loading error: ${event.toString()}');
+      print('Video src: ${_videoElement.src}');
     });
-    _videoElement!.onLoadedData.listen((event) {
+
+    _videoElement.onLoadedData.listen((event) {
       print('Video loaded successfully');
+      print('Video duration: ${_videoElement.duration}');
+      print(
+        'Video dimensions: ${_videoElement.videoWidth}x${_videoElement.videoHeight}',
+      );
     });
-    _videoElement!.onPlay.listen((event) {
+
+    _videoElement.onLoadedMetadata.listen((event) {
+      print('Video metadata loaded');
+    });
+
+    _videoElement.onCanPlay.listen((event) {
+      print('Video can start playing');
+    });
+
+    _videoElement.onPlay.listen((event) {
+      print('Video started playing');
       if (mounted) {
         setState(() {
           _isPlaying = true;
         });
       }
     });
-    _videoElement!.onPause.listen((event) {
-      if (mounted) {
-        setState(() {
-          _isPlaying = false;
-        });
-      }
-    });
-    _videoElement!.onEnded.listen((event) {
+
+    _videoElement.onPause.listen((event) {
+      print('Video paused');
       if (mounted) {
         setState(() {
           _isPlaying = false;
@@ -249,15 +276,31 @@ class _VideoPlayerWidgetState extends State<_VideoPlayerWidget> {
       }
     });
 
-    ui_web.platformViewRegistry.registerViewFactory(
+    _videoElement.onEnded.listen((event) {
+      print('Video ended');
+      if (mounted) {
+        setState(() {
+          _isPlaying = false;
+        });
+      }
+    });
+
+    web_utils.WebUtils.registerViewFactory(
       _viewId!,
-      (int viewId) => _videoElement!,
+      (int viewId) => _videoElement,
     );
   }
 
   void _playVideo() {
     if (_videoElement != null && !_isPlaying) {
-      _videoElement!.play();
+      // Unmute when user interacts (required for user-initiated playback)
+      _videoElement!.muted = false;
+      _videoElement!.play().catchError((error) {
+        print('Error playing video: $error');
+        // Fallback: try playing muted
+        _videoElement!.muted = true;
+        return _videoElement!.play();
+      });
     }
   }
 

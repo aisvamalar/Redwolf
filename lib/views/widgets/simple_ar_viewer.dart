@@ -1,7 +1,8 @@
-import 'dart:html' as html;
-import 'dart:ui_web' as ui_web;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'simple_ar_viewer_web_stub.dart'
+    if (dart.library.html) 'simple_ar_viewer_web.dart'
+    as web_utils;
 
 /// Interactive AR Viewer - Working version from this morning
 /// Supports camera AR, tap-to-place, drag, and screenshot capture
@@ -39,7 +40,7 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
   void _setupMessageListener() {
     if (!kIsWeb) return;
 
-    html.window.onMessage.listen((event) {
+    web_utils.WebUtils.getMessageStream().listen((event) {
       if (event.data is Map && event.data['type'] == 'ar_back') {
         // Call callback if provided, otherwise pop navigation
         if (widget.onBackPressed != null) {
@@ -54,18 +55,17 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
   void _registerARViewer() {
     if (!kIsWeb || _iframeKey == null) return;
 
-    final iframe = html.IFrameElement()
-      ..id = _iframeKey!
-      ..style.border = 'none'
-      ..style.width = '100%'
-      ..style.height = '100%'
-      ..allow = 'camera; microphone; xr-spatial-tracking'
-      ..srcdoc = _createArHtml();
+    final iframe = web_utils.WebUtils.createIFrameElement();
+    if (iframe == null) return;
 
-    ui_web.platformViewRegistry.registerViewFactory(
-      _iframeKey!,
-      (int viewId) => iframe,
-    );
+    iframe.id = _iframeKey!;
+    iframe.style.border = 'none';
+    iframe.style.width = '100%';
+    iframe.style.height = '100%';
+    iframe.allow = 'camera; microphone; xr-spatial-tracking';
+    iframe.srcdoc = _createArHtml();
+
+    web_utils.WebUtils.registerViewFactory(_iframeKey!, (int viewId) => iframe);
   }
 
   String _createArHtml() {
@@ -228,163 +228,304 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       reveal="auto"
       loading="auto"
     >
-      <div slot="poster" id="model-poster" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #DC2626 0%, #991B1B 100%); position: absolute; top: 0; left: 0; z-index: 1;">
-        <div style="text-align: center; color: white;">
-          <div style="font-size: 48px; margin-bottom: 16px;"></div>
-          <div style="font-size: 24px; margin-bottom: 12px; font-weight: 600;">Loading 3D Model...</div>
-          <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">${widget.productName ?? 'Digital Standee 4.5 feet'}</div>
-          <div style="font-size: 12px; opacity: 0.8;">Tap "Open Camera & AR" for AR mode</div>
-        </div>
-      </div>
+      <!-- Poster is kept in DOM but hidden by default so we skip the
+           "Loading 3D Model" splash and go straight into AR view. -->
+      <div
+        slot="poster"
+        id="model-poster"
+        style="display: none; width: 100%; height: 100%;"
+      ></div>
     </model-viewer>
-    
-    <div class="info-panel">
-      <h3>3D Model Viewer</h3>
-      <div class="gesture-hint">
-        <span class="gesture-icon"></span>
-        <p>Drag to rotate the 3D model</p>
-      </div>
-      <div class="gesture-hint">
-        <span class="gesture-icon"></span>
-        <p>Scroll to zoom in/out</p>
-      </div>
-      <div class="gesture-hint">
-        <span class="gesture-icon"></span>
-        <p>Tap "Open Camera & AR" for AR mode</p>
-      </div>
-      <p style="margin-top: 12px; font-size: 12px; opacity: 0.7; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px;">
-        View the 3D model in detail. Click "Open Camera & AR" to place it in your environment.
-      </p>
-    </div>
     
     <!-- AR Mode Controls (shown during camera AR) -->
     <div id="ar-mode-controls" style="display: none;">
-      <!-- Back Button -->
-      <button onclick="goBack()" style="
-        position: absolute;
-        top: 20px;
-        left: 20px;
-        background: rgba(0, 0, 0, 0.8);
-        color: white;
-        border: none;
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
-        font-size: 20px;
-        cursor: pointer;
-        z-index: 30;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
-        backdrop-filter: blur(10px);
-      ">
-        Back
-      </button>
-      
-      <!-- Product Label -->
-      <div id="product-label" style="
-        position: absolute;
-        bottom: 180px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(0, 0, 0, 0.9);
-        color: white;
-        padding: 8px 20px;
-        border-radius: 20px;
-        font-size: 16px;
-        font-weight: 600;
-        z-index: 25;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
-      ">
-        ${widget.productName ?? widget.altText ?? 'Digital standee 4.5 feet'}
-      </div>
-      
-      <!-- Screenshot Button -->
-      <div style="
-        position: absolute;
-        bottom: 100px;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 30;
-      ">
-        <button onclick="captureScreenshot()" style="
-          background: rgba(0, 0, 0, 0.8);
+      <!-- Top Left Controls -->
+      <div style="position: absolute; top: 20px; left: 20px; z-index: 100; display: flex; gap: 12px;">
+        <!-- Info Button styled like the circular back arrow -->
+        <button onclick="toggleInfo()" id="info-btn" style="
+          background: rgba(0, 0, 0, 0.7);
           color: white;
-          border: none;
-          padding: 12px 24px;
-          border-radius: 25px;
-          font-size: 16px;
-          font-weight: 600;
+          border: 3px solid rgba(255, 255, 255, 0.8);
+          width: 56px;
+          height: 56px;
+          border-radius: 50%;
+          font-size: 22px;
+          font-weight: 700;
           cursor: pointer;
-          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
           display: flex;
           align-items: center;
-          gap: 8px;
+          justify-content: center;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+          backdrop-filter: blur(10px);
         ">
-          Screenshot
+          i
         </button>
       </div>
       
-      <!-- Main Control Buttons -->
+      <!-- Top Right Controls -->
+      <div style="position: absolute; top: 20px; right: 20px; z-index: 100; display: flex; flex-direction: column; gap: 12px;">
+        <!-- Close Button -->
+        <button onclick="goBack()" style="
+          background: rgba(128, 128, 128, 0.8);
+          color: white;
+          border: none;
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          font-size: 24px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+          backdrop-filter: blur(10px);
+        ">
+          ×
+        </button>
+        
+        <!-- Zoom In Button -->
+        <button onclick="zoomIn()" style="
+          background: rgba(128, 128, 128, 0.8);
+          color: white;
+          border: none;
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          font-size: 24px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+          backdrop-filter: blur(10px);
+        ">
+          +
+        </button>
+        
+        <!-- Zoom Out Button -->
+        <button onclick="zoomOut()" style="
+          background: rgba(128, 128, 128, 0.8);
+          color: white;
+          border: none;
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          font-size: 24px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+          backdrop-filter: blur(10px);
+        ">
+          −
+        </button>
+      </div>
+      
+      <!-- Center Drag Instructions -->
+      <div id="drag-instructions" style="
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 20px;
+        font-size: 16px;
+        font-weight: 500;
+        z-index: 25;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(10px);
+      ">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 20px;">←</span>
+          <span style="font-size: 20px;">👆</span>
+          <span style="font-size: 20px;">→</span>
+        </div>
+        <span>Drag to move</span>
+      </div>
+      
+      <!-- Bottom Rotation Control -->
+      <div style="
+        position: absolute;
+        bottom: 120px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.8);
+        padding: 16px 24px;
+        border-radius: 20px;
+        z-index: 30;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(10px);
+      ">
+        <span style="color: white; font-size: 14px; font-weight: 500;">Rotate</span>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="color: white; font-size: 12px;">0°</span>
+          <input type="range" id="rotation-slider" min="0" max="360" value="0" 
+                 onInput="rotateModel(this.value)"
+                 style="
+                   width: 200px;
+                   height: 6px;
+                   background: rgba(255, 255, 255, 0.3);
+                   border-radius: 3px;
+                   outline: none;
+                   -webkit-appearance: none;
+                 ">
+          <span style="color: white; font-size: 12px;">360°</span>
+        </div>
+      </div>
+      
+      <!-- Bottom Controls -->
       <div style="
         position: absolute;
         bottom: 30px;
         left: 50%;
         transform: translateX(-50%);
         display: flex;
-        gap: 15px;
+        gap: 24px;
         z-index: 30;
         align-items: center;
       ">
-        <button onclick="exitAR()" style="
-          background: linear-gradient(135deg, #DC2626 0%, #991B1B 100%);
-          color: white;
-          border: none;
-          padding: 12px 24px;
-          border-radius: 25px;
-          font-size: 16px;
-          font-weight: 600;
+        <!-- Camera Button -->
+        <button onclick="captureScreenshot()" style="
+          background: white;
+          border: 4px solid rgba(128, 128, 128, 0.8);
+          width: 64px;
+          height: 64px;
+          border-radius: 50%;
           cursor: pointer;
-          box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);
           display: flex;
           align-items: center;
-          gap: 8px;
+          justify-content: center;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+          position: relative;
         ">
-          Exit Camera AR
+          <div style="
+            width: 24px;
+            height: 24px;
+            background: rgba(128, 128, 128, 0.8);
+            border-radius: 3px;
+            position: relative;
+          ">
+            <div style="
+              position: absolute;
+              top: -4px;
+              left: 50%;
+              transform: translateX(-50%);
+              width: 8px;
+              height: 4px;
+              background: rgba(128, 128, 128, 0.8);
+              border-radius: 2px 2px 0 0;
+            "></div>
+          </div>
         </button>
         
-        <button onclick="resetModel()" style="
-          background: rgba(0, 0, 0, 0.8);
+        <!-- Reset View Button -->
+        <button onclick="resetView()" style="
+          background: rgba(128, 128, 128, 0.8);
           color: white;
           border: none;
           padding: 12px 20px;
-          border-radius: 25px;
-          font-size: 16px;
-          font-weight: 600;
+          border-radius: 20px;
+          font-size: 14px;
+          font-weight: 500;
           cursor: pointer;
-          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
           display: flex;
+          flex-direction: column;
           align-items: center;
-          gap: 8px;
+          gap: 4px;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+          backdrop-filter: blur(10px);
         ">
-          Reset
+          <span style="font-size: 18px;">↻</span>
+          <span>Reset view</span>
         </button>
+      </div>
+      
+      <!-- Info Panel (hidden by default) -->
+      <div id="info-panel" style="
+        position: absolute;
+        top: 80px;
+        left: 20px;
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        padding: 16px;
+        border-radius: 12px;
+        max-width: 280px;
+        z-index: 90;
+        display: none;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(10px);
+      ">
+        <h3 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 600;">${widget.productName ?? 'AR Product View'}</h3>
+        <div style="font-size: 14px; line-height: 1.4; opacity: 0.9;">
+          <p style="margin: 0 0 8px 0;">• Tap and drag to move the model</p>
+          <p style="margin: 0 0 8px 0;">• Use rotation slider to rotate</p>
+          <p style="margin: 0 0 8px 0;">• Zoom in/out with +/- buttons</p>
+          <p style="margin: 0;">• Capture screenshots with camera button</p>
+        </div>
       </div>
     </div>
 
-    <!-- Default Controls (shown in 3D view) -->
-    <div class="controls-panel" id="default-controls">
-      <button class="control-button" onclick="enterAR()" id="ar-button">
-        Open Camera & AR
-      </button>
-      <button class="control-button secondary" onclick="resetModel()">
-        Reset
-      </button>
-      <button class="control-button secondary" onclick="captureScreenshot()">
-        Screenshot
-      </button>
-    </div>
+    <!-- Default Controls (previous 3D loading UI) are now hidden so we
+         navigate directly into the AR camera experience. -->
+    <div class="controls-panel" id="default-controls" style="display: none;"></div>
+    
+    <style>
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      /* Rotation Slider Styling */
+      #rotation-slider {
+        -webkit-appearance: none;
+        appearance: none;
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 3px;
+        height: 6px;
+        outline: none;
+      }
+      
+      #rotation-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        background: white;
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+      }
+      
+      #rotation-slider::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        background: white;
+        border-radius: 50%;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+      }
+      
+      /* AR Control Buttons Hover Effects */
+      button:hover {
+        transform: scale(1.05);
+        transition: transform 0.2s ease;
+      }
+      
+      button:active {
+        transform: scale(0.95);
+      }
+    </style>
   </div>
 
   <script type="module">
@@ -398,10 +539,22 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
     let modelRotation = { x: 0, y: 0, z: 0 };
     let modelPosition = { x: 0, y: 0, z: 0 };
     let placedModels = [];
+    
+    // Analytics tracking variables
+    let arSessionStartTime = Date.now();
+    let screenshotCount = 0;
+    let actionCount = 0;
 
     // Start camera feed
     async function startCameraFeed() {
       try {
+        // Check if camera is available
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error('Camera API not supported');
+        }
+        
+        showNotification('Requesting camera access...');
+        
         cameraStream = await navigator.mediaDevices.getUserMedia({ 
           video: { 
             facingMode: 'environment',
@@ -411,16 +564,39 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
         });
         
         cameraFeed.srcObject = cameraStream;
-        cameraFeed.style.display = 'block';
-        modelViewer.style.display = 'none';
-        arCanvas.style.display = 'block';
         
-        console.log('Camera feed started');
-        showNotification('Camera opened! Tap on surfaces to place the 3D model');
-        return true;
+        // Wait for video to be ready
+        return new Promise((resolve) => {
+          cameraFeed.onloadedmetadata = () => {
+            cameraFeed.style.display = 'block';
+            modelViewer.style.display = 'none';
+            arCanvas.style.display = 'block';
+            
+            console.log('Camera feed started');
+            showNotification('Camera ready! Tap on surfaces to place the 3D model');
+            resolve(true);
+          };
+          
+          cameraFeed.onerror = () => {
+            console.error('Video element error');
+            showNotification('Failed to initialize camera feed');
+            resolve(false);
+          };
+        });
+        
       } catch (error) {
         console.error('Camera access denied:', error);
-        showNotification('Camera access is required for AR');
+        
+        let errorMessage = 'Camera access is required for AR';
+        if (error.name === 'NotAllowedError') {
+          errorMessage = 'Camera permission denied. Please allow camera access and refresh.';
+        } else if (error.name === 'NotFoundError') {
+          errorMessage = 'No camera found. Please ensure your device has a camera.';
+        } else if (error.name === 'NotSupportedError') {
+          errorMessage = 'Camera not supported on this device/browser.';
+        }
+        
+        showNotification(errorMessage);
         return false;
       }
     }
@@ -618,13 +794,18 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       showNotification('Placing 3D Model...');
     }
     
-    // Make model draggable
+    // Enhanced draggable functionality with analytics
     function makeModelDraggable(element, modelId) {
       let isDragging = false;
       let startX, startY, initialX, initialY;
+      let dragStartTime = 0;
+      let totalDragDistance = 0;
       
       function startDrag(e) {
         isDragging = true;
+        dragStartTime = Date.now();
+        totalDragDistance = 0;
+        
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
         startX = clientX;
@@ -632,51 +813,119 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
         const rect = element.getBoundingClientRect();
         initialX = rect.left + rect.width / 2;
         initialY = rect.top + rect.height / 2;
+        
         element.style.cursor = 'grabbing';
         element.style.touchAction = 'none';
+        element.style.transform += ' scale(1.05)'; // Slight scale up when dragging
+        element.style.transition = 'transform 0.1s ease';
+        
+        // Show drag instructions temporarily
+        const dragInstructions = document.getElementById('drag-instructions');
+        if (dragInstructions && dragInstructions.style.display === 'none') {
+          dragInstructions.style.display = 'flex';
+          dragInstructions.style.opacity = '0.7';
+          setTimeout(() => {
+            dragInstructions.style.opacity = '0';
+            setTimeout(() => {
+              dragInstructions.style.display = 'none';
+            }, 300);
+          }, 1500);
+        }
+        
         e.preventDefault();
       }
       
       function drag(e) {
         if (!isDragging) return;
+        
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
         const deltaX = clientX - startX;
         const deltaY = clientY - startY;
+        
+        // Calculate drag distance for analytics
+        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        totalDragDistance = Math.max(totalDragDistance, distance);
+        
         const newX = initialX + deltaX;
         const newY = initialY + deltaY;
-        element.style.left = newX + 'px';
-        element.style.top = newY + 'px';
+        
+        // Constrain to screen bounds
+        const maxX = window.innerWidth - element.offsetWidth / 2;
+        const maxY = window.innerHeight - element.offsetHeight / 2;
+        const minX = element.offsetWidth / 2;
+        const minY = element.offsetHeight / 2;
+        
+        const constrainedX = Math.max(minX, Math.min(maxX, newX));
+        const constrainedY = Math.max(minY, Math.min(maxY, newY));
+        
+        element.style.left = constrainedX + 'px';
+        element.style.top = constrainedY + 'px';
+        
         e.preventDefault();
       }
       
-      function endDrag() {
+      function endDrag(e) {
         if (isDragging) {
           isDragging = false;
+          const dragDuration = Date.now() - dragStartTime;
+          
           element.style.cursor = 'grab';
           element.style.touchAction = 'auto';
+          element.style.transform = element.style.transform.replace(' scale(1.05)', '');
+          
           const model = placedModels.find(m => m.id === modelId);
           if (model) {
             const rect = element.getBoundingClientRect();
             model.x = rect.left + rect.width / 2;
             model.y = rect.top + rect.height / 2;
           }
+          
+          // Track drag analytics
+          trackARAction('model_dragged', {
+            model_id: modelId,
+            drag_duration_ms: dragDuration,
+            drag_distance_px: Math.round(totalDragDistance),
+            final_position: { x: model?.x, y: model?.y }
+          });
+          
+          // Provide haptic feedback on mobile
+          if (navigator.vibrate) {
+            navigator.vibrate(50);
+          }
         }
       }
       
-      element.addEventListener('mousedown', startDrag);
-      document.addEventListener('mousemove', drag);
+      // Enhanced event listeners with better touch support
+      element.addEventListener('mousedown', startDrag, { passive: false });
+      document.addEventListener('mousemove', drag, { passive: false });
       document.addEventListener('mouseup', endDrag);
-      element.addEventListener('touchstart', startDrag);
-      document.addEventListener('touchmove', drag);
+      
+      element.addEventListener('touchstart', startDrag, { passive: false });
+      document.addEventListener('touchmove', drag, { passive: false });
       document.addEventListener('touchend', endDrag);
       
+      // Prevent context menu on long press
+      element.addEventListener('contextmenu', (e) => e.preventDefault());
+      
       element.style.cursor = 'grab';
+      element.style.userSelect = 'none';
+      element.style.webkitUserSelect = 'none';
     }
 
     // Enter AR mode with camera
     async function enterAR() {
       try {
+        // Track AR session start
+        arSessionStartTime = Date.now();
+        trackARAction('session_start', { timestamp: arSessionStartTime });
+        
+        // Update button to show attempting
+        const arButton = document.getElementById('ar-button');
+        if (arButton) {
+          arButton.innerHTML = '<span style="display: inline-block; width: 16px; height: 16px; border: 2px solid white; border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></span>Requesting Camera...';
+        }
+        
         const success = await startCameraFeed();
         if (success) {
           isARActive = true;
@@ -686,10 +935,19 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
           // Hide model-viewer, show camera feed
           modelViewer.style.display = 'none';
           
-          // Show AR controls, hide default controls
-          document.getElementById('ar-mode-controls').style.display = 'block';
-          document.getElementById('default-controls').style.display = 'none';
-          document.querySelector('.info-panel').style.display = 'none';
+          // Show AR controls, hide any fallback controls or info splash if present
+          const arModeControls = document.getElementById('ar-mode-controls');
+          if (arModeControls) {
+            arModeControls.style.display = 'block';
+          }
+          const defaultControls = document.getElementById('default-controls');
+          if (defaultControls) {
+            defaultControls.style.display = 'none';
+          }
+          const prepPanel = document.querySelector('.info-panel');
+          if (prepPanel) {
+            prepPanel.style.display = 'none';
+          }
           
           // Show models container
           const modelsContainer = document.getElementById('ar-models-container');
@@ -697,11 +955,51 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
             modelsContainer.style.display = 'block';
           }
           
+          // Hide drag instructions after 3 seconds
+          setTimeout(() => {
+            const dragInstructions = document.getElementById('drag-instructions');
+            if (dragInstructions) {
+              dragInstructions.style.opacity = '0';
+              dragInstructions.style.transition = 'opacity 0.5s ease';
+              setTimeout(() => {
+                dragInstructions.style.display = 'none';
+              }, 500);
+            }
+          }, 3000);
+          
           updateARButton();
+          
+          // Track successful AR start
+          trackARAction('camera_permission_granted', { success: true });
+        } else {
+          // Camera access failed - show fallback options
+          if (arButton) {
+            arButton.innerHTML = 'Camera Access Denied';
+            arButton.style.background = 'rgba(150, 150, 150, 0.8)';
+          }
+          
+          // Track camera permission denied
+          trackARAction('camera_permission_denied', { success: false });
+          
+          // Update info panel to show error
+          const infoPanel = document.querySelector('.info-panel');
+          if (infoPanel) {
+            infoPanel.innerHTML = '<h3 style="color: #ff6b6b;">Camera Access Required</h3><p>Please allow camera access and refresh the page to use AR features.</p><button onclick="window.location.reload()" style="margin-top: 12px; padding: 8px 16px; background: #DC2626; color: white; border: none; border-radius: 4px; cursor: pointer;">Refresh Page</button>';
+          }
         }
       } catch (error) {
         console.error('AR activation error:', error);
         showNotification('AR not available. Please use a compatible device/browser.');
+        
+        // Track error
+        trackARAction('error_occurred', { error: error.message });
+        
+        // Update button to show error
+        const arButton = document.getElementById('ar-button');
+        if (arButton) {
+          arButton.innerHTML = 'AR Not Available';
+          arButton.style.background = 'rgba(150, 150, 150, 0.8)';
+        }
       }
     }
 
@@ -713,8 +1011,29 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       }
     }
 
-    // Exit AR mode
+    // Exit AR mode with analytics
     async function exitAR() {
+      // Calculate session metrics
+      const sessionDuration = Date.now() - arSessionStartTime;
+      const modelsPlaced = placedModels.length;
+      
+      // Track session end
+      trackARAction('session_end', {
+        session_duration_ms: sessionDuration,
+        models_placed: modelsPlaced,
+        screenshots_taken: screenshotCount || 0
+      });
+      
+      // Send comprehensive session analytics
+      await sendARAnalytics('ar_session_complete', {
+        product_id: '${widget.productName ?? 'unknown'}',
+        session_duration_ms: sessionDuration,
+        models_placed: modelsPlaced,
+        screenshots_taken: screenshotCount || 0,
+        actions_performed: actionCount || 0,
+        engagement_score: calculateEngagementScore(sessionDuration, modelsPlaced, screenshotCount || 0, actionCount || 0)
+      });
+      
       stopCameraFeed();
       
       if (arSession) {
@@ -729,14 +1048,27 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       // Show model-viewer again
       modelViewer.style.display = 'block';
       
-      // Show default controls, hide AR controls
-      document.getElementById('ar-mode-controls').style.display = 'none';
-      document.getElementById('default-controls').style.display = 'flex';
-      document.querySelector('.info-panel').style.display = 'block';
+      // Show default controls, hide AR controls (if they exist).
+      const arModeControls = document.getElementById('ar-mode-controls');
+      if (arModeControls) {
+        arModeControls.style.display = 'none';
+      }
+      const defaultControls = document.getElementById('default-controls');
+      if (defaultControls) {
+        defaultControls.style.display = 'flex';
+      }
+      const prepPanel = document.querySelector('.info-panel');
+      if (prepPanel) {
+        prepPanel.style.display = 'block';
+      }
       
       isARActive = false;
       updateARButton();
-      showNotification('Switched to 3D View');
+      showNotification('AR Session Complete - Thank you!');
+      
+      // Reset counters
+      screenshotCount = 0;
+      actionCount = 0;
     }
 
     // Reset model to original position/scale
@@ -907,12 +1239,211 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       }
     }
 
+    // New AR Control Functions
+    function toggleInfo() {
+      const infoPanel = document.getElementById('info-panel');
+      const infoBtn = document.getElementById('info-btn');
+      
+      if (infoPanel.style.display === 'none' || !infoPanel.style.display) {
+        infoPanel.style.display = 'block';
+        infoBtn.style.background = 'rgba(220, 38, 38, 0.8)';
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+          infoPanel.style.display = 'none';
+          infoBtn.style.background = 'rgba(128, 128, 128, 0.8)';
+        }, 5000);
+      } else {
+        infoPanel.style.display = 'none';
+        infoBtn.style.background = 'rgba(128, 128, 128, 0.8)';
+      }
+    }
+    
+    function zoomIn() {
+      placedModels.forEach(model => {
+        if (model.element) {
+          const currentScale = model.scale || 1;
+          const newScale = Math.min(currentScale * 1.2, 3); // Max 3x zoom
+          model.scale = newScale;
+          model.element.style.transform = model.element.style.transform.replace(/scale\([^)]*\)/, '') + \` scale(\${newScale})\`;
+        }
+      });
+      showNotification('Zoomed in');
+      
+      // Track zoom action
+      trackARAction('zoom_in', { scale: placedModels[0]?.scale || 1 });
+    }
+    
+    function zoomOut() {
+      placedModels.forEach(model => {
+        if (model.element) {
+          const currentScale = model.scale || 1;
+          const newScale = Math.max(currentScale * 0.8, 0.3); // Min 0.3x zoom
+          model.scale = newScale;
+          model.element.style.transform = model.element.style.transform.replace(/scale\([^)]*\)/, '') + \` scale(\${newScale})\`;
+        }
+      });
+      showNotification('Zoomed out');
+      
+      // Track zoom action
+      trackARAction('zoom_out', { scale: placedModels[0]?.scale || 1 });
+    }
+    
+    function rotateModel(degrees) {
+      const rotation = parseFloat(degrees);
+      placedModels.forEach(model => {
+        if (model.modelViewer) {
+          model.modelViewer.setAttribute('camera-orbit', \`\${rotation}deg 75deg 2.5m\`);
+          model.rotation = rotation;
+        }
+      });
+      
+      // Update slider label
+      const slider = document.getElementById('rotation-slider');
+      if (slider) {
+        slider.setAttribute('title', \`\${Math.round(rotation)}°\`);
+      }
+      
+      // Track rotation
+      trackARAction('rotate', { rotation: rotation });
+    }
+    
+    // Reset button: clear ALL placed models from the surface
+    function resetView() {
+      // Re-use resetModel logic so we don't duplicate behaviour
+      resetModel();
+
+      // Also reset the rotation slider UI
+      const slider = document.getElementById('rotation-slider');
+      if (slider) {
+        slider.value = 0;
+        slider.setAttribute('title', '0°');
+      }
+
+      // Track reset action explicitly for analytics
+      trackARAction('reset_view', {
+        models_after_reset: placedModels.length
+      });
+    }
+    
+    // Enhanced screenshot function with backend integration
+    async function captureScreenshotEnhanced() {
+      try {
+        showNotification('Capturing AR screenshot...');
+        
+        const success = await captureScreenshot();
+        
+        if (success) {
+          screenshotCount++;
+          
+          // Track screenshot capture
+          trackARAction('screenshot_captured', {
+            models_count: placedModels.length,
+            screenshot_number: screenshotCount,
+            timestamp: new Date().toISOString()
+          });
+          
+          // Send analytics to backend
+          await sendARAnalytics('screenshot', {
+            product_id: '${widget.productName ?? 'unknown'}',
+            session_duration: Date.now() - arSessionStartTime,
+            models_placed: placedModels.length,
+            screenshot_count: screenshotCount
+          });
+          
+          showNotification(\`Screenshot \${screenshotCount} saved!\`);
+        }
+      } catch (error) {
+        console.error('Screenshot capture failed:', error);
+        showNotification('Failed to capture screenshot');
+      }
+    }
+    
+    // AR Analytics and Backend Integration
+    function trackARAction(action, data) {
+      actionCount++;
+      
+      const eventData = {
+        action: action,
+        timestamp: new Date().toISOString(),
+        session_id: arSessionStartTime,
+        product_name: '${widget.productName ?? 'unknown'}',
+        action_count: actionCount,
+        ...data
+      };
+      
+      console.log('AR Action:', eventData);
+      
+      // Send to backend analytics
+      sendARAnalytics(action, eventData).catch(err => {
+        console.warn('Failed to send AR analytics:', err);
+      });
+    }
+    
+    function calculateEngagementScore(sessionDuration, modelsPlaced, screenshotsTaken, totalActions) {
+      // Simple engagement scoring algorithm (0-100)
+      let score = 0;
+      
+      // Session duration score (max 40 points)
+      const durationMinutes = sessionDuration / (1000 * 60);
+      score += Math.min(durationMinutes * 10, 40);
+      
+      // Models placed score (max 30 points)
+      score += Math.min(modelsPlaced * 15, 30);
+      
+      // Screenshots taken score (max 20 points)
+      score += Math.min(screenshotsTaken * 10, 20);
+      
+      // Actions performed score (max 10 points)
+      score += Math.min(totalActions * 2, 10);
+      
+      return Math.round(score);
+    }
+    
+    async function sendARAnalytics(event, data) {
+      try {
+        // In production, this would send to your analytics endpoint
+        const analyticsData = {
+          event_type: 'ar_interaction',
+          event_name: event,
+          properties: data,
+          user_agent: navigator.userAgent,
+          timestamp: new Date().toISOString(),
+          url: window.location.href
+        };
+        
+        // For now, log to console (replace with actual API call)
+        console.log('Analytics Event:', analyticsData);
+        
+        // Example API call (uncomment and modify for production):
+        /*
+        await fetch('/api/analytics/ar', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(analyticsData)
+        });
+        */
+        
+        return true;
+      } catch (error) {
+        console.error('Analytics error:', error);
+        return false;
+      }
+    }
+
     // Make functions globally available
     window.enterAR = enterAR;
     window.exitAR = exitAR;
     window.resetModel = resetModel;
-    window.captureScreenshot = captureScreenshot;
+    window.captureScreenshot = captureScreenshotEnhanced;
     window.goBack = goBack;
+    window.toggleInfo = toggleInfo;
+    window.zoomIn = zoomIn;
+    window.zoomOut = zoomOut;
+    window.rotateModel = rotateModel;
+    window.resetView = resetView;
+    window.trackARAction = trackARAction;
 
     // Handle AR session events
     modelViewer.addEventListener('ar-status', (event) => {
@@ -961,7 +1492,7 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       }
     });
     
-    // Ensure model-viewer is visible on initial load
+    // Ensure model-viewer is visible on initial load and auto-enter AR
     window.addEventListener('load', () => {
       modelViewer.style.display = 'block';
       console.log('🚀 Model viewer initialized');
@@ -977,6 +1508,12 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
           }
         }
       }, 2000);
+      
+      // Auto-enter AR camera mode after a short delay
+      setTimeout(() => {
+        console.log('Auto-entering AR camera mode...');
+        enterAR();
+      }, 1500);
     });
     
     // Also check when model-viewer is ready
@@ -996,7 +1533,11 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
   @override
   Widget build(BuildContext context) {
     if (kIsWeb && _iframeKey != null) {
-      return HtmlElementView(viewType: _iframeKey!);
+      return SizedBox(
+        width: double.infinity,
+        height: double.infinity,
+        child: HtmlElementView(viewType: _iframeKey!),
+      );
     } else {
       return Container(
         color: Colors.grey[900],

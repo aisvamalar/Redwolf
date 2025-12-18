@@ -4,6 +4,7 @@ import '../widgets/hero_section.dart';
 import '../widgets/search_filter_bar.dart';
 import '../widgets/product_grid.dart';
 import '../widgets/footer_widget.dart';
+import '../../services/device_detection_service.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -91,14 +92,14 @@ class _HomeViewState extends State<HomeView> {
                 ),
                 // Products Title
                 Padding(
-                  padding: const EdgeInsets.only(top: 64),
+                  padding: EdgeInsets.only(top: DeviceDetectionService.isMobile(context) ? 48 : 64),
                   child: Center(
                     child: Text(
                       'Explore Our Products',
                       key: _productsKey,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.black,
-                        fontSize: 26,
+                        fontSize: DeviceDetectionService.isMobile(context) ? 22 : 26,
                         fontFamily: 'Inter',
                         fontWeight: FontWeight.w600,
                         height: 1.23,
