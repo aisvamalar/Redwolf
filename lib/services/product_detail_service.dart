@@ -1,6 +1,9 @@
 import '../models/product.dart';
 // import '../config/supabase_config.dart'; // Uncomment when Supabase client is configured
-import 'dart:html' as html;
+import 'package:flutter/foundation.dart';
+import 'product_detail_service_web_stub.dart'
+    if (dart.library.html) 'product_detail_service_web.dart'
+    as web_utils;
 
 /// Production-level service for fetching product details
 class ProductDetailService {
@@ -43,7 +46,8 @@ class ProductDetailService {
     final fallbackProducts = _getFallbackProducts();
     final existingProduct = fallbackProducts.firstWhere(
       (p) => p.id == productId,
-      orElse: () => fallbackProducts.first, // Fallback to first product if not found
+      orElse: () =>
+          fallbackProducts.first, // Fallback to first product if not found
     );
 
     // Return the existing product with all its correct data (including modelUrl)
@@ -57,14 +61,14 @@ class ProductDetailService {
         id: 'standee_1',
         name: 'Easel Standee',
         imageUrl:
-            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot%202025-12-16%20193255.png',
+            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/image-removebg-preview%20(4).png',
         modelUrl:
             'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/models3d/32_EASEL%20STANDEE.glb',
         category: 'Standees',
         description:
             'Elegant easel standee design perfect for retail displays and exhibitions.',
         images: [
-          'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot%202025-12-16%20193255.png',
+          'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/image-removebg-preview%20(4).png',
         ],
         keyFeatures: [
           '2 Years Warranty',
@@ -93,14 +97,14 @@ class ProductDetailService {
         id: 'standee_2',
         name: 'Totem Standee',
         imageUrl:
-            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot%202025-12-16%20193437.png',
+            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot_2025-12-18_093321-removebg-preview.png',
         modelUrl:
             'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/models3d/32_TOTEM%20STANDEE.glb',
         category: 'Standees',
         description:
             'Premium totem standee for high-traffic environments and brand visibility.',
         images: [
-          'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot%202025-12-16%20193437.png',
+          'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot_2025-12-18_093321-removebg-preview.png',
         ],
         keyFeatures: [
           '2 Years Warranty',
@@ -129,14 +133,14 @@ class ProductDetailService {
         id: 'standee_3',
         name: 'Wall Mount',
         imageUrl:
-            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot%202025-12-16%20193658.png',
+            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot_2025-12-18_093329-removebg-preview.png',
         modelUrl:
             'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/models3d/32_WALL%20MOUNT.glb',
         category: 'Standees',
         description:
             'Space-efficient wall mount design ideal for modern retail spaces.',
         images: [
-          'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot%202025-12-16%20193658.png',
+          'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot_2025-12-18_093329-removebg-preview.png',
         ],
         keyFeatures: [
           '2 Years Warranty',
@@ -165,14 +169,14 @@ class ProductDetailService {
         id: 'standee_4',
         name: 'Wall Mount with Stand',
         imageUrl:
-            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot%202025-12-16%20193719.png',
+            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot_2025-12-18_093338-removebg-preview.png',
         modelUrl:
             'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/models3d/32_WALL%20MOUNT%20WITH%20STAND.glb',
         category: 'Standees',
         description:
             'Versatile wall mount with stand for flexible placement options.',
         images: [
-          'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot%202025-12-16%20193719.png',
+          'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot_2025-12-18_093338-removebg-preview.png',
         ],
         keyFeatures: [
           '2 Years Warranty',
@@ -201,14 +205,14 @@ class ProductDetailService {
         id: 'standee_5',
         name: 'Easel Standee 43',
         imageUrl:
-            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot%202025-12-16%20193744.png',
+            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot_2025-12-18_093348-removebg-preview.png',
         modelUrl:
             'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/models3d/43_EASEL%20STANDEE.glb',
         category: 'Standees',
         description:
             'Enhanced easel standee design with improved stability and display quality.',
         images: [
-          'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot%202025-12-16%20193744.png',
+          'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot_2025-12-18_093348-removebg-preview.png',
         ],
         keyFeatures: [
           '2 Years Warranty',
@@ -284,10 +288,10 @@ class ProductDetailService {
 
       // Fallback: Log to console (in production, you might want to send to analytics)
       print('Enquiry submitted: ${enquiryData.toString()}');
-      
+
       // Optionally send to analytics service
       _logToAnalytics('enquiry_submitted', enquiryData);
-      
+
       return true;
     } catch (e) {
       print('Error submitting enquiry: $e');
@@ -297,12 +301,14 @@ class ProductDetailService {
 
   /// Track product view for analytics
   static Future<void> trackProductView(String productId) async {
+    if (!kIsWeb) return; // Only track on web
+
     try {
       final viewData = {
         'product_id': productId,
         'viewed_at': DateTime.now().toIso8601String(),
-        'user_agent': html.window.navigator.userAgent,
-        'url': html.window.location.href,
+        'user_agent': web_utils.WebUtils.getUserAgent(),
+        'url': web_utils.WebUtils.getCurrentUrl(),
       };
 
       // Try to save to Supabase if configured
@@ -331,9 +337,8 @@ class ProductDetailService {
     // In production, integrate with your analytics service
     // Example: Google Analytics, Mixpanel, Amplitude, etc.
     print('Analytics Event: $eventName - $data');
-    
+
     // Example Google Analytics integration:
     // html.window.gtag?.call('event', eventName, data);
   }
 }
-

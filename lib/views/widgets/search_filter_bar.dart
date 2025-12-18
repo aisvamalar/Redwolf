@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../controllers/product_controller.dart';
-import '../../models/category.dart';
 
 class SearchFilterBar extends StatelessWidget {
   const SearchFilterBar({super.key});
@@ -13,23 +12,21 @@ class SearchFilterBar extends StatelessWidget {
 
     return isWeb
         ? Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: MainAxisSize.max,
             mainAxisAlignment: MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.center,
-            spacing: 25,
+            spacing: 16,
             children: [
-              Container(
-                width: 430,
-                child: _buildSearchField(context, controller),
-              ),
-              Container(
-                width: 240,
+              // Search takes remaining space
+              Expanded(flex: 3, child: _buildSearchField(context, controller)),
+              // Category and sort share space
+              Expanded(
+                flex: 2,
                 child: _buildCategoryDropdown(context, controller),
               ),
-              Container(
-                width: 240,
-                child: _buildSortDropdown(context, controller),
-              ),
+              Expanded(flex: 2, child: _buildSortDropdown(context, controller)),
+              // Compact layout toggle button
+              _buildLayoutToggleButton(controller),
             ],
           )
         : Container(
@@ -45,6 +42,8 @@ class SearchFilterBar extends StatelessWidget {
                     ),
                     const SizedBox(width: 12),
                     Expanded(child: _buildSortDropdown(context, controller)),
+                    const SizedBox(width: 12),
+                    _buildLayoutToggleButton(controller),
                   ],
                 ),
               ],
@@ -106,7 +105,16 @@ class SearchFilterBar extends StatelessWidget {
     BuildContext context,
     ProductController controller,
   ) {
-    final categories = Category.getDefaultCategories();
+    // Build options from actual products so the list shows
+    // "Easel Standee", "Totem Standee", etc. instead of generic categories.
+    final products = controller.products;
+    final textStyleValue = const TextStyle(
+      color: Color(0xFF2C2C34),
+      fontSize: 14,
+      fontFamily: 'Inter',
+      fontWeight: FontWeight.w400,
+      height: 1.43,
+    );
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -133,37 +141,34 @@ class SearchFilterBar extends StatelessWidget {
               child: DropdownButton<String>(
                 value: controller.selectedCategory,
                 isExpanded: true,
-                items: categories.map((category) {
-                  return DropdownMenuItem<String>(
-                    value: category.id,
-                    child: Text.rich(
-                      TextSpan(
-                        children: [
-                          const TextSpan(
-                            text: 'category: ',
-                            style: TextStyle(
-                              color: Color(0xFF8C8D96),
-                              fontSize: 14,
-                              fontFamily: 'Inter',
-                              fontWeight: FontWeight.w400,
-                              height: 1.43,
-                            ),
-                          ),
-                          TextSpan(
-                            text: category.id == 'all' ? 'All' : category.name,
-                            style: const TextStyle(
-                              color: Color(0xFF2C2C34),
-                              fontSize: 14,
-                              fontFamily: 'Inter',
-                              fontWeight: FontWeight.w400,
-                              height: 1.43,
-                            ),
-                          ),
-                        ],
-                      ),
+                items: [
+                  DropdownMenuItem<String>(
+                    value: 'all',
+                    child: Text('All', style: textStyleValue),
+                  ),
+                  ...products.map(
+                    (product) => DropdownMenuItem<String>(
+                      value: product.id,
+                      child: Text(product.name, style: textStyleValue),
                     ),
-                  );
-                }).toList(),
+                  ),
+                ],
+                selectedItemBuilder: (context) {
+                  final items = <String>['all', ...products.map((p) => p.id)];
+                  return items.map((id) {
+                    final name = id == 'all'
+                        ? 'All'
+                        : products.firstWhere((p) => p.id == id).name;
+                    return Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        name,
+                        style: textStyleValue,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }).toList();
+                },
                 onChanged: (value) {
                   if (value != null) {
                     controller.setCategory(value);
@@ -326,6 +331,38 @@ class SearchFilterBar extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Small pill button that toggles between list (single column)
+  /// and grid (two-column) layouts.
+  Widget _buildLayoutToggleButton(ProductController controller) {
+    final isGrid = controller.layout == ProductLayout.grid2;
+
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: ShapeDecoration(
+        color: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shadows: const [
+          BoxShadow(
+            color: Color(0x0F000000),
+            blurRadius: 40,
+            offset: Offset(0, 0),
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: controller.toggleLayout,
+        child: Icon(
+          isGrid ? Icons.view_agenda_rounded : Icons.grid_view_rounded,
+          size: 20,
+          color: const Color(0xFF2C2C34),
+        ),
       ),
     );
   }

@@ -2,9 +2,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../models/product.dart';
 import '../widgets/simple_ar_viewer.dart';
+import '../../services/device_detection_service.dart';
+import '../../services/ar_analytics_service.dart';
+import 'ar_view_for_3d_objects.dart';
 
-/// Full-screen AR view screen that shows SimpleARViewer
-class ARViewScreen extends StatelessWidget {
+/// Full-screen AR view screen that shows native AR on mobile and web AR on web
+class ARViewScreen extends StatefulWidget {
   final Product product;
   final String modelUrl;
 
@@ -12,41 +15,107 @@ class ARViewScreen extends StatelessWidget {
     : super(key: key);
 
   @override
+  State<ARViewScreen> createState() => _ARViewScreenState();
+}
+
+class _ARViewScreenState extends State<ARViewScreen> {
+  DateTime? _sessionStartTime;
+
+  @override
+  void initState() {
+    super.initState();
+    _sessionStartTime = DateTime.now();
+    _trackARSessionStart();
+  }
+
+  @override
+  void dispose() {
+    _trackARSessionEnd();
+    super.dispose();
+  }
+
+  Future<void> _trackARSessionStart() async {
+    await ARAnalyticsService.trackARInteraction(
+      eventType: AREventTypes.sessionStart,
+      productId: widget.product.id,
+      eventData: {
+        'product_name': widget.product.name,
+        'model_url': widget.modelUrl,
+        'platform': kIsWeb ? 'web' : 'mobile',
+      },
+    );
+  }
+
+  Future<void> _trackARSessionEnd() async {
+    if (_sessionStartTime != null) {
+      final duration = DateTime.now().difference(_sessionStartTime!);
+      await ARAnalyticsService.trackARInteraction(
+        eventType: AREventTypes.sessionEnd,
+        productId: widget.product.id,
+        eventData: {
+          'session_duration_ms': duration.inMilliseconds,
+          'product_name': widget.product.name,
+        },
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // Use native AR for mobile/tablet (iOS/Android)
+    if (!kIsWeb) {
+      return ArViewFor3dObjects(
+        name: widget.product.name,
+        model3dUrl: widget.modelUrl,
+      );
+    }
+
+    // Web platform - use web-based AR viewer
+    // Check if device is desktop - if so, show message and go back
+    if (DeviceDetectionService.isDesktop(context)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'AR is only available on mobile and tablet devices. Please open this website on your mobile or tablet to experience AR.',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Color(0xFFED1F24),
+            duration: Duration(seconds: 5),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      });
+
+      // Show loading/error message while navigating back
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: const Center(
+          child: CircularProgressIndicator(color: Color(0xFFED1F24)),
+        ),
+      );
+    }
+
+    // Web mobile/tablet - use web AR viewer
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          // AR Viewer takes full screen
-          SimpleARViewer(
-            modelUrl: modelUrl,
-            altText: product.name,
-            productName: product.name,
-            onBackPressed: () => Navigator.of(context).pop(),
-            autoStartAR: true,
-          ),
-          // Back button overlay
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: IconButton(
-                icon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.arrow_back,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                ),
-                onPressed: () => Navigator.of(context).pop(),
+      body: SizedBox(
+        width: double.infinity,
+        height: double.infinity,
+        child: Stack(
+          children: [
+            // AR Viewer takes full screen
+            Positioned.fill(
+              child: SimpleARViewer(
+                modelUrl: widget.modelUrl,
+                altText: widget.product.name,
+                productName: widget.product.name,
+                onBackPressed: () => Navigator.of(context).pop(),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

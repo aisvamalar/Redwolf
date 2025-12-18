@@ -7,6 +7,35 @@ class ProductCard extends StatelessWidget {
 
   const ProductCard({super.key, required this.product});
 
+  // Derive a standee name from the model URL (e.g. "32_EASEL STANDEE.glb")
+  // If parsing fails, fall back to the product name.
+  String _getStandeeDisplayName() {
+    final url = product.modelUrl;
+    if (url == null || url.isEmpty) {
+      return product.name;
+    }
+
+    try {
+      // Try to get the last segment of the URL path
+      final uri = Uri.parse(url);
+      String fileName = uri.pathSegments.isNotEmpty
+          ? uri.pathSegments.last
+          : url.split('/').last;
+
+      // Remove extension
+      if (fileName.toLowerCase().endsWith('.glb')) {
+        fileName = fileName.substring(0, fileName.length - 4);
+      }
+
+      // Decode URL-encoded characters (e.g. %20 -> space)
+      fileName = Uri.decodeComponent(fileName);
+
+      return fileName;
+    } catch (_) {
+      return product.name;
+    }
+  }
+
   Widget _buildProductImage() {
     // Show network image from Supabase
     return Stack(
@@ -41,44 +70,34 @@ class ProductCard extends StatelessWidget {
             );
           },
         ),
-        // 3D Model indicator badge if model exists
-        if (product.modelUrl != null && product.modelUrl!.isNotEmpty)
-          Positioned(
-            top: 8,
-            right: 8,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.7),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.view_in_ar,
-                    size: 14,
-                    color: Colors.white,
-                  ),
-                  SizedBox(width: 4),
-                  Text(
-                    '3D',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
+        // 3D Model indicator badge (always shown on the card)
+        Positioned(
+          top: 8,
+          right: 8,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.7),
+              borderRadius: BorderRadius.circular(4),
             ),
+            child: const Icon(Icons.view_in_ar, size: 16, color: Colors.white),
           ),
+        ),
       ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final String baseCategory = product.category.isNotEmpty
+        ? product.category
+        : 'Portable';
+
+    // Use derived standee name (from model URL) when available
+    final String standeeName = _getStandeeDisplayName();
+    // Show category combined with standee name on home screen
+    final String categoryLabel = '$baseCategory • $standeeName';
+
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -102,32 +121,32 @@ class ProductCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               AspectRatio(
-                aspectRatio:
-                    1.2, // Slightly wider aspect ratio for better proportions
+                // Higher aspect ratio = shorter image height
+                aspectRatio: 1.9,
                 child: _buildProductImage(),
               ),
               Padding(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Portable label
                     Text(
-                      product.category.isNotEmpty
-                          ? product.category
-                          : 'Portable',
+                      categoryLabel,
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 11,
                         color: Colors.grey[600],
                         fontWeight: FontWeight.w500,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     // Product name
                     Text(
                       product.name,
                       style: const TextStyle(
-                        fontSize: 14,
+                        fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: Colors.black,
                       ),
@@ -138,7 +157,7 @@ class ProductCard extends StatelessWidget {
                     // Description
                     Text(
                       product.description,
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -149,7 +168,7 @@ class ProductCard extends StatelessWidget {
                         Text(
                           'view details',
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 13,
                             color: const Color(0xFFDC2626),
                             fontWeight: FontWeight.w500,
                           ),

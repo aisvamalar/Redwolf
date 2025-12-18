@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'dart:html' as html;
+import 'footer_widget_stub.dart'
+    if (dart.library.html) 'footer_widget_web.dart' as web_utils;
 
 class FooterWidget extends StatelessWidget {
   const FooterWidget({super.key});
 
   void _openRuditechWebsite() {
     if (kIsWeb) {
-      html.window.open('https://ruditech.com/', '_blank');
+      web_utils.openRuditechWebsite();
     }
   }
 

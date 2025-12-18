@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../controllers/product_controller.dart';
+import '../../services/device_detection_service.dart';
 import 'product_card.dart';
 
 class ProductGrid extends StatelessWidget {
@@ -62,67 +63,28 @@ class ProductGrid extends StatelessWidget {
     }
 
     final isWeb = MediaQuery.of(context).size.width > 800;
+    final isTablet = DeviceDetectionService.isTablet(context);
 
-    if (isWeb) {
-      // Desktop layout - match Figma exactly (2 rows x 3 columns)
-      return Container(
-        width: 960,
-        child: Column(
-          children: [
-            // First row of products (3 columns)
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              spacing: 24,
-              children: [
-                if (products.isNotEmpty)
-                  Expanded(child: ProductCard(product: products[0])),
-                if (products.length > 1)
-                  Expanded(child: ProductCard(product: products[1])),
-                if (products.length > 2)
-                  Expanded(child: ProductCard(product: products[2])),
-              ],
-            ),
-            const SizedBox(height: 24),
-            // Second row of products (3 columns)
-            if (products.length > 3)
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                spacing: 24,
-                children: [
-                  if (products.length > 3)
-                    Expanded(child: ProductCard(product: products[3])),
-                  if (products.length > 4)
-                    Expanded(child: ProductCard(product: products[4])),
-                  // Add empty space for the third column if only 2 products in second row
-                  if (products.length == 5) const Expanded(child: SizedBox()),
-                ],
-              ),
-          ],
-        ),
-      );
-    } else {
-      // Mobile layout - responsive grid
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-        child: GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-            childAspectRatio: 0.75,
-          ),
-          itemCount: products.length,
-          itemBuilder: (context, index) {
-            return ProductCard(product: products[index]);
-          },
-        ),
-      );
-    }
+    // For now, home screen should only show a single featured product card.
+    // When an admin panel is added, this can be driven by backend config.
+    final featuredProduct = products.firstWhere(
+      (p) => p.modelUrl != null && p.modelUrl!.isNotEmpty,
+      orElse: () => products.first,
+    );
+
+    final horizontalPadding = isWeb
+        ? 0.0
+        : (isTablet ? 24.0 : 16.0); // match page paddings on smaller screens
+    final maxCardWidth = isWeb ? 320.0 : 300.0;
+
+    return Container(
+      width: isWeb ? 960 : double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+      alignment: Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxCardWidth),
+        child: ProductCard(product: featuredProduct),
+      ),
+    );
   }
 }

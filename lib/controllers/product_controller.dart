@@ -4,12 +4,16 @@ import '../services/supabase_service.dart';
 
 enum SortOption { defaultSort, nameAsc, nameDesc }
 
+/// Layout options for the product grid
+enum ProductLayout { singleColumn, grid2 }
+
 class ProductController extends ChangeNotifier {
   List<Product> _allProducts = [];
   List<Product> _filteredProducts = [];
   String _searchQuery = '';
   String _selectedCategory = 'all';
   SortOption _sortOption = SortOption.defaultSort;
+  ProductLayout _layout = ProductLayout.grid2;
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -19,6 +23,7 @@ class ProductController extends ChangeNotifier {
   SortOption get sortOption => _sortOption;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+  ProductLayout get layout => _layout;
 
   ProductController() {
     _initializeProducts();
@@ -57,14 +62,14 @@ class ProductController extends ChangeNotifier {
         id: 'standee_1',
         name: 'Easel Standee',
         imageUrl:
-            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot%202025-12-16%20193255.png',
+            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/image-removebg-preview%20(4).png',
         modelUrl:
             'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/models3d/32_EASEL%20STANDEE.glb',
         category: 'Standees',
         description:
             'Elegant easel standee design perfect for retail displays and exhibitions.',
         images: [
-          'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot%202025-12-16%20193255.png',
+          'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/image-removebg-preview%20(4).png',
         ],
         keyFeatures: [
           '2 Years Warranty',
@@ -93,14 +98,14 @@ class ProductController extends ChangeNotifier {
         id: 'standee_2',
         name: 'Totem Standee',
         imageUrl:
-            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot%202025-12-16%20193437.png',
+            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot_2025-12-18_093321-removebg-preview.png',
         modelUrl:
             'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/models3d/32_TOTEM%20STANDEE.glb',
         category: 'Standees',
         description:
             'Premium totem standee for high-traffic environments and brand visibility.',
         images: [
-          'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot%202025-12-16%20193437.png',
+          'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot_2025-12-18_093321-removebg-preview.png',
         ],
         keyFeatures: [
           '2 Years Warranty',
@@ -129,14 +134,14 @@ class ProductController extends ChangeNotifier {
         id: 'standee_3',
         name: 'Wall Mount',
         imageUrl:
-            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot%202025-12-16%20193658.png',
+            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot_2025-12-18_093329-removebg-preview.png',
         modelUrl:
             'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/models3d/32_WALL%20MOUNT.glb',
         category: 'Standees',
         description:
             'Space-efficient wall mount design ideal for modern retail spaces.',
         images: [
-          'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot%202025-12-16%20193658.png',
+          'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot_2025-12-18_093329-removebg-preview.png',
         ],
         keyFeatures: [
           '2 Years Warranty',
@@ -165,14 +170,14 @@ class ProductController extends ChangeNotifier {
         id: 'standee_4',
         name: 'Wall Mount with Stand',
         imageUrl:
-            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot%202025-12-16%20193719.png',
+            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot_2025-12-18_093338-removebg-preview.png',
         modelUrl:
             'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/models3d/32_WALL%20MOUNT%20WITH%20STAND.glb',
         category: 'Standees',
         description:
             'Versatile wall mount with stand for flexible placement options.',
         images: [
-          'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot%202025-12-16%20193719.png',
+          'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot_2025-12-18_093338-removebg-preview.png',
         ],
         keyFeatures: [
           '2 Years Warranty',
@@ -201,14 +206,14 @@ class ProductController extends ChangeNotifier {
         id: 'standee_5',
         name: 'Easel Standee 43',
         imageUrl:
-            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot%202025-12-16%20193744.png',
+            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot_2025-12-18_093348-removebg-preview.png',
         modelUrl:
             'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/models3d/43_EASEL%20STANDEE.glb',
         category: 'Standees',
         description:
             'Enhanced easel standee design with improved stability and display quality.',
         images: [
-          'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot%202025-12-16%20193744.png',
+          'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot_2025-12-18_093348-removebg-preview.png',
         ],
         keyFeatures: [
           '2 Years Warranty',
@@ -240,6 +245,21 @@ class ProductController extends ChangeNotifier {
     await _initializeProducts();
   }
 
+  /// Toggle between single-column list and 2-column grid layouts.
+  void toggleLayout() {
+    _layout = _layout == ProductLayout.grid2
+        ? ProductLayout.singleColumn
+        : ProductLayout.grid2;
+    notifyListeners();
+  }
+
+  /// Explicitly set layout (in case you want direct control later).
+  void setLayout(ProductLayout layout) {
+    if (_layout == layout) return;
+    _layout = layout;
+    notifyListeners();
+  }
+
   void setSearchQuery(String query) {
     _searchQuery = query;
     _applyFilters();
@@ -261,10 +281,13 @@ class ProductController extends ChangeNotifier {
   void _applyFilters() {
     _filteredProducts = List.from(_allProducts);
 
-    // Apply category filter
+    // Apply filter based on the selected "category" value.
+    // We now use this field as a product selector:
+    // - 'all'  -> show all products
+    // - other -> filter by product.id (e.g. specific standee like Easel, Totem, etc.)
     if (_selectedCategory != 'all') {
       _filteredProducts = _filteredProducts
-          .where((product) => product.category == _selectedCategory)
+          .where((product) => product.id == _selectedCategory)
           .toList();
     }
 
