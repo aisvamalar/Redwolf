@@ -77,14 +77,14 @@ class ProductGrid extends StatelessWidget {
         : (isTablet ? 24.0 : 16.0); // match page paddings on smaller screens
     final maxCardWidth = isWeb ? 320.0 : 300.0;
 
-    return Container(
+      return Container(
       width: isWeb ? 960 : double.infinity,
       padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
       alignment: Alignment.centerLeft,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxCardWidth),
         child: ProductCard(product: featuredProduct),
-      ),
-    );
+        ),
+      );
   }
 }
