@@ -412,15 +412,26 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
 </head>
 <body>
   <div id="ar-container" class="">
+    <!-- Camera feed for fallback AR -->
+    <video id="camera-feed" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover; display: none; position: absolute; top: 0; left: 0; z-index: 1;"></video>
+    
+    <!-- Canvas for AR overlay -->
+    <canvas id="ar-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; z-index: 2; pointer-events: auto;"></canvas>
+    
+    <!-- Container for placed 3D models -->
+    <div id="ar-models-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; display: none;"></div>
+    
     <model-viewer
       id="ar-model"
       src="${widget.modelUrl}"
       alt="${widget.altText ?? widget.productName ?? '3D Model'}"
       ar
       ar-modes="webxr scene-viewer quick-look"
+      quick-look-browsers="safari"
       ar-scale="0.5"
       ar-placement="floor"
       scale="0.5 0.5 0.5"
+      ar-tap-to-place
       camera-controls
       interaction-policy="allow-when-focused"
       shadow-intensity="1.5"
@@ -428,9 +439,9 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       environment-image="neutral"
       reveal="auto"
       loading="auto"
-      style="--ar-button-display: none;"
+      style="--ar-button-display: none; position: relative; z-index: 0;"
     >
-      <div slot="poster" style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);">
+      <div slot="poster" id="model-poster" style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);">
         <div style="text-align: center; color: white; padding: 20px;">
           <div style="font-size: 64px; margin-bottom: 20px;">📱</div>
           <div style="font-size: 24px; font-weight: 600; margin-bottom: 12px;">${widget.productName ?? '3D Model'}</div>
@@ -441,8 +452,8 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
     
     <!-- Top Left Controls -->
     <div class="top-controls">
-      <button class="control-btn info-btn" id="info-btn" onclick="toggleInfo()" title="Info">i</button>
-      <button class="control-btn" id="close-btn" onclick="goBack()" title="Close">×</button>
+      <button class="control-btn info-btn" id="info-btn" title="Info">i</button>
+      <button class="control-btn" id="close-btn" title="Close">×</button>
     </div>
     
     <!-- Right Side Scale Control -->
@@ -457,8 +468,7 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
              max="2" 
              step="0.1" 
              value="0.5"
-             orient="vertical"
-             oninput="updateScale(this.value)">
+             orient="vertical">
       <div class="scale-labels">
         <span>-</span>
       </div>
@@ -483,18 +493,17 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
                  class="rotate-slider" 
                  min="0" 
                  max="360" 
-                 value="0"
-                 oninput="updateRotation(this.value)">
+                 value="0">
           <span class="rotate-value">360°</span>
         </div>
       </div>
       
       <!-- Action Buttons -->
       <div class="action-buttons">
-        <button class="camera-btn" id="camera-btn" onclick="captureScreenshot()" title="Take Screenshot">
+        <button class="camera-btn" id="camera-btn" title="Take Screenshot">
           <div class="camera-icon"></div>
         </button>
-        <button class="reset-btn" id="reset-btn" onclick="resetView()" title="Reset View">
+        <button class="reset-btn" id="reset-btn" title="Reset View">
           <span class="reset-icon">↻</span>
           <span>Reset view</span>
         </button>
@@ -517,52 +526,193 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
     const dragHint = document.getElementById('drag-hint');
     const scaleSlider = document.getElementById('scale-slider');
     const rotateSlider = document.getElementById('rotate-slider');
-    const rotateValue = rotateSlider.previousElementSibling;
+    const rotateValue = rotateSlider ? rotateSlider.previousElementSibling : null;
+    const cameraFeed = document.getElementById('camera-feed');
+    const arCanvas = document.getElementById('ar-canvas');
+    const modelsContainer = document.getElementById('ar-models-container');
+    const infoBtn = document.getElementById('info-btn');
+    const closeBtn = document.getElementById('close-btn');
+    const cameraBtn = document.getElementById('camera-btn');
+    const resetBtn = document.getElementById('reset-btn');
     
     let isARActive = false;
-    let currentScale = 0.5;
+    let currentScale = 0.5; // Start at 50% size to prevent model being too big
     let currentRotation = 0;
-    let isDragging = false;
-    let dragStartX = 0;
-    let dragStartY = 0;
-    let modelX = 0;
-    let modelY = 0;
+    let arSession = null;
+    let cameraStream = null;
+    let useCameraFallback = false;
+    let placedModels = [];
+    
+    // Wait for model-viewer to be ready
+    if (modelViewer) {
+      modelViewer.addEventListener('load', () => {
+        console.log('Model loaded, AR ready');
+      });
+      
+      // Check AR availability on load
+      modelViewer.addEventListener('ar-status', (event) => {
+        console.log('AR status event:', event.detail.status);
+      });
+    }
+    
+    // Note: Event listeners for buttons and sliders are attached at the end of the script
 
-    // Enter AR mode
+    // Enter AR mode - Direct navigation to AR view
     async function enterAR() {
       try {
-        if (!modelViewer.activateAR) {
-          showError('AR is not supported on this device/browser.');
-          return;
+        // Hide preview/poster immediately
+        const poster = modelViewer.querySelector('[slot="poster"]');
+        if (poster) {
+          poster.style.display = 'none';
         }
-
-        arButton.disabled = true;
-        arButton.innerHTML = '<span style="display: inline-block; width: 16px; height: 16px; border: 2px solid white; border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></span><span>Opening AR...</span>';
-
-        // Activate AR
-        await modelViewer.activateAR();
         
-        isARActive = true;
-        container.classList.add('ar-active');
+        // Hide button immediately
         arButton.style.display = 'none';
         
-        // Show controls
-        scaleControl.style.display = 'flex';
-        bottomControls.style.display = 'flex';
+        // Show loading state
+        const loadingDiv = document.createElement('div');
+        loadingDiv.id = 'ar-loading';
+        loadingDiv.style.cssText = \`
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.9);
+          z-index: 10000;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          color: white;
+        \`;
+        loadingDiv.innerHTML = \`
+          <div style="width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
+          <div style="font-size: 16px;">Opening AR view...</div>
+        \`;
+        document.body.appendChild(loadingDiv);
         
-        // Set initial scale to prevent model being too big
+        // Set initial scale BEFORE activating AR to prevent model being too big
         updateScale(0.5);
         
-        // Hide drag hint after 3 seconds
-        setTimeout(() => {
-          if (dragHint) dragHint.style.display = 'none';
-        }, 3000);
+        // Ensure model is placed on floor, not above camera
+        if (modelViewer) {
+          modelViewer.setAttribute('ar-placement', 'floor');
+          modelViewer.setAttribute('ar-scale', '0.5');
+          modelViewer.setAttribute('scale', '0.5 0.5 0.5');
+        }
+        
+        // Try WebXR/Scene Viewer first
+        let arActivated = false;
+        
+        if (modelViewer.activateAR) {
+          try {
+            console.log('Attempting to activate AR via model-viewer...');
+            await modelViewer.activateAR();
+            console.log('activateAR() completed');
+            arActivated = true;
+            
+            // Wait a moment for AR session to initialize
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Check if AR session actually started
+            if (modelViewer.arSession) {
+              console.log('WebXR/Scene Viewer AR activated successfully');
+              arSession = modelViewer.arSession;
+            }
+          } catch (arError) {
+            console.warn('model-viewer activateAR failed:', arError);
+            // Will fall back to camera feed
+          }
+        }
+        
+        // Fallback to camera feed AR if WebXR/Scene Viewer didn't work
+        if (!arActivated || !modelViewer.arSession) {
+          console.log('Falling back to camera feed AR...');
+          useCameraFallback = true;
+          
+          // Start camera feed
+          try {
+            cameraStream = await navigator.mediaDevices.getUserMedia({ 
+              video: { 
+                facingMode: 'environment',
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+              } 
+            });
+            
+            cameraFeed.srcObject = cameraStream;
+            
+            // Wait for video to be ready
+            await new Promise((resolve) => {
+              cameraFeed.onloadedmetadata = () => {
+                cameraFeed.style.display = 'block';
+                modelViewer.style.display = 'none';
+                arCanvas.style.display = 'block';
+                modelsContainer.style.display = 'block';
+                
+                // Setup canvas
+                setupARCanvas();
+                setupTapToPlace();
+                
+                console.log('Camera feed AR started');
+                resolve();
+              };
+            });
+            
+            arActivated = true;
+          } catch (cameraError) {
+            console.error('Camera feed failed:', cameraError);
+            throw new Error('Camera access is required for AR. Please allow camera permission.');
+          }
+        }
+        
+        // Remove loading
+        if (loadingDiv.parentNode) {
+          loadingDiv.parentNode.removeChild(loadingDiv);
+        }
+        
+        if (arActivated) {
+          isARActive = true;
+          container.classList.add('ar-active');
+          
+          // Show controls immediately
+          scaleControl.style.display = 'flex';
+          bottomControls.style.display = 'flex';
+          
+          // Setup drag after AR starts
+          setupDrag();
+          
+          // Hide drag hint after 3 seconds
+          setTimeout(() => {
+            if (dragHint) dragHint.style.display = 'none';
+          }, 3000);
+          
+          showNotification('AR view active! Tap surfaces to place model.');
+        } else {
+          throw new Error('Failed to activate AR');
+        }
         
       } catch (error) {
         console.error('AR activation error:', error);
-        showError('Failed to open AR. Please try again.');
+        
+        // Remove loading if still present
+        const loadingDiv = document.getElementById('ar-loading');
+        if (loadingDiv && loadingDiv.parentNode) {
+          loadingDiv.parentNode.removeChild(loadingDiv);
+        }
+        
+        // Show error and restore button
+        showError('Failed to open AR. ' + (error.message || 'Please try again or use a compatible device.'));
+        arButton.style.display = 'flex';
         arButton.disabled = false;
         arButton.innerHTML = '<span>📱</span><span>View in AR</span>';
+        
+        // Restore poster
+        const poster = modelViewer.querySelector('[slot="poster"]');
+        if (poster) {
+          poster.style.display = 'flex';
+        }
       }
     }
 
@@ -570,26 +720,70 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
     function updateScale(value) {
       currentScale = parseFloat(value);
       
+      // Ensure slider value is synced
+      if (scaleSlider) {
+        scaleSlider.value = currentScale;
+      }
+      
+      // Update main model-viewer
       if (modelViewer) {
-        // Update scale attribute (format: "x y z")
         const scaleString = currentScale + ' ' + currentScale + ' ' + currentScale;
-        modelViewer.setAttribute('scale', scaleString);
         
-        // Update ar-scale for AR mode
+        // Update both scale and ar-scale attributes
+        modelViewer.setAttribute('scale', scaleString);
         modelViewer.setAttribute('ar-scale', currentScale.toString());
         
-        // Force update if in AR mode
-        if (isARActive && modelViewer.arSession) {
-          // Trigger a refresh by updating the model
-          const currentSrc = modelViewer.getAttribute('src');
-          modelViewer.setAttribute('src', '');
+        // Try to update the model's transform directly if in AR mode
+        if (isARActive && !useCameraFallback) {
+          // For WebXR mode, try to access the model directly
+          if (modelViewer.arSession && modelViewer.model) {
+            try {
+              // Access the model's scene graph and update scale
+              const scene = modelViewer.scene || modelViewer.model;
+              if (scene && scene.scene) {
+                scene.scene.scale.set(currentScale, currentScale, currentScale);
+              }
+            } catch (e) {
+              console.log('Direct scale update not available, using attribute update');
+            }
+          }
+          
+          // Force a refresh by dispatching a custom event
+          modelViewer.dispatchEvent(new CustomEvent('scale-changed', { 
+            detail: { scale: currentScale } 
+          }));
+          
+          // Also try updating the model source as a fallback
           setTimeout(() => {
-            modelViewer.setAttribute('src', currentSrc);
-          }, 100);
+            const currentSrc = modelViewer.getAttribute('src');
+            if (currentSrc) {
+              modelViewer.removeAttribute('src');
+              requestAnimationFrame(() => {
+                modelViewer.setAttribute('src', currentSrc);
+              });
+            }
+          }, 50);
         }
-        
-        console.log('Scale updated to:', currentScale, '(', (currentScale * 100).toFixed(0) + '%)');
       }
+      
+      // Update all placed models (for camera feed AR)
+      placedModels.forEach(model => {
+        if (model.modelViewer) {
+          const scaleString = currentScale + ' ' + currentScale + ' ' + currentScale;
+          model.modelViewer.setAttribute('scale', scaleString);
+          
+          // Also update the container size for visual feedback
+          if (model.element) {
+            const baseSize = 250;
+            const newWidth = baseSize * currentScale;
+            const newHeight = 400 * currentScale;
+            model.element.style.width = newWidth + 'px';
+            model.element.style.height = newHeight + 'px';
+          }
+        }
+      });
+      
+      console.log('Scale updated to:', currentScale, '(', (currentScale * 100).toFixed(0) + '%)');
     }
 
     // Update model rotation
@@ -599,46 +793,179 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
         rotateValue.textContent = currentRotation + '°';
       }
       
-      // Update model-viewer rotation
+      // Update main model-viewer rotation
       if (modelViewer) {
-        // Convert degrees to radians for Y-axis rotation
-        // model-viewer uses degrees in rotation attribute
         const rotationString = \`0 \${currentRotation} 0\`;
         modelViewer.setAttribute('rotation', rotationString);
-        
-        console.log('Rotation updated to:', currentRotation + '°');
       }
+      
+      // Update all placed models (for camera feed AR)
+      placedModels.forEach(model => {
+        if (model.modelViewer) {
+          const rotationString = \`0 \${currentRotation} 0\`;
+          model.modelViewer.setAttribute('rotation', rotationString);
+        }
+      });
+      
+      console.log('Rotation updated to:', currentRotation + '°');
     }
 
-    // Setup drag functionality for AR model
-    function setupDrag() {
-      if (!modelViewer) return;
+    // Setup AR canvas
+    function setupARCanvas() {
+      if (!arCanvas) return;
+      arCanvas.width = window.innerWidth;
+      arCanvas.height = window.innerHeight;
+      const ctx = arCanvas.getContext('2d');
+      ctx.clearRect(0, 0, arCanvas.width, arCanvas.height);
+      drawCrosshair(ctx);
+    }
+    
+    // Draw crosshair
+    function drawCrosshair(ctx) {
+      const centerX = arCanvas.width / 2;
+      const centerY = arCanvas.height / 2;
       
-      // Listen for AR model placement events
-      modelViewer.addEventListener('ar-status', (event) => {
-        if (event.detail.status === 'session-started') {
-          // Model is placed, enable drag
-          enableModelDrag();
+      ctx.strokeStyle = '#DC2626';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = 'rgba(0,0,0,0.5)';
+      ctx.shadowBlur = 5;
+      ctx.beginPath();
+      
+      ctx.moveTo(centerX - 25, centerY);
+      ctx.lineTo(centerX + 25, centerY);
+      ctx.moveTo(centerX, centerY - 25);
+      ctx.lineTo(centerX, centerY + 25);
+      ctx.arc(centerX, centerY, 4, 0, 2 * Math.PI);
+      
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+    
+    // Setup tap to place for camera feed AR
+    function setupTapToPlace() {
+      if (!arCanvas) return;
+      
+      arCanvas.addEventListener('click', (event) => {
+        if (!isARActive || useCameraFallback) {
+          const rect = arCanvas.getBoundingClientRect();
+          const x = event.clientX - rect.left;
+          const y = event.clientY - rect.top;
+          placeModelAt(x, y);
         }
       });
     }
-
-    function enableModelDrag() {
-      // In WebXR, dragging is handled by model-viewer's built-in interaction
-      // We can enhance it by listening to model interactions
-      if (modelViewer) {
-        // Enable interaction policy for dragging
-        modelViewer.setAttribute('interaction-policy', 'allow-when-focused');
-        
-        // Add visual feedback
-        modelViewer.style.cursor = 'grab';
-        modelViewer.addEventListener('mousedown', () => {
-          modelViewer.style.cursor = 'grabbing';
-        });
-        modelViewer.addEventListener('mouseup', () => {
-          modelViewer.style.cursor = 'grab';
-        });
+    
+    // Place model at coordinates (for camera feed AR)
+    function placeModelAt(x, y) {
+      if (!modelsContainer) return;
+      
+      const modelId = 'ar-model-' + Date.now();
+      const modelContainer = document.createElement('div');
+      modelContainer.id = modelId;
+      modelContainer.style.cssText = \`
+        position: absolute;
+        left: \${x}px;
+        top: \${y}px;
+        width: 250px;
+        height: 400px;
+        transform: translate(-50%, -50%);
+        pointer-events: auto;
+        z-index: 21;
+      \`;
+      
+      const modelViewerElement = document.createElement('model-viewer');
+      modelViewerElement.setAttribute('src', '${widget.modelUrl}');
+      modelViewerElement.setAttribute('alt', '${widget.altText ?? widget.productName ?? '3D Model'}');
+      modelViewerElement.setAttribute('interaction-policy', 'none');
+      modelViewerElement.setAttribute('shadow-intensity', '1');
+      modelViewerElement.setAttribute('exposure', '1');
+      modelViewerElement.setAttribute('environment-image', 'neutral');
+      modelViewerElement.setAttribute('scale', currentScale + ' ' + currentScale + ' ' + currentScale);
+      modelViewerElement.setAttribute('rotation', \`0 \${currentRotation} 0\`);
+      modelViewerElement.style.cssText = 'width: 100%; height: 100%; background: transparent; pointer-events: none;';
+      
+      modelContainer.appendChild(modelViewerElement);
+      modelsContainer.appendChild(modelContainer);
+      
+      placedModels.push({ 
+        id: modelId, 
+        element: modelContainer, 
+        modelViewer: modelViewerElement,
+        x: x, 
+        y: y 
+      });
+      
+      // Make draggable
+      makeModelDraggable(modelContainer, modelId);
+      
+      showNotification('Model placed! Drag to move.');
+    }
+    
+    // Make model draggable
+    function makeModelDraggable(element, modelId) {
+      let isDragging = false;
+      let startX, startY, initialX, initialY;
+      
+      function startDrag(e) {
+        isDragging = true;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        startX = clientX;
+        startY = clientY;
+        const rect = element.getBoundingClientRect();
+        initialX = rect.left + rect.width / 2;
+        initialY = rect.top + rect.height / 2;
+        element.style.cursor = 'grabbing';
+        e.preventDefault();
       }
+      
+      function drag(e) {
+        if (!isDragging) return;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const deltaX = clientX - startX;
+        const deltaY = clientY - startY;
+        const newX = initialX + deltaX;
+        const newY = initialY + deltaY;
+        element.style.left = newX + 'px';
+        element.style.top = newY + 'px';
+        e.preventDefault();
+      }
+      
+      function endDrag() {
+        if (isDragging) {
+          isDragging = false;
+          element.style.cursor = 'grab';
+          const model = placedModels.find(m => m.id === modelId);
+          if (model) {
+            const rect = element.getBoundingClientRect();
+            model.x = rect.left + rect.width / 2;
+            model.y = rect.top + rect.height / 2;
+          }
+        }
+      }
+      
+      element.addEventListener('mousedown', startDrag);
+      document.addEventListener('mousemove', drag);
+      document.addEventListener('mouseup', endDrag);
+      element.addEventListener('touchstart', startDrag);
+      document.addEventListener('touchmove', drag);
+      document.addEventListener('touchend', endDrag);
+      element.style.cursor = 'grab';
+    }
+    
+    // Setup drag functionality for AR model (WebXR mode)
+    function setupDrag() {
+      if (useCameraFallback) {
+        // Drag is handled by makeModelDraggable for camera feed
+        return;
+      }
+      
+      if (!modelViewer) return;
+      
+      // In WebXR, dragging is handled by model-viewer's built-in interaction
+      modelViewer.setAttribute('interaction-policy', 'allow-when-focused');
+      modelViewer.style.cursor = 'grab';
     }
 
     // Reset view
@@ -745,6 +1072,20 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
         isARActive = true;
         container.classList.add('ar-active');
         arButton.style.display = 'none';
+        
+        // Hide poster/preview
+        const poster = document.getElementById('model-poster');
+        if (poster) {
+          poster.style.display = 'none';
+        }
+        
+        // Remove loading if present
+        const loadingDiv = document.getElementById('ar-loading');
+        if (loadingDiv && loadingDiv.parentNode) {
+          loadingDiv.parentNode.removeChild(loadingDiv);
+        }
+        
+        // Show controls
         scaleControl.style.display = 'flex';
         bottomControls.style.display = 'flex';
         
@@ -755,22 +1096,60 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
         }, 500);
         
         setupDrag();
+        
+        // Store AR session
+        arSession = modelViewer.arSession;
+        
       } else if (event.detail.status === 'session-ended' || event.detail.status === 'not-presenting') {
         isARActive = false;
         container.classList.remove('ar-active');
+        
+        // Show poster again
+        const poster = document.getElementById('model-poster');
+        if (poster) {
+          poster.style.display = 'flex';
+        }
+        
         arButton.style.display = 'flex';
         arButton.disabled = false;
         arButton.innerHTML = '<span>📱</span><span>View in AR</span>';
         scaleControl.style.display = 'none';
         bottomControls.style.display = 'none';
+        arSession = null;
       }
+    });
+    
+    // Auto-hide poster when model loads (optional - for faster AR entry)
+    modelViewer.addEventListener('load', () => {
+      console.log('Model loaded, ready for AR');
+      // Don't auto-hide, let user click button
     });
 
     // Go back navigation
     function goBack() {
-      if (isARActive && modelViewer.exitAR) {
-        modelViewer.exitAR();
+      // Stop camera feed if active
+      if (useCameraFallback && cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+        cameraFeed.style.display = 'none';
+        arCanvas.style.display = 'none';
+        modelsContainer.style.display = 'none';
+        modelViewer.style.display = 'block';
       }
+      
+      // Exit AR session if active
+      if (isARActive) {
+        if (modelViewer && modelViewer.exitAR) {
+          modelViewer.exitAR();
+        }
+        if (arSession) {
+          arSession.end();
+          arSession = null;
+        }
+        isARActive = false;
+        useCameraFallback = false;
+      }
+      
       if (window.parent) {
         window.parent.postMessage({ type: 'ar_back' }, '*');
       }
@@ -827,6 +1206,29 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       }
     \`;
     document.head.appendChild(style);
+    
+    // Attach event listeners after all functions are defined
+    if (arButton) {
+      arButton.addEventListener('click', enterAR);
+    }
+    if (infoBtn) {
+      infoBtn.addEventListener('click', toggleInfo);
+    }
+    if (closeBtn) {
+      closeBtn.addEventListener('click', goBack);
+    }
+    if (cameraBtn) {
+      cameraBtn.addEventListener('click', captureScreenshot);
+    }
+    if (resetBtn) {
+      resetBtn.addEventListener('click', resetView);
+    }
+    if (scaleSlider) {
+      scaleSlider.addEventListener('input', (e) => updateScale(e.target.value));
+    }
+    if (rotateSlider) {
+      rotateSlider.addEventListener('input', (e) => updateRotation(e.target.value));
+    }
   </script>
 </body>
 </html>
