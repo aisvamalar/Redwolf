@@ -442,6 +442,8 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
         <h3 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 600;">${widget.productName ?? 'AR Product View'}</h3>
         <div style="font-size: 14px; line-height: 1.4; opacity: 0.9;">
           <p style="margin: 0 0 8px 0;">• Tap on surface to place the model</p>
+          <p style="margin: 0 0 8px 0;">• Model stays locked to world position when camera moves</p>
+          <p style="margin: 0 0 8px 0;">• Drag model to reposition it</p>
           <p style="margin: 0 0 8px 0;">• Use rotation slider to rotate</p>
           <p style="margin: 0 0 8px 0;">• Zoom in/out with +/- buttons</p>
           <p style="margin: 0;">• Capture screenshots with camera button</p>
@@ -514,6 +516,13 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
     let modelPosition = { x: 0, y: 0, z: 0 };
     let placedModels = [];
     let isDraggingModel = false; // Track if any model is being dragged
+    
+    // World-locking variables
+    let deviceOrientation = { alpha: 0, beta: 0, gamma: 0 };
+    let initialOrientation = null;
+    let orientationTrackingActive = false;
+    let lastCameraPosition = { x: 0, y: 0 };
+    let worldLockedModels = new Map(); // Map of modelId to world position
     
     // Analytics tracking variables
     let arSessionStartTime = Date.now();
@@ -773,6 +782,178 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       });
       
       showNotification('Placing 3D Model...');
+      
+      // Store world position for this model
+      // Use the placement coordinates as the world anchor point
+      worldLockedModels.set(modelId, {
+        worldX: x,
+        worldY: y,
+        placedAt: Date.now()
+      });
+      
+      // Initialize orientation tracking if not already done
+      if (!initialOrientation && deviceOrientation.alpha !== undefined) {
+        initialOrientation = { ...deviceOrientation };
+      }
+    }
+    
+    // Start world-locking: Track device movement to keep models in world position
+    function startWorldLocking() {
+      if (orientationTrackingActive) return;
+      orientationTrackingActive = true;
+      
+      // Request device orientation permission (iOS 13+)
+      if (typeof DeviceOrientationEvent !== 'undefined' && 
+          typeof DeviceOrientationEvent.requestPermission === 'function') {
+        DeviceOrientationEvent.requestPermission()
+          .then(response => {
+            if (response === 'granted') {
+              setupOrientationTracking();
+            }
+          })
+          .catch(console.error);
+      } else {
+        setupOrientationTracking();
+      }
+      
+      // Also track device motion for better accuracy
+      if (typeof DeviceMotionEvent !== 'undefined' && 
+          typeof DeviceMotionEvent.requestPermission === 'function') {
+        DeviceMotionEvent.requestPermission()
+          .then(response => {
+            if (response === 'granted') {
+              setupMotionTracking();
+            }
+          })
+          .catch(console.error);
+      } else {
+        setupMotionTracking();
+      }
+    }
+    
+    function setupOrientationTracking() {
+      window.addEventListener('deviceorientation', handleOrientationChange);
+      
+      // Store initial orientation
+      if (!initialOrientation) {
+        initialOrientation = { alpha: 0, beta: 0, gamma: 0 };
+      }
+    }
+    
+    function setupMotionTracking() {
+      window.addEventListener('devicemotion', handleMotionChange);
+    }
+    
+    function handleOrientationChange(event) {
+      if (!isARActive) return;
+      
+      // Store initial orientation on first reading
+      if (!initialOrientation) {
+        initialOrientation = {
+          alpha: event.alpha || 0,
+          beta: event.beta || 0,
+          gamma: event.gamma || 0
+        };
+      }
+      
+      deviceOrientation = {
+        alpha: event.alpha || 0, // Z-axis rotation (compass)
+        beta: event.beta || 0,   // X-axis rotation (front-back tilt)
+        gamma: event.gamma || 0  // Y-axis rotation (left-right tilt)
+      };
+      
+      // Update model positions based on orientation change
+      updateWorldLockedModels();
+    }
+    
+    function handleMotionChange(event) {
+      if (!isARActive) return;
+      
+      // Use acceleration to detect camera movement
+      if (event.accelerationIncludingGravity) {
+        const accel = event.accelerationIncludingGravity;
+        // Calculate movement delta
+        const deltaX = accel.x ? accel.x * 0.1 : 0;
+        const deltaY = accel.y ? accel.y * 0.1 : 0;
+        
+        // Update camera position estimate
+        lastCameraPosition.x += deltaX;
+        lastCameraPosition.y += deltaY;
+        
+        // Update model positions
+        updateWorldLockedModels();
+      }
+    }
+    
+    function updateWorldLockedModels() {
+      if (worldLockedModels.size === 0 || !isARActive) return;
+      
+      // Use requestAnimationFrame for smooth updates
+      requestAnimationFrame(() => {
+        if (!isARActive) return;
+        
+        // Calculate transform based on device orientation
+        const betaRad = (deviceOrientation.beta || 0) * Math.PI / 180;
+        const gammaRad = (deviceOrientation.gamma || 0) * Math.PI / 180;
+        
+        // Calculate offset based on orientation change from initial
+        let offsetX = 0;
+        let offsetY = 0;
+        
+        if (initialOrientation) {
+          const deltaBeta = (deviceOrientation.beta || 0) - (initialOrientation.beta || 0);
+          const deltaGamma = (deviceOrientation.gamma || 0) - (initialOrientation.gamma || 0);
+          
+          // Convert orientation change to screen offset
+          // Sensitivity multipliers - adjust these to fine-tune tracking
+          const sensitivity = 3.0; // Higher = more responsive to movement
+          offsetX = deltaGamma * sensitivity; // Left-right movement
+          offsetY = deltaBeta * sensitivity;  // Front-back movement
+        }
+        
+        // Also account for camera position changes
+        offsetX -= lastCameraPosition.x * 0.5;
+        offsetY -= lastCameraPosition.y * 0.5;
+        
+        // Update each world-locked model
+        worldLockedModels.forEach((worldData, modelId) => {
+          const model = placedModels.find(m => m.id === modelId);
+          if (!model || !model.element) return;
+          
+          // Calculate new position to maintain world position
+          // Invert the camera movement to keep model in same world spot
+          const newX = worldData.worldX - offsetX;
+          const newY = worldData.worldY - offsetY;
+          
+          // Constrain to screen bounds
+          const maxX = window.innerWidth - model.element.offsetWidth / 2;
+          const maxY = window.innerHeight - model.element.offsetHeight / 2;
+          const minX = model.element.offsetWidth / 2;
+          const minY = model.element.offsetHeight / 2;
+          
+          const constrainedX = Math.max(minX, Math.min(maxX, newX));
+          const constrainedY = Math.max(minY, Math.min(maxY, newY));
+          
+          // Only update if not currently being dragged
+          if (!isDraggingModel) {
+            model.element.style.left = constrainedX + 'px';
+            model.element.style.top = constrainedY + 'px';
+            
+            // Update stored position
+            model.x = constrainedX;
+            model.y = constrainedY;
+          }
+        });
+      });
+    }
+    
+    // Stop world-locking when exiting AR
+    function stopWorldLocking() {
+      orientationTrackingActive = false;
+      window.removeEventListener('deviceorientation', handleOrientationChange);
+      window.removeEventListener('devicemotion', handleMotionChange);
+      worldLockedModels.clear();
+      initialOrientation = null;
     }
     
     // Make model draggable (supports both mouse and touch)
@@ -845,8 +1026,19 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
           const model = placedModels.find(m => m.id === modelId);
           if (model) {
             const rect = element.getBoundingClientRect();
-            model.x = rect.left + rect.width / 2;
-            model.y = rect.top + rect.height / 2;
+            const newX = rect.left + rect.width / 2;
+            const newY = rect.top + rect.height / 2;
+            model.x = newX;
+            model.y = newY;
+            
+            // Update world-locked position anchor to new location
+            if (worldLockedModels.has(modelId)) {
+              worldLockedModels.set(modelId, {
+                worldX: newX,
+                worldY: newY,
+                placedAt: Date.now()
+              });
+            }
           }
           
           // Provide haptic feedback on mobile
@@ -902,6 +1094,7 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
           isARActive = true;
           setupARCanvas();
           setupTapToPlace();
+          startWorldLocking(); // Start tracking device movement for world-locking
           
           // Hide model-viewer, show camera feed
           modelViewer.style.display = 'none';
@@ -995,6 +1188,7 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       });
       
       stopCameraFeed();
+      stopWorldLocking(); // Stop world-locking tracking
       
       if (arSession) {
         await arSession.end();
@@ -1041,6 +1235,7 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
           }
         });
         placedModels = [];
+        worldLockedModels.clear(); // Clear world-locked positions
         const ctx = arCanvas.getContext('2d');
         if (ctx) {
           ctx.clearRect(0, 0, arCanvas.width, arCanvas.height);
