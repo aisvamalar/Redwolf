@@ -206,9 +206,10 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       src="${widget.modelUrl}"
       alt="${widget.altText ?? widget.productName ?? 'Digital Standee 4.5 feet'}"
       ar
-      ar-modes="webxr scene-viewer quick-look"
+      ar-modes="scene-viewer webxr quick-look"
       ar-scale="auto"
       ar-placement="floor"
+      ar-tap-to-place
       camera-controls
       auto-rotate
       auto-rotate-delay="1000"
@@ -224,7 +225,6 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       style="width: 100%; height: 100%; display: block; background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);"
       xr-environment
       touch-action="pan-y"
-      ar-tap-to-place
       reveal="auto"
       loading="auto"
     >
@@ -517,12 +517,14 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
     let placedModels = [];
     let isDraggingModel = false; // Track if any model is being dragged
     
-    // World-locking variables
-    let deviceOrientation = { alpha: 0, beta: 0, gamma: 0 };
-    let initialOrientation = null;
-    let orientationTrackingActive = false;
-    let lastCameraPosition = { x: 0, y: 0 };
-    let worldLockedModels = new Map(); // Map of modelId to world position
+    // WebXR variables for world-locking
+    let xrReferenceSpace = null;
+    let hitTestSource = null;
+    let xrAnimationFrameId = null;
+    let glContext = null;
+    let glProgram = null;
+    let worldAnchoredModels = new Map(); // Map of modelId to world transform matrix
+    let useWebXR = false; // Flag to track if using WebXR or camera fallback
     
     // Analytics tracking variables
     let arSessionStartTime = Date.now();
@@ -791,15 +793,37 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
         placedAt: Date.now()
       });
       
-      // Initialize orientation tracking if not already done
-      if (!initialOrientation && deviceOrientation.alpha !== undefined) {
-        initialOrientation = { ...deviceOrientation };
+      console.log('Model placed and world-locked at screen position:', { x, y });
+      console.log('Total world-locked models:', worldLockedModels.size);
+      
+      // Ensure initial orientation is set if available
+      if (!initialOrientation) {
+        // Try to get current orientation immediately
+        if (deviceOrientation.alpha !== undefined || deviceOrientation.beta !== undefined || deviceOrientation.gamma !== undefined) {
+          initialOrientation = { ...deviceOrientation };
+          console.log('Initial orientation set from current:', initialOrientation);
+        } else {
+          // Wait a bit for orientation to be available
+          setTimeout(() => {
+            if (deviceOrientation.alpha !== undefined || deviceOrientation.beta !== undefined || deviceOrientation.gamma !== undefined) {
+              initialOrientation = { ...deviceOrientation };
+              console.log('Initial orientation captured after delay:', initialOrientation);
+            } else {
+              console.warn('Initial orientation not available - world-locking may not work properly');
+            }
+          }, 1000);
+        }
       }
     }
     
     // Start world-locking: Track device movement to keep models in world position
     function startWorldLocking() {
-      if (orientationTrackingActive) return;
+      if (orientationTrackingActive) {
+        console.log('World-locking already active');
+        return;
+      }
+      
+      console.log('Starting world-locking...');
       orientationTrackingActive = true;
       
       // Request device orientation permission (iOS 13+)
@@ -807,11 +831,18 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
           typeof DeviceOrientationEvent.requestPermission === 'function') {
         DeviceOrientationEvent.requestPermission()
           .then(response => {
+            console.log('Orientation permission:', response);
             if (response === 'granted') {
               setupOrientationTracking();
+            } else {
+              console.warn('Orientation permission denied');
             }
           })
-          .catch(console.error);
+          .catch(err => {
+            console.error('Orientation permission error:', err);
+            // Try anyway
+            setupOrientationTracking();
+          });
       } else {
         setupOrientationTracking();
       }
@@ -821,23 +852,27 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
           typeof DeviceMotionEvent.requestPermission === 'function') {
         DeviceMotionEvent.requestPermission()
           .then(response => {
+            console.log('Motion permission:', response);
             if (response === 'granted') {
               setupMotionTracking();
             }
           })
-          .catch(console.error);
+          .catch(err => {
+            console.error('Motion permission error:', err);
+            // Try anyway
+            setupMotionTracking();
+          });
       } else {
         setupMotionTracking();
       }
     }
     
     function setupOrientationTracking() {
-      window.addEventListener('deviceorientation', handleOrientationChange);
+      window.addEventListener('deviceorientation', handleOrientationChange, true);
+      console.log('Orientation tracking started');
       
-      // Store initial orientation
-      if (!initialOrientation) {
-        initialOrientation = { alpha: 0, beta: 0, gamma: 0 };
-      }
+      // Start the update loop
+      requestAnimationFrame(updateWorldLockedModels);
     }
     
     function setupMotionTracking() {
@@ -848,22 +883,22 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       if (!isARActive) return;
       
       // Store initial orientation on first reading
-      if (!initialOrientation) {
+      if (!initialOrientation && (event.alpha !== null || event.beta !== null || event.gamma !== null)) {
         initialOrientation = {
           alpha: event.alpha || 0,
           beta: event.beta || 0,
           gamma: event.gamma || 0
         };
+        console.log('Initial orientation set:', initialOrientation);
       }
       
       deviceOrientation = {
-        alpha: event.alpha || 0, // Z-axis rotation (compass)
-        beta: event.beta || 0,   // X-axis rotation (front-back tilt)
-        gamma: event.gamma || 0  // Y-axis rotation (left-right tilt)
+        alpha: event.alpha !== null ? event.alpha : deviceOrientation.alpha, // Z-axis rotation (compass)
+        beta: event.beta !== null ? event.beta : deviceOrientation.beta,   // X-axis rotation (front-back tilt)
+        gamma: event.gamma !== null ? event.gamma : deviceOrientation.gamma  // Y-axis rotation (left-right tilt)
       };
       
-      // Update model positions based on orientation change
-      updateWorldLockedModels();
+      // Trigger update (will be handled by requestAnimationFrame loop)
     }
     
     function handleMotionChange(event) {
@@ -872,88 +907,105 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       // Use acceleration to detect camera movement
       if (event.accelerationIncludingGravity) {
         const accel = event.accelerationIncludingGravity;
-        // Calculate movement delta
-        const deltaX = accel.x ? accel.x * 0.1 : 0;
-        const deltaY = accel.y ? accel.y * 0.1 : 0;
+        // Calculate movement delta (filter out gravity component)
+        // Only use small movements to avoid drift
+        const threshold = 0.5;
+        const deltaX = (accel.x && Math.abs(accel.x) > threshold) ? accel.x * 0.05 : 0;
+        const deltaY = (accel.y && Math.abs(accel.y) > threshold) ? accel.y * 0.05 : 0;
         
-        // Update camera position estimate
-        lastCameraPosition.x += deltaX;
-        lastCameraPosition.y += deltaY;
-        
-        // Update model positions
-        updateWorldLockedModels();
+        // Update camera position estimate with damping
+        lastCameraPosition.x = lastCameraPosition.x * 0.9 + deltaX;
+        lastCameraPosition.y = lastCameraPosition.y * 0.9 + deltaY;
       }
     }
     
     function updateWorldLockedModels() {
-      if (worldLockedModels.size === 0 || !isARActive) return;
-      
-      // Use requestAnimationFrame for smooth updates
-      requestAnimationFrame(() => {
-        if (!isARActive) return;
-        
-        // Calculate transform based on device orientation
-        const betaRad = (deviceOrientation.beta || 0) * Math.PI / 180;
-        const gammaRad = (deviceOrientation.gamma || 0) * Math.PI / 180;
-        
-        // Calculate offset based on orientation change from initial
-        let offsetX = 0;
-        let offsetY = 0;
-        
-        if (initialOrientation) {
-          const deltaBeta = (deviceOrientation.beta || 0) - (initialOrientation.beta || 0);
-          const deltaGamma = (deviceOrientation.gamma || 0) - (initialOrientation.gamma || 0);
-          
-          // Convert orientation change to screen offset
-          // Sensitivity multipliers - adjust these to fine-tune tracking
-          const sensitivity = 3.0; // Higher = more responsive to movement
-          offsetX = deltaGamma * sensitivity; // Left-right movement
-          offsetY = deltaBeta * sensitivity;  // Front-back movement
+      if (worldLockedModels.size === 0 || !isARActive || !orientationTrackingActive) {
+        // Continue loop even if no models, but stop if AR is inactive
+        if (isARActive && orientationTrackingActive) {
+          requestAnimationFrame(updateWorldLockedModels);
         }
+        return;
+      }
+      
+      // Calculate transform based on device orientation
+      if (!initialOrientation) {
+        // Wait for initial orientation
+        requestAnimationFrame(updateWorldLockedModels);
+        return;
+      }
+      
+      const deltaBeta = (deviceOrientation.beta || 0) - (initialOrientation.beta || 0);
+      const deltaGamma = (deviceOrientation.gamma || 0) - (initialOrientation.gamma || 0);
+      
+      // Convert orientation change to screen offset
+      // Use field of view approximation for perspective projection
+      const screenWidth = window.innerWidth;
+      const screenHeight = window.innerHeight;
+      
+      // Calculate offset based on device rotation
+      // When device tilts right (positive gamma), camera sees more left, so model should move right on screen
+      // When device tilts forward (positive beta), camera sees more up, so model should move down on screen
+      // We need to INVERT the movement to keep model in same world position
+      const sensitivity = 10.0; // Sensitivity for tracking
+      const offsetX = -deltaGamma * sensitivity * (screenWidth / 360); // Inverted
+      const offsetY = -deltaBeta * sensitivity * (screenHeight / 360);  // Inverted
+      
+      // Also account for camera position changes from motion (inverted)
+      const motionOffsetX = -lastCameraPosition.x * 4.0;
+      const motionOffsetY = -lastCameraPosition.y * 4.0;
+      
+      // Debug logging (can be removed later)
+      if (Math.abs(deltaBeta) > 1 || Math.abs(deltaGamma) > 1) {
+        console.log('Orientation change:', { deltaBeta, deltaGamma, offsetX, offsetY });
+      }
+      
+      // Update each world-locked model
+      worldLockedModels.forEach((worldData, modelId) => {
+        const model = placedModels.find(m => m.id === modelId);
+        if (!model || !model.element) return;
         
-        // Also account for camera position changes
-        offsetX -= lastCameraPosition.x * 0.5;
-        offsetY -= lastCameraPosition.y * 0.5;
+        // Calculate new position to maintain world position
+        // Add the offset (which is already inverted) to compensate for camera movement
+        const totalOffsetX = offsetX + motionOffsetX;
+        const totalOffsetY = offsetY + motionOffsetY;
         
-        // Update each world-locked model
-        worldLockedModels.forEach((worldData, modelId) => {
-          const model = placedModels.find(m => m.id === modelId);
-          if (!model || !model.element) return;
+        const newX = worldData.worldX + totalOffsetX; // Changed from - to +
+        const newY = worldData.worldY + totalOffsetY; // Changed from - to +
+        
+        // Constrain to screen bounds
+        const maxX = window.innerWidth - model.element.offsetWidth / 2;
+        const maxY = window.innerHeight - model.element.offsetHeight / 2;
+        const minX = model.element.offsetWidth / 2;
+        const minY = model.element.offsetHeight / 2;
+        
+        const constrainedX = Math.max(minX, Math.min(maxX, newX));
+        const constrainedY = Math.max(minY, Math.min(maxY, newY));
+        
+        // Only update if not currently being dragged
+        if (!isDraggingModel) {
+          model.element.style.left = constrainedX + 'px';
+          model.element.style.top = constrainedY + 'px';
           
-          // Calculate new position to maintain world position
-          // Invert the camera movement to keep model in same world spot
-          const newX = worldData.worldX - offsetX;
-          const newY = worldData.worldY - offsetY;
-          
-          // Constrain to screen bounds
-          const maxX = window.innerWidth - model.element.offsetWidth / 2;
-          const maxY = window.innerHeight - model.element.offsetHeight / 2;
-          const minX = model.element.offsetWidth / 2;
-          const minY = model.element.offsetHeight / 2;
-          
-          const constrainedX = Math.max(minX, Math.min(maxX, newX));
-          const constrainedY = Math.max(minY, Math.min(maxY, newY));
-          
-          // Only update if not currently being dragged
-          if (!isDraggingModel) {
-            model.element.style.left = constrainedX + 'px';
-            model.element.style.top = constrainedY + 'px';
-            
-            // Update stored position
-            model.x = constrainedX;
-            model.y = constrainedY;
-          }
-        });
+          // Update stored position
+          model.x = constrainedX;
+          model.y = constrainedY;
+        }
       });
+      
+      // Continue updating in animation loop
+      requestAnimationFrame(updateWorldLockedModels);
     }
     
     // Stop world-locking when exiting AR
     function stopWorldLocking() {
+      console.log('Stopping world-locking...');
       orientationTrackingActive = false;
-      window.removeEventListener('deviceorientation', handleOrientationChange);
-      window.removeEventListener('devicemotion', handleMotionChange);
+      window.removeEventListener('deviceorientation', handleOrientationChange, true);
+      window.removeEventListener('devicemotion', handleMotionChange, true);
       worldLockedModels.clear();
       initialOrientation = null;
+      lastCameraPosition = { x: 0, y: 0 };
     }
     
     // Make model draggable (supports both mouse and touch)
@@ -1076,7 +1128,274 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       element.style.webkitUserSelect = 'none';
     }
 
-    // Enter AR mode with camera
+    // Check WebXR support
+    async function checkWebXRSupport() {
+      if (!navigator.xr) {
+        console.log('WebXR not available');
+        return false;
+      }
+      
+      try {
+        const supported = await navigator.xr.isSessionSupported('immersive-ar');
+        console.log('WebXR immersive-ar supported:', supported);
+        return supported;
+      } catch (error) {
+        console.error('WebXR check error:', error);
+        return false;
+      }
+    }
+    
+    // Start WebXR AR session with world-locking
+    async function startWebXRAR() {
+      try {
+        console.log('Starting WebXR AR session...');
+        
+        // Request immersive-ar session with required features
+        arSession = await navigator.xr.requestSession('immersive-ar', {
+          requiredFeatures: ['local-floor', 'hit-test'],
+          optionalFeatures: ['dom-overlay', 'light-estimation', 'anchors']
+        });
+        
+        console.log('WebXR session created:', arSession);
+        
+        // Get local-floor reference space (not viewer!)
+        xrReferenceSpace = await arSession.requestReferenceSpace('local-floor');
+        console.log('Reference space created:', xrReferenceSpace);
+        
+        // Create hit test source for the reference space
+        // This provides continuous hit testing from the viewer position
+        const viewerSpace = await arSession.requestReferenceSpace('viewer');
+        hitTestSource = await arSession.requestHitTestSourceForSpace(viewerSpace);
+        console.log('Hit test source created:', hitTestSource);
+        
+        // Set up WebGL context for rendering if needed
+        // For now, we'll use model-viewer's built-in rendering
+        
+        // Start animation frame loop
+        arSession.requestAnimationFrame(onXRFrame);
+        
+        // Handle session end
+        arSession.addEventListener('end', () => {
+          console.log('WebXR session ended');
+          useWebXR = false;
+          isARActive = false;
+          xrReferenceSpace = null;
+          hitTestSource = null;
+          if (xrAnimationFrameId !== null) {
+            cancelAnimationFrame(xrAnimationFrameId);
+            xrAnimationFrameId = null;
+          }
+          updateARButton();
+        });
+        
+        useWebXR = true;
+        isARActive = true;
+        
+        // Hide model-viewer, show AR overlay
+        modelViewer.style.display = 'none';
+        
+        // Show AR controls
+        const arModeControls = document.getElementById('ar-mode-controls');
+        if (arModeControls) {
+          arModeControls.style.display = 'block';
+        }
+        const defaultControls = document.getElementById('default-controls');
+        if (defaultControls) {
+          defaultControls.style.display = 'none';
+        }
+        const prepPanel = document.querySelector('.info-panel');
+        if (prepPanel) {
+          prepPanel.style.display = 'none';
+        }
+        
+        updateARButton();
+        showNotification('WebXR AR active! Tap surfaces to place model.');
+        
+        // Track WebXR session start
+        trackARAction('webxr_session_start', { success: true });
+        
+        return true;
+      } catch (error) {
+        console.error('WebXR AR error:', error);
+        showNotification('WebXR not available. Using camera fallback.');
+        trackARAction('webxr_error', { error: error.message });
+        return false;
+      }
+    }
+    
+    // WebXR animation frame loop
+    function onXRFrame(time, frame) {
+      if (!arSession || !xrReferenceSpace) return;
+      
+      // Process any pending hit tests
+      if (pendingTapCoordinates) {
+        processHitTest(frame);
+      }
+      
+      // Continue animation loop
+      xrAnimationFrameId = arSession.requestAnimationFrame(onXRFrame);
+      
+      // Get viewer pose (for potential future use)
+      const pose = frame.getViewerPose(xrReferenceSpace);
+      if (!pose) return;
+      
+      // Models are rendered at their stored world positions
+      // The world transform matrices are already stored and don't need updating
+      // Model-viewer or WebGL rendering will handle the display
+      // This is the key: we DON'T update model positions here - they stay fixed in world space
+    }
+    
+    // Store pending tap for hit testing
+    let pendingTap = null;
+    
+    // Handle tap for WebXR hit testing
+    function handleWebXRTap(event) {
+      if (!arSession || !xrReferenceSpace) {
+        console.warn('WebXR not ready for hit testing');
+        return;
+      }
+      
+      // Don't place if clicking on existing model
+      const modelsContainer = document.getElementById('ar-models-container');
+      if (modelsContainer) {
+        const elementsBelow = document.elementsFromPoint(event.clientX, event.clientY);
+        const clickedOnModel = elementsBelow.some(el => 
+          el.closest && el.closest('#ar-models-container > div')
+        );
+        if (clickedOnModel) {
+          console.log('Clicked on existing model, skipping placement');
+          return;
+        }
+      }
+      
+      // Store tap event for processing in next animation frame
+      pendingTap = {
+        x: event.clientX,
+        y: event.clientY,
+        timestamp: Date.now()
+      };
+      
+      console.log('Tap registered for hit testing:', pendingTap);
+    }
+    
+    // Process hit test in animation frame using tap coordinates
+    function processHitTest(frame) {
+      if (!pendingTap || !xrReferenceSpace || !hitTestSource) {
+        return;
+      }
+      
+      try {
+        // Get hit test results from the frame
+        // These are continuous hit tests from the viewer
+        const hitTestResults = frame.getHitTestResults(hitTestSource);
+        
+        if (hitTestResults && hitTestResults.length > 0) {
+          // Get first hit result (closest to viewer center/tap point)
+          const hitResult = hitTestResults[0];
+          const hitPose = hitResult.getPose(xrReferenceSpace);
+          
+          if (hitPose) {
+            // Store world transform matrix (ONCE - never update after placement)
+            const transform = hitPose.transform;
+            const modelId = 'ar-model-' + Date.now();
+            
+            // Store the world transform matrix
+            worldAnchoredModels.set(modelId, {
+              transform: transform,
+              matrix: transform.matrix, // 4x4 matrix
+              position: {
+                x: transform.position.x,
+                y: transform.position.y,
+                z: transform.position.z
+              },
+              orientation: transform.orientation,
+              placedAt: Date.now()
+            });
+            
+            console.log('Model world-anchored at:', transform.position);
+            
+            // Place model using the stored world transform
+            placeModelAtWorldPosition(modelId, transform);
+            
+            showNotification('Model placed in world space!');
+            trackARAction('model_placed_webxr', { modelId: modelId });
+            
+            // Clear pending tap
+            pendingTap = null;
+          } else {
+            console.warn('Hit test result has no pose');
+            pendingTap = null;
+          }
+        } else {
+          console.log('No hit test results - no surface detected');
+          showNotification('No surface detected. Try tapping on a flat surface.');
+          pendingTap = null;
+        }
+      } catch (error) {
+        console.error('Hit test processing error:', error);
+        showNotification('Hit test failed. Try again.');
+        pendingTap = null;
+      }
+    }
+    
+    // Place model at WebXR world position
+    function placeModelAtWorldPosition(modelId, worldTransform) {
+      // Create model-viewer element for WebXR rendering
+      const modelContainer = document.createElement('div');
+      modelContainer.id = modelId;
+      modelContainer.style.cssText = \`
+        position: fixed;
+        width: 300px;
+        height: 400px;
+        pointer-events: auto;
+        z-index: 21;
+      \`;
+      
+      // Create model-viewer with WebXR attributes
+      const modelViewerElement = document.createElement('model-viewer');
+      modelViewerElement.setAttribute('src', '${widget.modelUrl}');
+      modelViewerElement.setAttribute('alt', '${widget.altText ?? widget.productName ?? '3D Model'}');
+      modelViewerElement.setAttribute('ar', '');
+      modelViewerElement.setAttribute('ar-modes', 'webxr');
+      modelViewerElement.setAttribute('interaction-policy', 'none');
+      modelViewerElement.setAttribute('shadow-intensity', '1');
+      modelViewerElement.setAttribute('exposure', '1');
+      modelViewerElement.setAttribute('environment-image', 'neutral');
+      modelViewerElement.style.cssText = 'width: 100%; height: 100%; background: transparent;';
+      
+      // Store world transform in data attribute for reference
+      modelContainer.dataset.worldTransform = JSON.stringify({
+        x: worldTransform.position.x,
+        y: worldTransform.position.y,
+        z: worldTransform.position.z
+      });
+      
+      modelContainer.appendChild(modelViewerElement);
+      
+      // Get or create models container
+      let modelsContainer = document.getElementById('ar-models-container');
+      if (!modelsContainer) {
+        modelsContainer = document.createElement('div');
+        modelsContainer.id = 'ar-models-container';
+        modelsContainer.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 20;';
+        document.body.appendChild(modelsContainer);
+      }
+      modelsContainer.style.display = 'block';
+      modelsContainer.appendChild(modelContainer);
+      
+      // Store in placed models array
+      placedModels.push({
+        id: modelId,
+        element: modelContainer,
+        modelViewer: modelViewerElement,
+        worldTransform: worldTransform
+      });
+      
+      // Make draggable (optional - for repositioning)
+      makeModelDraggable(modelContainer, modelId);
+    }
+    
+    // Enter AR mode - try WebXR first, fallback to camera
     async function enterAR() {
       try {
         // Track AR session start
@@ -1086,20 +1405,38 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
         // Update button to show attempting
         const arButton = document.getElementById('ar-button');
         if (arButton) {
+          arButton.innerHTML = '<span style="display: inline-block; width: 16px; height: 16px; border: 2px solid white; border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></span>Starting AR...';
+        }
+        
+        // Try WebXR first
+        const webxrSupported = await checkWebXRSupport();
+        if (webxrSupported) {
+          const webxrSuccess = await startWebXRAR();
+          if (webxrSuccess) {
+            // Set up tap handler for WebXR
+            document.addEventListener('click', handleWebXRTap, true);
+            updateARButton();
+            return;
+          }
+        }
+        
+        // Fallback to camera feed
+        console.log('Falling back to camera feed AR');
+        if (arButton) {
           arButton.innerHTML = '<span style="display: inline-block; width: 16px; height: 16px; border: 2px solid white; border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></span>Requesting Camera...';
         }
         
         const success = await startCameraFeed();
         if (success) {
           isARActive = true;
+          useWebXR = false;
           setupARCanvas();
           setupTapToPlace();
-          startWorldLocking(); // Start tracking device movement for world-locking
           
           // Hide model-viewer, show camera feed
           modelViewer.style.display = 'none';
           
-          // Show AR controls, hide any fallback controls or info splash if present
+          // Show AR controls
           const arModeControls = document.getElementById('ar-mode-controls');
           if (arModeControls) {
             arModeControls.style.display = 'block';
@@ -1119,22 +1456,16 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
             modelsContainer.style.display = 'block';
           }
           
-          
           updateARButton();
-          
-          // Track successful AR start
           trackARAction('camera_permission_granted', { success: true });
         } else {
-          // Camera access failed - show fallback options
+          // Camera access failed
           if (arButton) {
             arButton.innerHTML = 'Camera Access Denied';
             arButton.style.background = 'rgba(150, 150, 150, 0.8)';
           }
-          
-          // Track camera permission denied
           trackARAction('camera_permission_denied', { success: false });
           
-          // Update info panel to show error
           const infoPanel = document.querySelector('.info-panel');
           if (infoPanel) {
             infoPanel.innerHTML = '<h3 style="color: #ff6b6b;">Camera Access Required</h3><p>Please allow camera access and refresh the page to use AR features.</p><button onclick="window.location.reload()" style="margin-top: 12px; padding: 8px 16px; background: #DC2626; color: white; border: none; border-radius: 4px; cursor: pointer;">Refresh Page</button>';
@@ -1143,11 +1474,8 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       } catch (error) {
         console.error('AR activation error:', error);
         showNotification('AR not available. Please use a compatible device/browser.');
-        
-        // Track error
         trackARAction('error_occurred', { error: error.message });
         
-        // Update button to show error
         const arButton = document.getElementById('ar-button');
         if (arButton) {
           arButton.innerHTML = 'AR Not Available';
@@ -1174,7 +1502,9 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       trackARAction('session_end', {
         session_duration_ms: sessionDuration,
         models_placed: modelsPlaced,
-        screenshots_taken: screenshotCount || 0
+        screenshots_taken: screenshotCount || 0,
+        used_webxr: useWebXR,
+        used_scene_viewer: !useWebXR && isARActive
       });
       
       // Send comprehensive session analytics
@@ -1184,25 +1514,41 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
         models_placed: modelsPlaced,
         screenshots_taken: screenshotCount || 0,
         actions_performed: actionCount || 0,
+        used_webxr: useWebXR,
+        used_scene_viewer: !useWebXR && isARActive,
         engagement_score: calculateEngagementScore(sessionDuration, modelsPlaced, screenshotCount || 0, actionCount || 0)
       });
       
-      stopCameraFeed();
-      stopWorldLocking(); // Stop world-locking tracking
-      
-      if (arSession) {
-        await arSession.end();
-        arSession = null;
-      }
-      
+      // Exit model-viewer AR (handles scene-viewer/webxr automatically)
       if (modelViewer.exitAR) {
         await modelViewer.exitAR();
       }
       
+      // Clean up WebXR session if we created one
+      if (useWebXR && arSession) {
+        document.removeEventListener('click', handleWebXRTap, true);
+        await arSession.end();
+        arSession = null;
+        xrReferenceSpace = null;
+        hitTestSource = null;
+        if (xrAnimationFrameId !== null) {
+          cancelAnimationFrame(xrAnimationFrameId);
+          xrAnimationFrameId = null;
+        }
+      }
+      
+      // Clean up camera feed if used
+      if (!useWebXR && !isARActive) {
+        stopCameraFeed();
+      }
+      
+      // Clear world anchors
+      worldAnchoredModels.clear();
+      
       // Show model-viewer again
       modelViewer.style.display = 'block';
       
-      // Show default controls, hide AR controls (if they exist).
+      // Show default controls, hide AR controls
       const arModeControls = document.getElementById('ar-mode-controls');
       if (arModeControls) {
         arModeControls.style.display = 'none';
@@ -1217,6 +1563,7 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       }
       
       isARActive = false;
+      useWebXR = false;
       updateARButton();
       showNotification('AR Session Complete - Thank you!');
       
