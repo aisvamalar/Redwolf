@@ -200,6 +200,25 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
     <!-- Container for placed 3D models -->
     <div id="ar-models-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 20; display: none;"></div>
     
+    <!-- Loading Indicator (shown during AR initialization) -->
+    <div id="ar-loading-overlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); z-index: 200; align-items: center; justify-content: center; flex-direction: column;">
+      <div style="width: 50px; height: 50px; border: 4px solid rgba(255, 255, 255, 0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+      <div style="margin-top: 20px; color: white; font-size: 16px; font-weight: 500;">Initializing AR...</div>
+    </div>
+    
+    <!-- Instructions Overlay (shown when AR ready but no object placed) -->
+    <div id="ar-instructions-overlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 150; pointer-events: none;">
+      <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0, 0, 0, 0.8); padding: 24px; border-radius: 16px; max-width: 320px; text-align: center; pointer-events: auto;">
+        <div style="font-size: 40px; margin-bottom: 16px;">👆</div>
+        <div style="color: white; font-size: 16px; font-weight: bold; margin-bottom: 8px;">Tap on a detected surface to place the object</div>
+        <div style="color: rgba(255, 255, 255, 0.7); font-size: 14px; margin-bottom: 20px;">Move your device to scan the area</div>
+        <div style="display: inline-flex; align-items: center; gap: 8px; background: rgba(0, 128, 128, 0.8); padding: 8px 16px; border-radius: 20px;">
+          <span style="font-size: 16px;">📱</span>
+          <span style="color: white; font-weight: bold; font-size: 14px;">AR Mode Active</span>
+        </div>
+      </div>
+    </div>
+    
     <!-- Model viewer (shown in 3D view, hidden during AR) -->
     <model-viewer
       id="ar-model"
@@ -357,70 +376,75 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
         </div>
       </div>
       
-      <!-- Bottom Controls -->
-      <div style="
+      <!-- Bottom Controls (matching mobile app layout) -->
+      <div id="ar-bottom-controls" style="
         position: absolute;
-        bottom: 30px;
-        left: 50%;
-        transform: translateX(-50%);
+        bottom: 40px;
+        left: 0;
+        right: 0;
         display: flex;
-        gap: 24px;
-        z-index: 30;
+        justify-content: space-evenly;
         align-items: center;
+        z-index: 30;
+        padding: 0 20px;
       ">
-        <!-- Camera Button -->
-        <button onclick="captureScreenshot()" style="
+        <!-- Reset Button -->
+        <button onclick="removeEvery3DObjects()" id="reset-btn" style="
           background: white;
-          border: 4px solid rgba(128, 128, 128, 0.8);
-          width: 64px;
-          height: 64px;
-          border-radius: 50%;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-          position: relative;
-        ">
-          <div style="
-            width: 24px;
-            height: 24px;
-            background: rgba(128, 128, 128, 0.8);
-            border-radius: 3px;
-            position: relative;
-          ">
-            <div style="
-              position: absolute;
-              top: -4px;
-              left: 50%;
-              transform: translateX(-50%);
-              width: 8px;
-              height: 4px;
-              background: rgba(128, 128, 128, 0.8);
-              border-radius: 2px 2px 0 0;
-            "></div>
-          </div>
-        </button>
-        
-        <!-- Reset View Button -->
-        <button onclick="resetView()" style="
-          background: rgba(128, 128, 128, 0.8);
-          color: white;
+          color: rgba(0, 0, 0, 0.87);
           border: none;
-          padding: 12px 20px;
-          border-radius: 20px;
+          padding: 12px 16px;
+          border-radius: 30px;
           font-size: 14px;
           font-weight: 500;
           cursor: pointer;
           display: flex;
-          flex-direction: column;
           align-items: center;
-          gap: 4px;
-          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-          backdrop-filter: blur(10px);
+          gap: 8px;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         ">
-          <span style="font-size: 18px;">↻</span>
-          <span>Reset view</span>
+          <span style="font-size: 18px;">🔄</span>
+          <span>Reset</span>
+        </button>
+        
+        <!-- Capture Button (shown when object is placed) -->
+        <button onclick="captureScreenshot()" id="capture-btn" style="
+          display: none;
+          background: rgba(0, 128, 128, 1);
+          color: white;
+          border: none;
+          padding: 12px 16px;
+          border-radius: 30px;
+          font-size: 14px;
+          font-weight: 500;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        ">
+          <span style="font-size: 18px;">📷</span>
+          <span>Capture</span>
+        </button>
+        
+        <!-- Add to Cart Button (shown when object is placed) -->
+        <button onclick="showAddToCartDialog()" id="add-to-cart-btn" style="
+          display: none;
+          background: rgba(0, 0, 0, 0.87);
+          color: white;
+          border: none;
+          padding: 12px 16px;
+          border-radius: 30px;
+          font-size: 14px;
+          font-weight: 500;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        ">
+          <span style="font-size: 18px;">🛒</span>
+          <span>Add to Cart</span>
         </button>
       </div>
       
@@ -516,6 +540,8 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
     let modelPosition = { x: 0, y: 0, z: 0 };
     let placedModels = [];
     let isDraggingModel = false; // Track if any model is being dragged
+    let isLoading = true; // Track AR initialization state
+    let hasPlacedObject = false; // Track if any object has been placed
     
     // WebXR variables for world-locking
     let xrReferenceSpace = null;
@@ -683,6 +709,10 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
         const y = event.clientY - rect.top;
         console.log('Placing model at canvas coordinates:', x, y);
         placeModelAt(x, y);
+        
+        // Update state
+        hasPlacedObject = true;
+        updateBottomControlsVisibility();
       }
     }
     
@@ -783,7 +813,7 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
         scale: modelScale 
       });
       
-      showNotification('Placing 3D Model...');
+      showNotification(\`\${widget.productName ?? 'Model'} placed successfully!\`, 'success');
       
       // Store world position for this model
       // Use the placement coordinates as the world anchor point
@@ -1572,23 +1602,37 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       actionCount = 0;
     }
 
+    // Remove all 3D objects (matching mobile app functionality)
+    function removeEvery3DObjects() {
+      // Remove all placed model elements
+      placedModels.forEach(model => {
+        if (model.element && model.element.parentNode) {
+          model.element.parentNode.removeChild(model.element);
+        }
+      });
+      placedModels = [];
+      worldAnchoredModels.clear();
+      worldLockedModels.clear();
+      
+      // Clear canvas
+      const ctx = arCanvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, arCanvas.width, arCanvas.height);
+        drawCrosshair(ctx);
+      }
+      
+      // Update state
+      hasPlacedObject = false;
+      updateBottomControlsVisibility();
+      
+      // Show notification
+      showNotification('All objects removed', 'info');
+    }
+    
     // Reset model to original position/scale
     function resetModel() {
       if (isARActive) {
-        // Remove all placed model elements
-        placedModels.forEach(model => {
-          if (model.element && model.element.parentNode) {
-            model.element.parentNode.removeChild(model.element);
-          }
-        });
-        placedModels = [];
-        worldLockedModels.clear(); // Clear world-locked positions
-        const ctx = arCanvas.getContext('2d');
-        if (ctx) {
-          ctx.clearRect(0, 0, arCanvas.width, arCanvas.height);
-          drawCrosshair(ctx);
-        }
-        showNotification('All models cleared');
+        removeEvery3DObjects();
       } else {
         if (modelViewer.resetCamera) {
           modelViewer.resetCamera();
@@ -1599,6 +1643,201 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       modelScale = 1;
       modelRotation = { x: 0, y: 0, z: 0 };
       modelPosition = { x: 0, y: 0, z: 0 };
+    }
+    
+    // Update bottom controls visibility based on hasPlacedObject
+    function updateBottomControlsVisibility() {
+      const captureBtn = document.getElementById('capture-btn');
+      const addToCartBtn = document.getElementById('add-to-cart-btn');
+      
+      if (captureBtn) {
+        captureBtn.style.display = hasPlacedObject ? 'flex' : 'none';
+      }
+      if (addToCartBtn) {
+        addToCartBtn.style.display = hasPlacedObject ? 'flex' : 'none';
+      }
+      
+      // Update instructions overlay
+      const instructionsOverlay = document.getElementById('ar-instructions-overlay');
+      if (instructionsOverlay) {
+        instructionsOverlay.style.display = (isARActive && !isLoading && !hasPlacedObject) ? 'flex' : 'none';
+      }
+    }
+    
+    // Show Add to Cart Dialog (matching mobile app)
+    function showAddToCartDialog() {
+      const dialog = document.createElement('div');
+      dialog.style.cssText = \`
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      \`;
+      
+      dialog.innerHTML = \`
+        <div style="
+          background: white;
+          border-radius: 16px;
+          padding: 24px;
+          max-width: 400px;
+          width: 90%;
+          max-height: 80vh;
+          overflow-y: auto;
+        ">
+          <h2 style="margin: 0 0 16px 0; font-size: 20px; font-weight: bold;">Add ${widget.productName ?? 'Product'} to Cart?</h2>
+          <div style="
+            height: 120px;
+            background: #f0f0f0;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-image: url('https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images//${widget.productName != null ? widget.productName!.replaceAll(' ', '%20') : 'product'}.png');
+            background-size: cover;
+            background-position: center;
+          "></div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span style="font-size: 16px;">Price:</span>
+            <span style="font-size: 18px; font-weight: bold; color: rgba(0, 128, 128, 1);">\$199.99</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 24px;">
+            <span style="font-size: 16px;">Quantity:</span>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <button onclick="decreaseQuantity()" style="
+                background: #f0f0f0;
+                border: none;
+                border-radius: 4px;
+                width: 32px;
+                height: 32px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+              ">-</button>
+              <span id="quantity-display" style="font-size: 16px; font-weight: bold; min-width: 20px; text-align: center;">1</span>
+              <button onclick="increaseQuantity()" style="
+                background: #f0f0f0;
+                border: none;
+                border-radius: 4px;
+                width: 32px;
+                height: 32px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+              ">+</button>
+            </div>
+          </div>
+          <div style="display: flex; gap: 12px; justify-content: flex-end;">
+            <button onclick="closeAddToCartDialog()" style="
+              background: transparent;
+              border: 1px solid #ccc;
+              color: #333;
+              padding: 10px 20px;
+              border-radius: 8px;
+              cursor: pointer;
+              font-size: 14px;
+            ">Cancel</button>
+            <button onclick="confirmAddToCart()" style="
+              background: rgba(0, 128, 128, 1);
+              border: none;
+              color: white;
+              padding: 10px 20px;
+              border-radius: 8px;
+              cursor: pointer;
+              font-size: 14px;
+              font-weight: 500;
+            ">Add to Cart</button>
+          </div>
+        </div>
+      \`;
+      
+      document.body.appendChild(dialog);
+      
+      // Quantity management
+      window.quantity = 1;
+      window.increaseQuantity = function() {
+        window.quantity++;
+        document.getElementById('quantity-display').textContent = window.quantity;
+      };
+      window.decreaseQuantity = function() {
+        if (window.quantity > 1) {
+          window.quantity--;
+          document.getElementById('quantity-display').textContent = window.quantity;
+        }
+      };
+      window.closeAddToCartDialog = function() {
+        document.body.removeChild(dialog);
+      };
+      window.confirmAddToCart = function() {
+        document.body.removeChild(dialog);
+        showNotification(\`\${widget.productName ?? 'Product'} added to cart\`, 'success');
+        trackARAction('add_to_cart', { product: widget.productName, quantity: window.quantity });
+      };
+    }
+    
+    // Show Help Dialog (matching mobile app)
+    function showHelpDialog() {
+      const dialog = document.createElement('div');
+      dialog.style.cssText = \`
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      \`;
+      
+      dialog.innerHTML = \`
+        <div style="
+          background: white;
+          border-radius: 16px;
+          padding: 24px;
+          max-width: 400px;
+          width: 90%;
+          max-height: 80vh;
+          overflow-y: auto;
+        ">
+          <h2 style="margin: 0 0 16px 0; font-size: 20px; font-weight: bold;">AR View Help</h2>
+          <div style="display: flex; flex-direction: column; gap: 8px; color: #333;">
+            <div>• Move your phone to scan the environment</div>
+            <div>• Tap on a detected surface to place the object</div>
+            <div>• Pinch to resize the object</div>
+            <div>• Drag to move the object</div>
+            <div>• Two-finger rotate to change orientation</div>
+            <div>• Press 'Reset' to remove all objects</div>
+          </div>
+          <div style="margin-top: 24px; display: flex; justify-content: flex-end;">
+            <button onclick="closeHelpDialog()" style="
+              background: rgba(0, 128, 128, 1);
+              border: none;
+              color: white;
+              padding: 10px 20px;
+              border-radius: 8px;
+              cursor: pointer;
+              font-size: 14px;
+              font-weight: 500;
+            ">Got it</button>
+          </div>
+        </div>
+      \`;
+      
+      document.body.appendChild(dialog);
+      
+      window.closeHelpDialog = function() {
+        document.body.removeChild(dialog);
+      };
     }
 
     // Capture screenshot with all placed models
@@ -1702,20 +1941,28 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       }
     }
 
-    // Show notification
-    function showNotification(message) {
+    // Show notification (matching mobile app styles)
+    function showNotification(message, type = 'info') {
+      const colors = {
+        'success': 'rgba(34, 197, 94, 0.95)',
+        'error': 'rgba(239, 68, 68, 0.95)',
+        'info': 'rgba(59, 130, 246, 0.95)',
+        'warning': 'rgba(234, 179, 8, 0.95)'
+      };
+      
       const notification = document.createElement('div');
       notification.style.cssText = \`
         position: fixed;
         top: 20px;
         right: 20px;
-        background: rgba(220, 38, 38, 0.95);
+        background: \${colors[type] || colors.info};
         color: white;
         padding: 16px 24px;
-        border-radius: 8px;
+        border-radius: 10px;
         z-index: 10000;
-        font-weight: 600;
+        font-weight: 500;
         box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        max-width: 300px;
       \`;
       notification.textContent = message;
       document.body.appendChild(notification);
