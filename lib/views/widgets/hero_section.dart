@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import '../../services/device_detection_service.dart';
+import '../../utils/responsive_helper.dart';
 import 'hero_section_web_stub.dart'
     if (dart.library.html) 'hero_section_web.dart'
     as web_utils;
@@ -12,18 +12,19 @@ class HeroSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isWeb = MediaQuery.of(context).size.width > 800;
+    final isDesktop = ResponsiveHelper.isDesktop(context);
+    final isTablet = ResponsiveHelper.isTablet(context);
 
-    return isWeb
+    return isDesktop
         ? Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(flex: 55, child: _buildTextContent(context)),
-              const SizedBox(width: 48), // Reduced spacing
+              SizedBox(width: isTablet ? 32 : 48),
               Expanded(
                 flex: 38,
                 child: SizedBox(
-                  height: 264,
+                  height: isTablet ? 220 : 264,
                   child: _buildImageContent(context),
                 ),
               ),
@@ -33,21 +34,24 @@ class HeroSection extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildTextContent(context),
-              const SizedBox(height: 24),
+              SizedBox(
+                height: ResponsiveHelper.getResponsiveSpacing(
+                  context,
+                  mobile: 20,
+                  tablet: 24,
+                  desktop: 24,
+                ),
+              ),
               _buildImageContent(context),
             ],
           );
   }
 
   Widget _buildTextContent(BuildContext context) {
-    final isMobile = DeviceDetectionService.isMobile(context);
-    final isTablet = DeviceDetectionService.isTablet(context);
-
     return Column(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.start,
-      spacing: isMobile ? 16 : 24,
       children: [
         Container(
           width: double.infinity,
@@ -55,22 +59,47 @@ class HeroSection extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: isMobile ? 12 : 16,
             children: [
+              SizedBox(
+                height: ResponsiveHelper.getResponsiveSpacing(
+                  context,
+                  mobile: 12,
+                  tablet: 14,
+                  desktop: 16,
+                ),
+              ),
               Text(
                 'Experience Our Product in AR',
                 style: TextStyle(
                   color: Colors.black,
-                  fontSize: isMobile ? 28 : (isTablet ? 34 : 40),
+                  fontSize: ResponsiveHelper.getResponsiveFontSize(
+                    context,
+                    mobile: 28,
+                    tablet: 34,
+                    desktop: 40,
+                  ),
                   fontFamily: 'Inter',
                   fontWeight: FontWeight.w700,
+                ),
+              ),
+              SizedBox(
+                height: ResponsiveHelper.getResponsiveSpacing(
+                  context,
+                  mobile: 12,
+                  tablet: 14,
+                  desktop: 16,
                 ),
               ),
               Text(
                 'Bridge the gap between digital and physical retail with interactive AR billboards that deliver unique product demos in high-traffic areas.',
                 style: TextStyle(
                   color: Colors.black,
-                  fontSize: isMobile ? 13 : 14,
+                  fontSize: ResponsiveHelper.getResponsiveFontSize(
+                    context,
+                    mobile: 13,
+                    tablet: 14,
+                    desktop: 14,
+                  ),
                   fontFamily: 'Inter',
                   fontWeight: FontWeight.w400,
                   height: 1.71,
@@ -79,10 +108,28 @@ class HeroSection extends StatelessWidget {
             ],
           ),
         ),
+        SizedBox(
+          height: ResponsiveHelper.getResponsiveSpacing(
+            context,
+            mobile: 16,
+            tablet: 20,
+            desktop: 24,
+          ),
+        ),
         Container(
           padding: EdgeInsets.symmetric(
-            horizontal: isMobile ? 20 : 24,
-            vertical: isMobile ? 12 : 10,
+            horizontal: ResponsiveHelper.getResponsiveSpacing(
+              context,
+              mobile: 20,
+              tablet: 22,
+              desktop: 24,
+            ),
+            vertical: ResponsiveHelper.getResponsiveSpacing(
+              context,
+              mobile: 12,
+              tablet: 10,
+              desktop: 10,
+            ),
           ),
           decoration: ShapeDecoration(
             color: const Color(0xFFED1F24),
@@ -96,14 +143,18 @@ class HeroSection extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
-              spacing: 10,
               children: [
                 Text(
                   'Explore products',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: isMobile ? 14 : 16,
+                    fontSize: ResponsiveHelper.getResponsiveFontSize(
+                      context,
+                      mobile: 14,
+                      tablet: 15,
+                      desktop: 16,
+                    ),
                     fontFamily: 'Inter',
                     fontWeight: FontWeight.w500,
                     height: 1.50,
@@ -118,27 +169,35 @@ class HeroSection extends StatelessWidget {
   }
 
   Widget _buildImageContent(BuildContext context) {
+    final isMobile = ResponsiveHelper.isMobile(context);
+    final isTablet = ResponsiveHelper.isTablet(context);
+
     if (kIsWeb) {
+      final width = isMobile
+          ? MediaQuery.of(context).size.width * 0.9
+          : (isTablet ? 280.0 : 312.0);
+      final height = isMobile ? width * 0.85 : (isTablet ? 220.0 : 264.0);
+
       return SizedBox(
-        width: 312,
-        height: 264,
+        width: width,
+        height: height,
         child: ClipRRect(
           borderRadius: BorderRadius.circular(21),
           child: Stack(
             clipBehavior: Clip.antiAlias,
             children: [
               Positioned(
-                left: -3.44, // Adjusted to center the wider video
+                left: -3.44,
                 top: -106.29,
                 child: SizedBox(
-                  width: 318.88,
-                  height: 475.32,
+                  width: width + 6.88,
+                  height: height * 1.8,
                   child: _VideoPlayerWidget(),
                 ),
               ),
               Positioned(
-                left: 133.20,
-                top: 104.84,
+                left: (width - 52.49) / 2,
+                top: (height - 52.49) / 2,
                 child: SizedBox(
                   width: 52.49,
                   height: 52.49,
@@ -178,9 +237,10 @@ class HeroSection extends StatelessWidget {
       );
     } else {
       // Fallback for non-web platforms
+      final height = isMobile ? 200.0 : (isTablet ? 220.0 : 264.0);
       return Container(
         width: double.infinity,
-        height: 264,
+        height: height,
         decoration: BoxDecoration(
           color: Colors.grey[200],
           borderRadius: BorderRadius.circular(21),

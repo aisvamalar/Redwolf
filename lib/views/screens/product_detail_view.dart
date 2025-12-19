@@ -2,12 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/product.dart';
-import '../widgets/product_card.dart';
 import 'ar_view_screen.dart';
-import 'package:provider/provider.dart';
-import '../../controllers/product_controller.dart';
 import '../../services/product_detail_service.dart';
 import '../../services/device_detection_service.dart';
+import '../../utils/responsive_helper.dart';
 import 'product_detail_view_web_stub.dart'
     if (dart.library.html) 'product_detail_view_web.dart'
     as web_utils;
@@ -80,19 +78,11 @@ class _ProductDetailViewState extends State<ProductDetailView> {
   }
 
   double _getMaxWidth(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    if (width > 1400) return 1300;
-    if (width > 1200) return 1200;
-    if (width > 800) return width - 160;
-    return width - 64;
+    return ResponsiveHelper.getMaxContentWidth(context);
   }
 
   double _getHorizontalPadding(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    if (width > 1400) return (width - 1300) / 2;
-    if (width > 1200) return (width - 1200) / 2;
-    if (width > 800) return 80;
-    return 32;
+    return ResponsiveHelper.getHorizontalPadding(context);
   }
 
   Future<void> _handleShare() async {
@@ -148,7 +138,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
 
   @override
   Widget build(BuildContext context) {
-    final isWeb = MediaQuery.of(context).size.width > 800;
+    final isDesktop = ResponsiveHelper.isDesktop(context);
     final maxWidth = _getMaxWidth(context);
     final horizontalPadding = _getHorizontalPadding(context);
 
@@ -269,7 +259,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                 ),
                                 child: LayoutBuilder(
                                   builder: (context, constraints) {
-                                    return isWeb
+                                    return isDesktop
                                         ? Row(
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
@@ -279,7 +269,14 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                                 flex: 1,
                                                 child: _buildImageGallery(),
                                               ),
-                                              const SizedBox(width: 56),
+                                              SizedBox(
+                                                width:
+                                                    ResponsiveHelper.isTablet(
+                                                      context,
+                                                    )
+                                                    ? 32
+                                                    : 56,
+                                              ),
                                               // Right: Product Details and Key Features
                                               Flexible(
                                                 flex: 1,
@@ -288,7 +285,15 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                                       CrossAxisAlignment.start,
                                                   children: [
                                                     _buildProductDetails(),
-                                                    const SizedBox(height: 20),
+                                                    SizedBox(
+                                                      height:
+                                                          ResponsiveHelper.getResponsiveSpacing(
+                                                            context,
+                                                            mobile: 20,
+                                                            tablet: 20,
+                                                            desktop: 20,
+                                                          ),
+                                                    ),
                                                     _buildKeyFeatures(),
                                                   ],
                                                 ),
@@ -300,9 +305,25 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                                 CrossAxisAlignment.start,
                                             children: [
                                               _buildImageGallery(),
-                                              const SizedBox(height: 32),
+                                              SizedBox(
+                                                height:
+                                                    ResponsiveHelper.getResponsiveSpacing(
+                                                      context,
+                                                      mobile: 24,
+                                                      tablet: 28,
+                                                      desktop: 32,
+                                                    ),
+                                              ),
                                               _buildProductDetails(),
-                                              const SizedBox(height: 32),
+                                              SizedBox(
+                                                height:
+                                                    ResponsiveHelper.getResponsiveSpacing(
+                                                      context,
+                                                      mobile: 24,
+                                                      tablet: 28,
+                                                      desktop: 32,
+                                                    ),
+                                              ),
                                               _buildKeyFeatures(),
                                             ],
                                           );
@@ -369,11 +390,16 @@ class _ProductDetailViewState extends State<ProductDetailView> {
   }
 
   Widget _buildImageGallery() {
-    final isMobile = DeviceDetectionService.isMobile(context);
+    final isMobile = ResponsiveHelper.isMobile(context);
     final screenWidth = MediaQuery.of(context).size.width;
 
     // Responsive sizing
-    final thumbnailSize = isMobile ? 48.0 : 64.0;
+    final thumbnailSize = ResponsiveHelper.getResponsiveSpacing(
+      context,
+      mobile: 48.0,
+      tablet: 56.0,
+      desktop: 64.0,
+    );
 
     // Safety check for images
     if (_productImages.isEmpty) {
@@ -617,11 +643,11 @@ class _ProductDetailViewState extends State<ProductDetailView> {
   }
 
   Widget _buildProductDetails() {
-    final isWeb = MediaQuery.of(context).size.width > 800;
-    final isMobile = DeviceDetectionService.isMobile(context);
+    final isDesktop = ResponsiveHelper.isDesktop(context);
+    final isMobile = ResponsiveHelper.isMobile(context);
 
     return SizedBox(
-      width: isWeb ? 453 : double.infinity,
+      width: isDesktop ? 453 : double.infinity,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -636,7 +662,12 @@ class _ProductDetailViewState extends State<ProductDetailView> {
               _product.category.isNotEmpty ? _product.category : 'Portable',
               style: TextStyle(
                 color: Colors.black,
-                fontSize: isMobile ? 11 : 12,
+                fontSize: ResponsiveHelper.getResponsiveFontSize(
+                  context,
+                  mobile: 11,
+                  tablet: 11,
+                  desktop: 12,
+                ),
                 fontWeight: FontWeight.w400,
                 height: 1.50,
               ),
@@ -645,12 +676,19 @@ class _ProductDetailViewState extends State<ProductDetailView> {
           const SizedBox(height: 12),
           // Product name
           SizedBox(
-            width: isMobile ? double.infinity : (isWeb ? 333 : double.infinity),
+            width: isMobile
+                ? double.infinity
+                : (isDesktop ? 333 : double.infinity),
             child: Text(
               _product.name,
               style: TextStyle(
                 color: Colors.black,
-                fontSize: isMobile ? 22 : 26,
+                fontSize: ResponsiveHelper.getResponsiveFontSize(
+                  context,
+                  mobile: 22,
+                  tablet: 24,
+                  desktop: 26,
+                ),
                 fontWeight: FontWeight.w600,
                 height: 1.23,
               ),
@@ -659,12 +697,19 @@ class _ProductDetailViewState extends State<ProductDetailView> {
           const SizedBox(height: 12),
           // Description
           SizedBox(
-            width: isMobile ? double.infinity : (isWeb ? 440 : double.infinity),
+            width: isMobile
+                ? double.infinity
+                : (isDesktop ? 440 : double.infinity),
             child: Text(
               _product.description,
               style: TextStyle(
                 color: const Color(0xFF2C2C34),
-                fontSize: isMobile ? 13 : 14,
+                fontSize: ResponsiveHelper.getResponsiveFontSize(
+                  context,
+                  mobile: 13,
+                  tablet: 14,
+                  desktop: 14,
+                ),
                 fontWeight: FontWeight.w400,
                 height: 1.71,
               ),
@@ -812,10 +857,10 @@ class _ProductDetailViewState extends State<ProductDetailView> {
 
   Widget _buildKeyFeatures() {
     final features = _product.defaultKeyFeatures;
-    final isWeb = MediaQuery.of(context).size.width > 800;
+    final isDesktop = ResponsiveHelper.isDesktop(context);
 
     return SizedBox(
-      width: isWeb ? 453 : double.infinity,
+      width: isDesktop ? 453 : double.infinity,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -832,8 +877,8 @@ class _ProductDetailViewState extends State<ProductDetailView> {
             ),
           ),
           const SizedBox(height: 12),
-          // Display features in two columns on web, single column on mobile
-          isWeb
+          // Display features in two columns on desktop, single column on mobile/tablet
+          isDesktop
               ? Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -921,23 +966,35 @@ class _ProductDetailViewState extends State<ProductDetailView> {
   Widget _buildTechnicalSpecs() {
     final specs = _product.defaultTechnicalSpecs;
     final entries = specs.entries.toList();
-    final isWeb = MediaQuery.of(context).size.width > 800;
+    final isDesktop = ResponsiveHelper.isDesktop(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Technical Specifications',
           style: TextStyle(
-            color: Color(0xFF090919),
-            fontSize: 22,
+            color: const Color(0xFF090919),
+            fontSize: ResponsiveHelper.getResponsiveFontSize(
+              context,
+              mobile: 20,
+              tablet: 21,
+              desktop: 22,
+            ),
             fontWeight: FontWeight.w600,
             height: 1.36,
           ),
         ),
-        const SizedBox(height: 40),
-        // Two-column grid layout on web, single column on mobile
-        isWeb
+        SizedBox(
+          height: ResponsiveHelper.getResponsiveSpacing(
+            context,
+            mobile: 32,
+            tablet: 36,
+            desktop: 40,
+          ),
+        ),
+        // Two-column grid layout on desktop, single column on mobile/tablet
+        isDesktop
             ? Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -991,11 +1048,20 @@ class _ProductDetailViewState extends State<ProductDetailView> {
   }
 
   Widget _buildSpecRow(String label, String value, {required bool isWeb}) {
+    final isMobile = ResponsiveHelper.isMobile(context);
+
     return Container(
       // Let the row take up the full available width from its parent
       // so we don't overflow on smaller screens.
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: EdgeInsets.symmetric(
+        vertical: ResponsiveHelper.getResponsiveSpacing(
+          context,
+          mobile: 10,
+          tablet: 11,
+          desktop: 12,
+        ),
+      ),
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(color: const Color(0xFFC6C7D0), width: 1),
@@ -1006,7 +1072,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
         textBaseline: TextBaseline.alphabetic,
         children: [
           SizedBox(
-            width: isWeb ? 200 : 150,
+            width: isWeb ? 200 : (isMobile ? 120 : 150),
             child: Text(
               label,
               style: const TextStyle(

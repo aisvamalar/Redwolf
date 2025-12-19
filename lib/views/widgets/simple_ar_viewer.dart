@@ -322,32 +322,6 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
         </button>
       </div>
       
-      <!-- Center Drag Instructions -->
-      <div id="drag-instructions" style="
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: rgba(0, 0, 0, 0.8);
-        color: white;
-        padding: 12px 24px;
-        border-radius: 20px;
-        font-size: 16px;
-        font-weight: 500;
-        z-index: 25;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
-        backdrop-filter: blur(10px);
-      ">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 20px;">←</span>
-          <span style="font-size: 20px;">👆</span>
-          <span style="font-size: 20px;">→</span>
-        </div>
-        <span>Drag to move</span>
-      </div>
       
       <!-- Bottom Rotation Control -->
       <div style="
@@ -467,7 +441,7 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       ">
         <h3 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 600;">${widget.productName ?? 'AR Product View'}</h3>
         <div style="font-size: 14px; line-height: 1.4; opacity: 0.9;">
-          <p style="margin: 0 0 8px 0;">• Tap and drag to move the model</p>
+          <p style="margin: 0 0 8px 0;">• Tap on surface to place the model</p>
           <p style="margin: 0 0 8px 0;">• Use rotation slider to rotate</p>
           <p style="margin: 0 0 8px 0;">• Zoom in/out with +/- buttons</p>
           <p style="margin: 0;">• Capture screenshots with camera button</p>
@@ -539,6 +513,7 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
     let modelRotation = { x: 0, y: 0, z: 0 };
     let modelPosition = { x: 0, y: 0, z: 0 };
     let placedModels = [];
+    let isDraggingModel = false; // Track if any model is being dragged
     
     // Analytics tracking variables
     let arSessionStartTime = Date.now();
@@ -671,6 +646,12 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       arCanvas.addEventListener('click', handleCanvasClick);
       
       function handleCanvasClick(event) {
+        // Don't place model if we just finished dragging
+        if (isDraggingModel) {
+          console.log('Drag just ended, ignoring canvas click');
+          return;
+        }
+        
         console.log('Canvas clicked at:', event.clientX, event.clientY);
         
         // Check if click is on an existing model
@@ -727,15 +708,15 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       const modelViewerElement = document.createElement('model-viewer');
       modelViewerElement.setAttribute('src', '${widget.modelUrl}');
       modelViewerElement.setAttribute('alt', '${widget.altText ?? widget.productName ?? '3D Model'}');
-      modelViewerElement.setAttribute('camera-controls', '');
-      modelViewerElement.setAttribute('interaction-policy', 'allow-when-focused');
+      // Disable camera controls and interaction to allow dragging
+      modelViewerElement.setAttribute('interaction-policy', 'none');
       modelViewerElement.setAttribute('shadow-intensity', '1');
       modelViewerElement.setAttribute('exposure', '1');
       modelViewerElement.setAttribute('environment-image', 'neutral');
-      modelViewerElement.setAttribute('auto-rotate', '');
-      modelViewerElement.setAttribute('auto-rotate-delay', '0');
+      // Auto-rotate removed - placed models should stay fixed in position
       modelViewerElement.setAttribute('ar', '');
-      modelViewerElement.style.cssText = 'width: 100%; height: 100%; background: transparent; position: absolute; top: 0; left: 0;';
+      // Disable pointer events on model-viewer so container handles drag
+      modelViewerElement.style.cssText = 'width: 100%; height: 100%; background: transparent; position: absolute; top: 0; left: 0; pointer-events: none;';
       
       // Add label
       const label = document.createElement('div');
@@ -794,18 +775,19 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       showNotification('Placing 3D Model...');
     }
     
-    // Enhanced draggable functionality with analytics
+    // Make model draggable (supports both mouse and touch)
     function makeModelDraggable(element, modelId) {
       let isDragging = false;
       let startX, startY, initialX, initialY;
-      let dragStartTime = 0;
-      let totalDragDistance = 0;
       
       function startDrag(e) {
-        isDragging = true;
-        dragStartTime = Date.now();
-        totalDragDistance = 0;
+        // Don't start drag if clicking on canvas (for placing new models)
+        if (e.target === arCanvas || e.target.closest('#ar-canvas')) {
+          return;
+        }
         
+        isDragging = true;
+        isDraggingModel = true; // Set global flag
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
         startX = clientX;
@@ -813,39 +795,25 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
         const rect = element.getBoundingClientRect();
         initialX = rect.left + rect.width / 2;
         initialY = rect.top + rect.height / 2;
-        
         element.style.cursor = 'grabbing';
         element.style.touchAction = 'none';
-        element.style.transform += ' scale(1.05)'; // Slight scale up when dragging
-        element.style.transition = 'transform 0.1s ease';
-        
-        // Show drag instructions temporarily
-        const dragInstructions = document.getElementById('drag-instructions');
-        if (dragInstructions && dragInstructions.style.display === 'none') {
-          dragInstructions.style.display = 'flex';
-          dragInstructions.style.opacity = '0.7';
-          setTimeout(() => {
-            dragInstructions.style.opacity = '0';
-            setTimeout(() => {
-              dragInstructions.style.display = 'none';
-            }, 300);
-          }, 1500);
-        }
-        
+        // Make sure element is on top when dragging
+        element.style.zIndex = '22';
         e.preventDefault();
+        e.stopPropagation();
       }
       
       function drag(e) {
         if (!isDragging) return;
-        
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
         const deltaX = clientX - startX;
         const deltaY = clientY - startY;
         
-        // Calculate drag distance for analytics
-        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-        totalDragDistance = Math.max(totalDragDistance, distance);
+        // Only move if there's significant movement (prevents accidental drags)
+        if (Math.abs(deltaX) < 5 && Math.abs(deltaY) < 5) {
+          return;
+        }
         
         const newX = initialX + deltaX;
         const newY = initialY + deltaY;
@@ -863,17 +831,17 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
         element.style.top = constrainedY + 'px';
         
         e.preventDefault();
+        e.stopPropagation();
       }
       
       function endDrag(e) {
         if (isDragging) {
           isDragging = false;
-          const dragDuration = Date.now() - dragStartTime;
-          
           element.style.cursor = 'grab';
           element.style.touchAction = 'auto';
-          element.style.transform = element.style.transform.replace(' scale(1.05)', '');
+          element.style.zIndex = '21';
           
+          // Update stored position
           const model = placedModels.find(m => m.id === modelId);
           if (model) {
             const rect = element.getBoundingClientRect();
@@ -881,26 +849,29 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
             model.y = rect.top + rect.height / 2;
           }
           
-          // Track drag analytics
-          trackARAction('model_dragged', {
-            model_id: modelId,
-            drag_duration_ms: dragDuration,
-            drag_distance_px: Math.round(totalDragDistance),
-            final_position: { x: model?.x, y: model?.y }
-          });
-          
           // Provide haptic feedback on mobile
           if (navigator.vibrate) {
             navigator.vibrate(50);
           }
+          
+          if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+          
+          // Reset global drag flag after a short delay to prevent canvas click
+          setTimeout(() => {
+            isDraggingModel = false;
+          }, 100);
         }
       }
       
-      // Enhanced event listeners with better touch support
+      // Mouse events
       element.addEventListener('mousedown', startDrag, { passive: false });
       document.addEventListener('mousemove', drag, { passive: false });
       document.addEventListener('mouseup', endDrag);
       
+      // Touch events
       element.addEventListener('touchstart', startDrag, { passive: false });
       document.addEventListener('touchmove', drag, { passive: false });
       document.addEventListener('touchend', endDrag);
@@ -955,17 +926,6 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
             modelsContainer.style.display = 'block';
           }
           
-          // Hide drag instructions after 3 seconds
-          setTimeout(() => {
-            const dragInstructions = document.getElementById('drag-instructions');
-            if (dragInstructions) {
-              dragInstructions.style.opacity = '0';
-              dragInstructions.style.transition = 'opacity 0.5s ease';
-              setTimeout(() => {
-                dragInstructions.style.display = 'none';
-              }, 500);
-            }
-          }, 3000);
           
           updateARButton();
           

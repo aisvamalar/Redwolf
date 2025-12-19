@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
-import '../../services/device_detection_service.dart';
+import '../../utils/responsive_helper.dart';
 
 class HeaderWidget extends StatelessWidget {
   const HeaderWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = DeviceDetectionService.isMobile(context);
-    final logoWidth = isMobile ? 120.0 : 160.0;
-    final logoHeight = isMobile ? 40.0 : 52.21;
-    
+    final isMobile = ResponsiveHelper.isMobile(context);
+    final isTablet = ResponsiveHelper.isTablet(context);
+    final logoWidth = isMobile ? 120.0 : (isTablet ? 140.0 : 160.0);
+    final logoHeight = isMobile ? 40.0 : (isTablet ? 46.0 : 52.21);
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.start,

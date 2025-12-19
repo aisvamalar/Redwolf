@@ -4,7 +4,7 @@ import '../widgets/hero_section.dart';
 import '../widgets/search_filter_bar.dart';
 import '../widgets/product_grid.dart';
 import '../widgets/footer_widget.dart';
-import '../../services/device_detection_service.dart';
+import '../../utils/responsive_helper.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -34,19 +34,12 @@ class _HomeViewState extends State<HomeView> {
     }
   }
 
-  double _getHorizontalPadding(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    // Reduced padding for more usable width
-    if (width > 1200) return 24; // Reduced padding for desktop
-    if (width > 800) return 24; // Reduced padding for tablet
-    return 16; // Reduced padding for mobile
-  }
-
   @override
   Widget build(BuildContext context) {
-    final horizontalPadding = _getHorizontalPadding(context);
-    final screenWidth = MediaQuery.of(context).size.width;
-    final maxWidth = screenWidth > 1200 ? 1200.0 : double.infinity;
+    final horizontalPadding = ResponsiveHelper.getHorizontalPadding(context);
+    final maxWidth = ResponsiveHelper.getMaxContentWidth(context);
+    final isMobile = ResponsiveHelper.isMobile(context);
+    final isTablet = ResponsiveHelper.isTablet(context);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -65,7 +58,7 @@ class _HomeViewState extends State<HomeView> {
                   width: double.infinity,
                   padding: EdgeInsets.symmetric(
                     horizontal: horizontalPadding,
-                    vertical: 24,
+                    vertical: isMobile ? 16 : (isTablet ? 20 : 24),
                   ),
                   decoration: const BoxDecoration(
                     border: Border(
@@ -79,27 +72,32 @@ class _HomeViewState extends State<HomeView> {
                   padding: EdgeInsets.only(
                     left: horizontalPadding,
                     right: horizontalPadding,
-                    top: 64, // Spacing from header
+                    top: isMobile ? 32 : (isTablet ? 48 : 64),
                   ),
                   child: Center(
                     child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: screenWidth > 1200 ? 1000.0 : double.infinity,
-                      ),
+                      constraints: BoxConstraints(maxWidth: maxWidth),
                       child: HeroSection(onExplorePressed: _scrollToProducts),
                     ),
                   ),
                 ),
                 // Products Title
                 Padding(
-                  padding: EdgeInsets.only(top: DeviceDetectionService.isMobile(context) ? 48 : 64),
+                  padding: EdgeInsets.only(
+                    top: isMobile ? 32 : (isTablet ? 48 : 64),
+                  ),
                   child: Center(
                     child: Text(
                       'Explore Our Products',
                       key: _productsKey,
                       style: TextStyle(
                         color: Colors.black,
-                        fontSize: DeviceDetectionService.isMobile(context) ? 22 : 26,
+                        fontSize: ResponsiveHelper.getResponsiveFontSize(
+                          context,
+                          mobile: 22,
+                          tablet: 24,
+                          desktop: 26,
+                        ),
                         fontFamily: 'Inter',
                         fontWeight: FontWeight.w600,
                         height: 1.23,
@@ -112,13 +110,11 @@ class _HomeViewState extends State<HomeView> {
                   padding: EdgeInsets.only(
                     left: horizontalPadding,
                     right: horizontalPadding,
-                    top: 24,
+                    top: isMobile ? 20 : 24,
                   ),
                   child: Center(
                     child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: screenWidth > 1200 ? 1000.0 : double.infinity,
-                      ),
+                      constraints: BoxConstraints(maxWidth: maxWidth),
                       child: const SearchFilterBar(),
                     ),
                   ),
@@ -128,21 +124,22 @@ class _HomeViewState extends State<HomeView> {
                   padding: EdgeInsets.only(
                     left: horizontalPadding,
                     right: horizontalPadding,
-                    top: 24,
+                    top: isMobile ? 20 : 24,
                   ),
                   child: Center(
                     child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: screenWidth > 1200 ? 1000.0 : double.infinity,
-                      ),
+                      constraints: BoxConstraints(maxWidth: maxWidth),
                       child: const ProductGrid(),
                     ),
                   ),
                 ),
                 // Footer
-                const Padding(
-                  padding: EdgeInsets.only(top: 64, bottom: 32),
-                  child: Center(child: FooterWidget()),
+                Padding(
+                  padding: EdgeInsets.only(
+                    top: isMobile ? 48 : (isTablet ? 56 : 64),
+                    bottom: isMobile ? 24 : 32,
+                  ),
+                  child: const Center(child: FooterWidget()),
                 ),
               ],
             ),

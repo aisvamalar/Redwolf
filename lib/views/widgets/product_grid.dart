@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../controllers/product_controller.dart';
-import '../../services/device_detection_service.dart';
+import '../../utils/responsive_helper.dart';
 import 'product_card.dart';
 
 class ProductGrid extends StatelessWidget {
@@ -11,11 +11,14 @@ class ProductGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = Provider.of<ProductController>(context);
     final products = controller.products;
+    final isMobile = ResponsiveHelper.isMobile(context);
+    final isTablet = ResponsiveHelper.isTablet(context);
+    final isDesktop = ResponsiveHelper.isDesktop(context);
 
     if (controller.isLoading) {
-      return const Padding(
-        padding: EdgeInsets.all(48.0),
-        child: Center(
+      return Padding(
+        padding: EdgeInsets.all(isMobile ? 32.0 : 48.0),
+        child: const Center(
           child: CircularProgressIndicator(color: Color(0xFFDC2626)),
         ),
       );
@@ -23,19 +26,29 @@ class ProductGrid extends StatelessWidget {
 
     if (controller.errorMessage != null) {
       return Padding(
-        padding: const EdgeInsets.all(48.0),
+        padding: EdgeInsets.all(isMobile ? 32.0 : 48.0),
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.error_outline, size: 48, color: Colors.grey[400]),
-              const SizedBox(height: 16),
-              Text(
-                controller.errorMessage!,
-                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                textAlign: TextAlign.center,
+              Icon(
+                Icons.error_outline,
+                size: isMobile ? 40 : 48,
+                color: Colors.grey[400],
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: isMobile ? 12 : 16),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 0),
+                child: Text(
+                  controller.errorMessage!,
+                  style: TextStyle(
+                    fontSize: isMobile ? 14 : 16,
+                    color: Colors.grey[600],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              SizedBox(height: isMobile ? 12 : 16),
               ElevatedButton(
                 onPressed: () => controller.refreshProducts(),
                 style: ElevatedButton.styleFrom(
@@ -51,19 +64,16 @@ class ProductGrid extends StatelessWidget {
     }
 
     if (products.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(48.0),
+      return Padding(
+        padding: EdgeInsets.all(isMobile ? 32.0 : 48.0),
         child: Center(
           child: Text(
             'No products found',
-            style: TextStyle(fontSize: 18, color: Colors.grey),
+            style: TextStyle(fontSize: isMobile ? 16 : 18, color: Colors.grey),
           ),
         ),
       );
     }
-
-    final isWeb = MediaQuery.of(context).size.width > 800;
-    final isTablet = DeviceDetectionService.isTablet(context);
 
     // For now, home screen should only show a single featured product card.
     // When an admin panel is added, this can be driven by backend config.
@@ -72,19 +82,17 @@ class ProductGrid extends StatelessWidget {
       orElse: () => products.first,
     );
 
-    final horizontalPadding = isWeb
-        ? 0.0
-        : (isTablet ? 24.0 : 16.0); // match page paddings on smaller screens
-    final maxCardWidth = isWeb ? 320.0 : 300.0;
+    final maxCardWidth = isDesktop
+        ? 320.0
+        : (isTablet ? 300.0 : double.infinity);
 
-      return Container(
-      width: isWeb ? 960 : double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-      alignment: Alignment.centerLeft,
+    return Container(
+      width: isDesktop ? 960 : double.infinity,
+      alignment: isDesktop ? Alignment.centerLeft : Alignment.center,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxCardWidth),
         child: ProductCard(product: featuredProduct),
-        ),
-      );
+      ),
+    );
   }
 }
