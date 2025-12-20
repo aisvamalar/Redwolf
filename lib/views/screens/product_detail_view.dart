@@ -716,263 +716,153 @@ class _ProductDetailViewState extends State<ProductDetailView> {
             ),
           ),
           const SizedBox(height: 20),
-          // Action buttons - stacked vertically
-          SizedBox(
-            width: double.infinity,
-            child: ResponsiveHelper.isMobile(context)
-                ? Column(
-                    children: [
-                      // View In My Space button (full width on mobile)
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            // Navigate to AR view
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => ARViewScreen(
-                                  product: _product,
-                                  modelUrl: modelUrl,
-                                ),
-                              ),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFED1F24),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'View In My Space',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  height: 1.43,
-                                ),
-                              ),
-                              SizedBox(width: 8),
-                              Icon(Icons.view_in_ar, size: 20),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      // Enquire now button (full width on mobile)
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton(
-                          onPressed: () async {
-                            final uri = Uri.parse('https://wa.me/916369869996');
-                            if (!await launchUrl(
-                              uri,
-                              mode: LaunchMode.externalApplication,
-                            )) {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Could not open WhatsApp'),
-                                    duration: Duration(seconds: 2),
-                                  ),
-                                );
-                              }
-                            }
-                          },
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFFED1F24),
-                            side: const BorderSide(
-                              color: Color(0xFFED1F24),
-                              width: 1,
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Enquire now',
-                                style: TextStyle(
-                                  color: Color(0xFFED1F24),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  height: 1.43,
-                                ),
-                              ),
-                              SizedBox(width: 8),
-                              Icon(Icons.chat_bubble_outline, size: 18),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  )
-                : Row(
-                    children: [
-                      // Enquire now button
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () async {
-                            final uri = Uri.parse('https://wa.me/916369869996');
-                            if (!await launchUrl(
-                              uri,
-                              mode: LaunchMode.externalApplication,
-                            )) {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Could not open WhatsApp'),
-                                    duration: Duration(seconds: 2),
-                                  ),
-                                );
-                              }
-                            }
-                          },
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFFED1F24),
-                            side: const BorderSide(
-                              color: Color(0xFFED1F24),
-                              width: 1,
-                            ),
-                            padding: EdgeInsets.symmetric(
-                              horizontal: ResponsiveHelper.isTablet(context)
-                                  ? 12
-                                  : 16,
-                              vertical: 10,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  'Enquire now',
-                                  style: TextStyle(
-                                    color: const Color(0xFFED1F24),
-                                    fontSize: ResponsiveHelper.isTablet(context)
-                                        ? 13
-                                        : 14,
-                                    fontWeight: FontWeight.w600,
-                                    height: 1.43,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Icon(
-                                Icons.chat_bubble_outline,
-                                size: ResponsiveHelper.isTablet(context)
-                                    ? 16
-                                    : 18,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      SizedBox(
-                        width: ResponsiveHelper.isTablet(context) ? 12 : 16,
-                      ),
-                      // View In My Space button
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            // Check if device is desktop
-                            if (DeviceDetectionService.isDesktop(context)) {
-                              // Show snackbar on desktop
+          // Action buttons - responsive layout
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isMobile = ResponsiveHelper.isMobile(context);
+              final buttonSpacing = isMobile ? 12.0 : 16.0;
+              final buttonPadding = isMobile 
+                  ? const EdgeInsets.symmetric(horizontal: 12, vertical: 10)
+                  : const EdgeInsets.symmetric(horizontal: 16, vertical: 10);
+              final buttonFontSize = isMobile ? 12.0 : 14.0;
+              final iconSize = isMobile ? 16.0 : 18.0;
+              
+              return SizedBox(
+                width: double.infinity,
+                child: Row(
+                  children: [
+                    // Enquire now button
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () async {
+                          final uri = Uri.parse('https://wa.me/916369869996');
+                          if (!await launchUrl(
+                            uri,
+                            mode: LaunchMode.externalApplication,
+                          )) {
+                            if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: const Text(
-                                    'AR is only available on mobile and tablet devices. Please open this website on your mobile or tablet to experience AR.',
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                  backgroundColor: const Color(0xFFED1F24),
-                                  duration: const Duration(seconds: 5),
-                                  behavior: SnackBarBehavior.floating,
-                                  action: SnackBarAction(
-                                    label: 'OK',
-                                    textColor: Colors.white,
-                                    onPressed: () {},
-                                  ),
+                                const SnackBar(
+                                  content: Text('Could not open WhatsApp'),
+                                  duration: Duration(seconds: 2),
                                 ),
                               );
-                              return;
                             }
-
-                            // Navigate to AR view
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => ARViewScreen(
-                                  product: _product,
-                                  modelUrl: modelUrl,
+                          }
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFED1F24),
+                          side: const BorderSide(
+                            color: Color(0xFFED1F24),
+                            width: 1,
+                          ),
+                          padding: buttonPadding,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                'Enquire now',
+                                style: TextStyle(
+                                  color: const Color(0xFFED1F24),
+                                  fontSize: buttonFontSize,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.43,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            SizedBox(width: isMobile ? 4 : 8),
+                            Icon(Icons.chat_bubble_outline, size: iconSize),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: buttonSpacing),
+                    // View In My Space button
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          // Check if device is desktop
+                          if (DeviceDetectionService.isDesktop(context)) {
+                            // Show snackbar on desktop
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text(
+                                  'AR is only available on mobile and tablet devices. Please open this website on your mobile or tablet to experience AR.',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                backgroundColor: const Color(0xFFED1F24),
+                                duration: const Duration(seconds: 5),
+                                behavior: SnackBarBehavior.floating,
+                                action: SnackBarAction(
+                                  label: 'OK',
+                                  textColor: Colors.white,
+                                  onPressed: () {},
                                 ),
                               ),
                             );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                DeviceDetectionService.isDesktop(context)
-                                ? Colors.grey[400]
-                                : const Color(0xFFED1F24),
-                            foregroundColor: Colors.white,
-                            padding: EdgeInsets.symmetric(
-                              horizontal: ResponsiveHelper.isTablet(context)
-                                  ? 12
-                                  : 16,
-                              vertical: 10,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  'View In My Space',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: ResponsiveHelper.isTablet(context)
-                                        ? 13
-                                        : 14,
-                                    fontWeight: FontWeight.w600,
-                                    height: 1.43,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                            return;
+                          }
+
+                          // Navigate to AR view - let the AR screen handle availability checks
+                          // This allows the AR view to appear even on emulators (with appropriate error message)
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => ARViewScreen(
+                                product: _product,
+                                modelUrl:
+                                    modelUrl, // Uses the specific product's modelUrl
                               ),
-                              const SizedBox(width: 8),
-                              Icon(
-                                DeviceDetectionService.isDesktop(context)
-                                    ? Icons.block
-                                    : Icons.view_in_ar,
-                                size: ResponsiveHelper.isTablet(context)
-                                    ? 18
-                                    : 20,
-                              ),
-                            ],
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: DeviceDetectionService.isDesktop(context)
+                              ? Colors.grey[400]
+                              : const Color(0xFFED1F24),
+                          foregroundColor: Colors.white,
+                          padding: buttonPadding,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(4),
                           ),
                         ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                isMobile ? 'View AR' : 'View In My Space',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: buttonFontSize,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.43,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            SizedBox(width: isMobile ? 4 : 8),
+                            Icon(
+                              DeviceDetectionService.isDesktop(context)
+                                  ? Icons.block
+                                  : Icons.view_in_ar,
+                              size: iconSize,
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ],
       ),
