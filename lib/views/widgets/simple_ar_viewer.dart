@@ -108,6 +108,12 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
     );
   }
 
+  /// Escapes a string for use in JavaScript
+  String _escapeJsString(String? value) {
+    if (value == null) return "''";
+    return "'${value.replaceAll("'", "\\'").replaceAll('\n', '\\n').replaceAll('\r', '\\r')}'";
+  }
+
   String _createArHtml() {
     return '''
 <!DOCTYPE html>
@@ -116,7 +122,6 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>AR Viewer - ${widget.productName ?? '3D Model'}</title>
-  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
   <style>
     * {
       margin: 0;
@@ -138,12 +143,6 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       align-items: center;
       justify-content: center;
     }
-    model-viewer {
-      width: 100%;
-      height: 100%;
-      display: block;
-      background: #000;
-    }
     .info-text {
       position: absolute;
       top: 50%;
@@ -159,94 +158,104 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       max-width: 90%;
       backdrop-filter: blur(10px);
     }
+    .error-text {
+      background: rgba(239, 68, 68, 0.95);
+    }
   </style>
 </head>
 <body>
   <div id="ar-container">
-    <model-viewer
-      id="ar-model"
-      src="${widget.modelUrl}"
-      alt="${widget.altText ?? widget.productName ?? '3D Model'}"
-      ar
-      ar-modes="scene-viewer webxr quick-look"
-      ar-scale="0.7"
-      ar-placement="floor"
-      scale="0.7"
-      camera-controls
-      shadow-intensity="1.5"
-      exposure="1.2"
-      environment-image="neutral"
-      reveal="auto"
-      loading="auto"
-      interaction-policy="allow-when-focused"
-    >
-    </model-viewer>
-    
     <div class="info-text" id="info-text">
       Opening AR view...
     </div>
   </div>
 
-  <script type="module">
-    const modelViewer = document.querySelector('#ar-model');
+  <script>
     const infoText = document.getElementById('info-text');
-    let arAutoTriggered = false;
-
-    // Auto-trigger AR when model loads - directly open Scene Viewer
-    modelViewer.addEventListener('load', async () => {
-      if (arAutoTriggered) return;
-      
-      // Small delay to ensure model is fully loaded
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
+    
+    // Check if this is an Android device
+    const isAndroid = /android/i.test(navigator.userAgent);
+    
+    // Model URL and configuration - escape single quotes in URL
+    const modelUrl = ${_escapeJsString(widget.modelUrl)};
+    const encodedModelUrl = encodeURIComponent(modelUrl);
+    const productTitle = ${_escapeJsString(widget.productName ?? '3D Model')};
+    const encodedTitle = encodeURIComponent(productTitle);
+    
+    // Fallback URL for non-Android or when Scene Viewer is unavailable
+    const fallbackUrl = 'https://arvr.google.com/scene-viewer?file=' + encodedModelUrl + '&title=' + encodedTitle;
+    
+    // Intent URL for Android - opens Scene Viewer directly
+    const intentUrl = 'intent://arvr.google.com/scene-viewer/1.0?file=' + encodedModelUrl + 
+                      '&mode=ar_only' +
+                      '&title=' + encodedTitle +
+                      '#Intent;scheme=https;package=com.google.ar.core;action=android.intent.action.VIEW;S.browser_fallback_url=' + 
+                      encodeURIComponent(fallbackUrl) + ';end;';
+    
+    // Function to open Scene Viewer
+    function openSceneViewer() {
       try {
-        if (modelViewer.activateAR) {
-          arAutoTriggered = true;
-          infoText.textContent = 'Opening AR view...';
-          
-          // Activate AR immediately - this will open Scene Viewer directly
-          await modelViewer.activateAR();
-          
-          // Hide info text after AR activates
-          setTimeout(() => {
-            infoText.style.display = 'none';
-          }, 800);
+        if (isAndroid) {
+          // Use intent URL for Android devices
+          window.location.href = intentUrl;
         } else {
-          infoText.textContent = 'AR is not supported on this device/browser.';
-          infoText.style.background = 'rgba(239, 68, 68, 0.95)';
+          // Use fallback URL for other platforms
+          window.location.href = fallbackUrl;
         }
+        
+        // Show loading message
+        infoText.textContent = 'Opening Scene Viewer...';
+        
+        // If we're still here after a delay, show error
+        setTimeout(() => {
+          if (document.hasFocus()) {
+            infoText.textContent = 'Please ensure Google ARCore is installed and try again.';
+            infoText.classList.add('error-text');
+          }
+        }, 2000);
       } catch (error) {
-        console.error('AR activation error:', error);
+        console.error('Error opening Scene Viewer:', error);
         infoText.textContent = 'Failed to open AR. Please try again.';
-        infoText.style.background = 'rgba(239, 68, 68, 0.95)';
+        infoText.classList.add('error-text');
       }
+    }
+    
+    // Auto-open Scene Viewer when page loads
+    window.addEventListener('load', () => {
+      // Small delay to ensure page is ready
+      setTimeout(() => {
+        openSceneViewer();
+      }, 300);
     });
-
-    // Handle AR status changes
-    modelViewer.addEventListener('ar-status', (event) => {
-      console.log('AR status:', event.detail.status);
-      
-      if (event.detail.status === 'session-started') {
-        infoText.style.display = 'none';
-        // Ensure model is properly scaled for floor placement
-        try {
-          modelViewer.scale = '0.7';
-          modelViewer.arScale = '0.7';
-        } catch (e) {
-          console.log('Scale adjustment:', e);
-        }
-      } else if (event.detail.status === 'session-ended' || event.detail.status === 'not-presenting') {
-        // When AR session ends, go back
-        goBack();
-      }
-    });
-
-    // Go back navigation
+    
+    // Also try to open immediately if page is already loaded
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      setTimeout(() => {
+        openSceneViewer();
+      }, 300);
+    }
+    
+    // Handle back navigation from Scene Viewer
     function goBack() {
       if (window.parent) {
         window.parent.postMessage({ type: 'ar_back' }, '*');
+      } else {
+        window.history.back();
       }
     }
+    
+    // Listen for visibility change (when user returns from Scene Viewer)
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        // User opened Scene Viewer
+        infoText.style.display = 'none';
+      } else {
+        // User returned from Scene Viewer
+        setTimeout(() => {
+          goBack();
+        }, 500);
+      }
+    });
   </script>
 </body>
 </html>
