@@ -237,6 +237,33 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       pointer-events: none;
       z-index: 99;
     }
+    .placement-reticle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 60px;
+      height: 60px;
+      border: 2px solid rgba(255, 255, 255, 0.8);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 50;
+      display: none;
+    }
+    .placement-reticle.active {
+      display: block;
+    }
+    .placement-reticle::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255, 255, 255, 0.8);
+      border-radius: 50%;
+    }
   </style>
 </head>
 <body>
@@ -246,8 +273,9 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       src="${widget.modelUrl}"
       alt="${widget.altText ?? widget.productName ?? '3D Model'}"
       ar
-      ar-modes="scene-viewer webxr quick-look"
+      ar-modes="webxr"
       ar-scale="0.5"
+      ar-placement="floor"
       scale="0.5"
       camera-controls
       shadow-intensity="1.5"
@@ -256,10 +284,13 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       reveal="auto"
       loading="auto"
       interaction-policy="allow-when-focused"
+      touch-action="none"
+      style="width: 100%; height: 100%;"
     >
     </model-viewer>
     
     <div class="controls-bar"></div>
+    <div class="placement-reticle" id="reticle"></div>
     
     <button class="control-button back-button" onclick="goBack()" title="Exit">×</button>
     <button class="control-button reset-button" onclick="resetModel()" title="Reset">
@@ -284,11 +315,53 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
   <script type="module">
     const modelViewer = document.querySelector('#ar-model');
     const infoText = document.getElementById('info-text');
+    const reticle = document.getElementById('reticle');
     let arAutoTriggered = false;
+    let arSession = null;
+    let xrHitTestSource = null;
+    let modelPlaced = false;
     let currentZoom = 2.5;
     const minZoom = 1.0;
     const maxZoom = 8.0;
     const zoomStep = 0.5;
+
+    // Check for WebXR support
+    async function checkWebXRSupport() {
+      if (navigator.xr) {
+        const supported = await navigator.xr.isSessionSupported('immersive-ar');
+        return supported;
+      }
+      return false;
+    }
+
+    // Initialize AR with WebXR
+    async function initializeAR() {
+      try {
+        // Check WebXR support
+        const webxrSupported = await checkWebXRSupport();
+        
+        if (!webxrSupported && !modelViewer.canActivateAR) {
+          infoText.textContent = 'AR is not supported on this device/browser.';
+          infoText.style.background = 'rgba(239, 68, 68, 0.95)';
+          return;
+        }
+
+        arAutoTriggered = true;
+        infoText.textContent = 'Opening AR view...';
+        
+        // Activate AR using WebXR
+        await modelViewer.activateAR();
+        
+        // Hide info text after AR activates
+        setTimeout(() => {
+          infoText.style.display = 'none';
+        }, 1000);
+      } catch (error) {
+        console.error('AR activation error:', error);
+        infoText.textContent = 'Failed to open AR. Please try again.';
+        infoText.style.background = 'rgba(239, 68, 68, 0.95)';
+      }
+    }
 
     // Auto-trigger AR when model loads
     modelViewer.addEventListener('load', async () => {
@@ -296,42 +369,45 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       
       // Small delay to ensure model is fully loaded
       await new Promise(resolve => setTimeout(resolve, 500));
-      
-      try {
-        if (modelViewer.activateAR) {
-          arAutoTriggered = true;
-          infoText.textContent = 'Opening AR view...';
-          
-          // Activate AR immediately
-          await modelViewer.activateAR();
-          
-          // Hide info text after AR activates
-          setTimeout(() => {
-            infoText.style.display = 'none';
-          }, 1000);
-        } else {
-          infoText.textContent = 'AR is not supported on this device/browser.';
-          infoText.style.background = 'rgba(239, 68, 68, 0.95)';
-        }
-      } catch (error) {
-        console.error('AR activation error:', error);
-        infoText.textContent = 'Failed to open AR. Please try again.';
-        infoText.style.background = 'rgba(239, 68, 68, 0.95)';
-      }
+      await initializeAR();
     });
 
     // Handle AR status changes
-    modelViewer.addEventListener('ar-status', (event) => {
+    modelViewer.addEventListener('ar-status', async (event) => {
       console.log('AR status:', event.detail.status);
       
       if (event.detail.status === 'session-started') {
         infoText.style.display = 'none';
-        // Ensure model is properly scaled and positioned
+        modelPlaced = false;
+        
+        // Get the XR session
         try {
+          arSession = modelViewer.xrSession;
+          
+          // Set up hit testing for floor/surface detection
+          if (arSession && arSession.requestHitTestSource) {
+            try {
+              const viewerSpace = await arSession.requestReferenceSpace('viewer');
+              xrHitTestSource = await arSession.requestHitTestSource({ space: viewerSpace });
+              
+              // Set up frame loop for hit testing
+              arSession.requestAnimationFrame(onXRFrame);
+            } catch (e) {
+              console.log('Hit test setup:', e);
+            }
+          }
+          
+          // Ensure model is properly scaled and placed on floor
           modelViewer.scale = '0.5';
           modelViewer.arScale = '0.5';
+          
+          // Force floor placement
+          modelViewer.setAttribute('ar-placement', 'floor');
+          
+          // Ensure model origin is at bottom for proper floor placement
+          // This is handled by ar-placement="floor" attribute
         } catch (e) {
-          console.log('Scale adjustment:', e);
+          console.log('XR session setup:', e);
         }
       } else if (event.detail.status === 'session-ended' || event.detail.status === 'not-presenting') {
         // When AR session ends, go back
@@ -339,37 +415,85 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       }
     });
 
-    // Handle model placement in AR
-    modelViewer.addEventListener('ar-tracking', (event) => {
-      // This helps ensure proper tracking and placement
-      console.log('AR tracking:', event.detail);
+    // Handle XR frame for hit testing
+    function onXRFrame(time, frame) {
+      if (!arSession || !xrHitTestSource) return;
+      
+      const hitTestResults = frame.getHitTestResults(xrHitTestSource);
+      
+      if (hitTestResults.length > 0 && !modelPlaced) {
+        // Show reticle when surface is detected
+        reticle.classList.add('active');
+      } else {
+        reticle.classList.remove('active');
+      }
+      
+      if (arSession) {
+        arSession.requestAnimationFrame(onXRFrame);
+      }
+    }
+
+    // Handle tap/click for placement
+    modelViewer.addEventListener('click', (event) => {
+      if (arSession && xrHitTestSource && !modelPlaced) {
+        // The model-viewer will handle placement automatically
+        // We just ensure it's placed on the detected surface
+        modelPlaced = true;
+        reticle.classList.remove('active');
+      }
     });
 
     // Reset model position and zoom
     function resetModel() {
-      currentZoom = 2.5;
-      modelViewer.cameraOrbit = '0deg 75deg 2.5m';
-      modelViewer.scale = '0.5';
+      if (arSession) {
+        // Reset placement
+        modelPlaced = false;
+        reticle.classList.add('active');
+        
+        // Reset scale
+        modelViewer.scale = '0.5';
+        modelViewer.arScale = '0.5';
+      } else {
+        currentZoom = 2.5;
+        modelViewer.cameraOrbit = '0deg 75deg 2.5m';
+        modelViewer.scale = '0.5';
+      }
       console.log('Model reset');
     }
 
     // Zoom in
     function zoomIn() {
-      if (currentZoom > minZoom) {
-        currentZoom = Math.max(minZoom, currentZoom - zoomStep);
-        updateCameraZoom();
+      if (arSession) {
+        // In AR mode, adjust scale
+        const currentScale = parseFloat(modelViewer.scale) || 0.5;
+        const newScale = Math.max(0.2, currentScale - 0.1);
+        modelViewer.scale = newScale.toString();
+        modelViewer.arScale = newScale.toString();
+      } else {
+        if (currentZoom > minZoom) {
+          currentZoom = Math.max(minZoom, currentZoom - zoomStep);
+          updateCameraZoom();
+        }
       }
     }
 
     // Zoom out
     function zoomOut() {
-      if (currentZoom < maxZoom) {
-        currentZoom = Math.min(maxZoom, currentZoom + zoomStep);
-        updateCameraZoom();
+      if (arSession) {
+        // In AR mode, adjust scale
+        const currentScale = parseFloat(modelViewer.scale) || 0.5;
+        const newScale = Math.min(1.0, currentScale + 0.1);
+        modelViewer.scale = newScale.toString();
+        modelViewer.arScale = newScale.toString();
+      } else {
+        if (currentZoom < maxZoom) {
+          currentZoom = Math.min(maxZoom, currentZoom + zoomStep);
+          updateCameraZoom();
+        }
       }
     }
 
-    // Update camera zoom
+    // Update camera zoom (for non-AR mode)
     function updateCameraZoom() {
       const orbit = modelViewer.cameraOrbit.split(' ');
       if (orbit.length >= 3) {
@@ -379,6 +503,9 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
 
     // Go back navigation
     function goBack() {
+      if (arSession) {
+        arSession.end();
+      }
       if (window.parent) {
         window.parent.postMessage({ type: 'ar_back' }, '*');
       }
