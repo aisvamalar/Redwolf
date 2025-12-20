@@ -408,7 +408,6 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       ar-modes="scene-viewer webxr quick-look"
       ar-scale="0.1"
       scale="0.1"
-      ar-placement="floor"
       camera-controls
       shadow-intensity="1.5"
       exposure="1.2"
@@ -491,7 +490,7 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
         <path d="M12 8l4 4-4 4"></path>
         <path d="M12 16l-4-4 4-4"></path>
       </svg>
-      <span>Drag to move</span>
+      <span>Tap surface to place • Drag to move</span>
     </div>
     
     <div class="info-text" id="info-text">
@@ -937,7 +936,7 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
     // Info function
     function showInfo() {
       const productName = '${widget.productName ?? '3D Model'}';
-      alert('Product: ' + productName + '\\n\\nUse the controls to adjust the model:\\n- Zoom: Use the slider or zoom button\\n- Rotate: Use the rotation slider\\n- Reset: Click reset to restore default view\\n- Drag: Move the model in AR view');
+      alert('Product: ' + productName + '\\n\\nAR Controls:\\n- Tap on a flat surface to place the model\\n- Drag to move the model\\n- Zoom: Use the slider or zoom button\\n- Rotate: Use the rotation slider (0°-360°)\\n- Camera: Take a screenshot\\n- Reset: Restore default view\\n\\nNote: If the model appears floating, you can drag it down to the surface.');
     }
     
     // Initialize zoom slider position
