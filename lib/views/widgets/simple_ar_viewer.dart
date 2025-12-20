@@ -156,6 +156,36 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
     .error-text {
       background: rgba(239, 68, 68, 0.95);
     }
+    .reset-button {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      border: 2px solid rgba(255, 255, 255, 0.8);
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      font-size: 24px;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+      z-index: 100;
+      backdrop-filter: blur(10px);
+      transition: all 0.2s ease;
+    }
+    .reset-button:hover {
+      background: rgba(0, 0, 0, 0.9);
+      transform: scale(1.1);
+    }
+    .reset-button:active {
+      transform: scale(0.95);
+    }
+    .reset-button.visible {
+      display: flex;
+    }
   </style>
 </head>
 <body>
@@ -166,7 +196,8 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       alt="${widget.productName ?? '3D Model'}"
       ar
       ar-modes="scene-viewer webxr quick-look"
-      ar-scale="0.7"
+      ar-scale="0.25"
+      scale="0.25"
       ar-placement="floor"
       camera-controls
       shadow-intensity="1.5"
@@ -178,6 +209,14 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       style="width: 100%; height: 100%;"
     >
     </model-viewer>
+    <button class="reset-button" id="reset-button" onclick="resetModel()" title="Reset/Remove Model">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+        <path d="M21 3v5h-5"></path>
+        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+        <path d="M3 21v-5h5"></path>
+      </svg>
+    </button>
     <div class="info-text" id="info-text">
       Opening AR view...
     </div>
@@ -186,6 +225,7 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
   <script type="module">
     const modelViewer = document.querySelector('#ar-model');
     const infoText = document.getElementById('info-text');
+    const resetButton = document.getElementById('reset-button');
     let arAutoTriggered = false;
 
     // Check if device is mobile/tablet (AR capable)
@@ -246,9 +286,10 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
           // Activate AR - model-viewer will handle Scene Viewer with proper CORS
           await modelViewer.activateAR();
           
-          // Hide info text after AR activates
+          // Hide info text and show reset button after AR activates
           setTimeout(() => {
             infoText.style.display = 'none';
+            resetButton.classList.add('visible');
           }, 1000);
         } else {
           infoText.textContent = 'AR is not supported on this device/browser.';
@@ -267,11 +308,43 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       
       if (event.detail.status === 'session-started') {
         infoText.style.display = 'none';
+        // Show reset button when AR session starts
+        resetButton.classList.add('visible');
       } else if (event.detail.status === 'session-ended' || event.detail.status === 'not-presenting') {
+        // Hide reset button when AR session ends
+        resetButton.classList.remove('visible');
         // When AR session ends, go back
         goBack();
       }
     });
+
+    // Reset function to remove/reset the model
+    function resetModel() {
+      try {
+        // Try to reset the model by reloading it
+        const currentSrc = modelViewer.src;
+        modelViewer.src = '';
+        
+        // Small delay then reload
+        setTimeout(() => {
+          modelViewer.src = currentSrc;
+          console.log('Model reset');
+        }, 100);
+        
+        // Alternative: Try to reset camera and model position
+        if (modelViewer.cameraOrbit) {
+          modelViewer.cameraOrbit = '0deg 75deg 2.5m';
+        }
+        if (modelViewer.scale) {
+          modelViewer.scale = '0.25';
+        }
+        
+        // In Scene Viewer, the reset might need to be handled differently
+        // This will at least reset the preview/model-viewer state
+      } catch (error) {
+        console.error('Error resetting model:', error);
+      }
+    }
 
     // Handle model load errors
     modelViewer.addEventListener('error', (event) => {
