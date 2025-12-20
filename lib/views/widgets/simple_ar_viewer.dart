@@ -144,17 +144,15 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       display: block;
       background: #000;
     }
-    .back-button {
+    .control-button {
       position: absolute;
-      top: 20px;
-      left: 20px;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0, 0, 0, 0.6);
       color: white;
       border: 2px solid rgba(255, 255, 255, 0.8);
       width: 48px;
       height: 48px;
       border-radius: 50%;
-      font-size: 24px;
+      font-size: 20px;
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -162,9 +160,57 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
       z-index: 100;
       backdrop-filter: blur(10px);
+      transition: all 0.2s ease;
     }
-    .back-button:hover {
-      background: rgba(0, 0, 0, 0.9);
+    .control-button:hover {
+      background: rgba(0, 0, 0, 0.8);
+      transform: scale(1.1);
+    }
+    .control-button:active {
+      transform: scale(0.95);
+    }
+    .back-button {
+      top: 20px;
+      left: 20px;
+      font-size: 24px;
+    }
+    .reset-button {
+      bottom: 20px;
+      left: 20px;
+      font-size: 20px;
+    }
+    .zoom-controls {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 100;
+    }
+    .zoom-button {
+      background: rgba(0, 0, 0, 0.6);
+      color: white;
+      border: 2px solid rgba(255, 255, 255, 0.8);
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(10px);
+      transition: all 0.2s ease;
+    }
+    .zoom-button:hover {
+      background: rgba(0, 0, 0, 0.8);
+      transform: scale(1.1);
+    }
+    .zoom-button:active {
+      transform: scale(0.95);
     }
     .info-text {
       position: absolute;
@@ -181,6 +227,16 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       max-width: 90%;
       backdrop-filter: blur(10px);
     }
+    .controls-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 100px;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+      pointer-events: none;
+      z-index: 99;
+    }
   </style>
 </head>
 <body>
@@ -191,17 +247,34 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       alt="${widget.altText ?? widget.productName ?? '3D Model'}"
       ar
       ar-modes="scene-viewer webxr quick-look"
-      ar-scale="auto"
+      ar-scale="0.5"
+      scale="0.5"
       camera-controls
       shadow-intensity="1.5"
       exposure="1.2"
       environment-image="neutral"
       reveal="auto"
       loading="auto"
+      interaction-policy="allow-when-focused"
     >
     </model-viewer>
     
-    <button class="back-button" onclick="goBack()" title="Go back">×</button>
+    <div class="controls-bar"></div>
+    
+    <button class="control-button back-button" onclick="goBack()" title="Exit">×</button>
+    <button class="control-button reset-button" onclick="resetModel()" title="Reset">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+        <path d="M21 3v5h-5"></path>
+        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+        <path d="M3 21v-5h5"></path>
+      </svg>
+    </button>
+    
+    <div class="zoom-controls">
+      <button class="zoom-button" onclick="zoomIn()" title="Zoom In">+</button>
+      <button class="zoom-button" onclick="zoomOut()" title="Zoom Out">−</button>
+    </div>
     
     <div class="info-text" id="info-text">
       Opening AR view...
@@ -212,6 +285,10 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
     const modelViewer = document.querySelector('#ar-model');
     const infoText = document.getElementById('info-text');
     let arAutoTriggered = false;
+    let currentZoom = 2.5;
+    const minZoom = 1.0;
+    const maxZoom = 8.0;
+    const zoomStep = 0.5;
 
     // Auto-trigger AR when model loads
     modelViewer.addEventListener('load', async () => {
@@ -249,11 +326,56 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       
       if (event.detail.status === 'session-started') {
         infoText.style.display = 'none';
+        // Ensure model is properly scaled and positioned
+        try {
+          modelViewer.scale = '0.5';
+          modelViewer.arScale = '0.5';
+        } catch (e) {
+          console.log('Scale adjustment:', e);
+        }
       } else if (event.detail.status === 'session-ended' || event.detail.status === 'not-presenting') {
         // When AR session ends, go back
         goBack();
       }
     });
+
+    // Handle model placement in AR
+    modelViewer.addEventListener('ar-tracking', (event) => {
+      // This helps ensure proper tracking and placement
+      console.log('AR tracking:', event.detail);
+    });
+
+    // Reset model position and zoom
+    function resetModel() {
+      currentZoom = 2.5;
+      modelViewer.cameraOrbit = '0deg 75deg 2.5m';
+      modelViewer.scale = '0.5';
+      console.log('Model reset');
+    }
+
+    // Zoom in
+    function zoomIn() {
+      if (currentZoom > minZoom) {
+        currentZoom = Math.max(minZoom, currentZoom - zoomStep);
+        updateCameraZoom();
+      }
+    }
+
+    // Zoom out
+    function zoomOut() {
+      if (currentZoom < maxZoom) {
+        currentZoom = Math.min(maxZoom, currentZoom + zoomStep);
+        updateCameraZoom();
+      }
+    }
+
+    // Update camera zoom
+    function updateCameraZoom() {
+      const orbit = modelViewer.cameraOrbit.split(' ');
+      if (orbit.length >= 3) {
+        modelViewer.cameraOrbit = orbit[0] + ' ' + orbit[1] + ' ' + currentZoom + 'm';
+      }
+    }
 
     // Go back navigation
     function goBack() {
