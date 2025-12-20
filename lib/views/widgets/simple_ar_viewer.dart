@@ -545,14 +545,60 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
     
     // Wait for model-viewer to be ready
     if (modelViewer) {
+      // Ensure model-viewer is visible from the start
+      modelViewer.style.display = 'block';
+      modelViewer.style.visibility = 'visible';
+      modelViewer.style.opacity = '1';
+      
+      // Log model URL
+      const modelUrl = modelViewer.getAttribute('src');
+      console.log('Model URL:', modelUrl);
+      
+      if (!modelUrl || modelUrl.trim() === '') {
+        console.error('Model URL is empty!');
+        showError('Model URL is missing. Please check the product configuration.');
+      }
+      
       modelViewer.addEventListener('load', () => {
         console.log('Model loaded, AR ready');
+        console.log('Model dimensions:', {
+          width: modelViewer.model?.dimensions?.x,
+          height: modelViewer.model?.dimensions?.y,
+          depth: modelViewer.model?.dimensions?.z
+        });
+        
+        // Ensure model is visible after loading
+        modelViewer.style.display = 'block';
+        modelViewer.style.visibility = 'visible';
+        modelViewer.style.opacity = '1';
+      });
+      
+      // Handle model loading errors
+      modelViewer.addEventListener('error', (event) => {
+        console.error('Model loading error:', event.detail);
+        const errorMessage = event.detail?.message || 'Unknown error';
+        console.error('Error details:', errorMessage);
+        showError('Failed to load 3D model: ' + errorMessage + '. Please check the model URL: ' + modelUrl);
       });
       
       // Check AR availability on load
       modelViewer.addEventListener('ar-status', (event) => {
         console.log('AR status event:', event.detail.status);
       });
+      
+      // Log when model starts loading
+      modelViewer.addEventListener('progress', (event) => {
+        const progress = event.detail.totalProgress;
+        console.log('Model loading progress:', (progress * 100).toFixed(0) + '%');
+      });
+      
+      // Check if model is already loaded
+      if (modelViewer.loaded) {
+        console.log('Model already loaded');
+        modelViewer.style.display = 'block';
+        modelViewer.style.visibility = 'visible';
+        modelViewer.style.opacity = '1';
+      }
     }
     
     // Note: Event listeners for buttons and sliders are attached at the end of the script
@@ -602,12 +648,41 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
           modelViewer.setAttribute('scale', '0.5 0.5 0.5');
         }
         
+        // Ensure model-viewer is visible before activating AR
+        if (modelViewer) {
+          modelViewer.style.display = 'block';
+          modelViewer.style.visibility = 'visible';
+          modelViewer.style.opacity = '1';
+          modelViewer.style.width = '100%';
+          modelViewer.style.height = '100%';
+        }
+        
         // Try WebXR/Scene Viewer first
         let arActivated = false;
         
         if (modelViewer.activateAR) {
           try {
             console.log('Attempting to activate AR via model-viewer...');
+            console.log('Model URL:', modelViewer.getAttribute('src'));
+            console.log('Model loaded:', modelViewer.loaded);
+            
+            // Wait for model to load if not already loaded
+            if (!modelViewer.loaded) {
+              console.log('Waiting for model to load...');
+              await new Promise((resolve) => {
+                const timeout = setTimeout(() => {
+                  console.warn('Model load timeout');
+                  resolve();
+                }, 5000);
+                
+                modelViewer.addEventListener('load', () => {
+                  clearTimeout(timeout);
+                  console.log('Model loaded successfully');
+                  resolve();
+                }, { once: true });
+              });
+            }
+            
             await modelViewer.activateAR();
             console.log('activateAR() completed');
             arActivated = true;
@@ -619,6 +694,11 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
             if (modelViewer.arSession) {
               console.log('WebXR/Scene Viewer AR activated successfully');
               arSession = modelViewer.arSession;
+              
+              // Ensure model-viewer remains visible in AR mode
+              modelViewer.style.display = 'block';
+              modelViewer.style.visibility = 'visible';
+              modelViewer.style.opacity = '1';
             }
           } catch (arError) {
             console.warn('model-viewer activateAR failed:', arError);
@@ -1085,6 +1165,17 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
           loadingDiv.parentNode.removeChild(loadingDiv);
         }
         
+        // Ensure model-viewer is visible and properly sized
+        if (modelViewer && !useCameraFallback) {
+          modelViewer.style.display = 'block';
+          modelViewer.style.visibility = 'visible';
+          modelViewer.style.opacity = '1';
+          modelViewer.style.width = '100%';
+          modelViewer.style.height = '100%';
+          modelViewer.style.position = 'relative';
+          modelViewer.style.zIndex = '0';
+        }
+        
         // Show controls
         scaleControl.style.display = 'flex';
         bottomControls.style.display = 'flex';
@@ -1093,6 +1184,18 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
         setTimeout(() => {
           updateScale(currentScale);
           updateRotation(currentRotation);
+          
+          // Force model to render
+          if (modelViewer && modelViewer.model) {
+            console.log('Model is loaded and ready');
+          } else {
+            console.warn('Model not loaded yet, waiting...');
+            modelViewer.addEventListener('load', () => {
+              console.log('Model loaded in AR mode');
+              updateScale(currentScale);
+              updateRotation(currentRotation);
+            }, { once: true });
+          }
         }, 500);
         
         setupDrag();
