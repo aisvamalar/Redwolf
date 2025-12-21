@@ -231,38 +231,6 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       top: 20px;
       right: 20px;
     }
-    .ar-activate-button {
-      position: absolute;
-      bottom: 100px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: linear-gradient(135deg, #ED1F24 0%, #C41E3A 100%);
-      color: white;
-      border: none;
-      padding: 16px 32px;
-      border-radius: 50px;
-      font-size: 18px;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      box-shadow: 0 4px 12px rgba(237, 31, 36, 0.4);
-      z-index: 100;
-      backdrop-filter: blur(10px);
-      transition: all 0.3s ease;
-    }
-    .ar-activate-button:hover {
-      transform: translateX(-50%) scale(1.05);
-      box-shadow: 0 6px 16px rgba(237, 31, 36, 0.6);
-    }
-    .ar-activate-button:active {
-      transform: translateX(-50%) scale(0.98);
-    }
-    .ar-activate-button svg {
-      width: 24px;
-      height: 24px;
-    }
     .zoom-in-button {
       top: 80px;
       right: 20px;
@@ -446,9 +414,8 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       src="${_escapeHtmlAttribute(widget.modelUrl)}"
       alt="${_escapeHtmlAttribute(widget.productName ?? '3D Model')}"
       ar
-      ar-modes="webxr quick-look scene-viewer"
+      ar-modes="scene-viewer webxr quick-look"
       ar-scale="0.1"
-      ios-src="${_escapeHtmlAttribute(widget.modelUrl)}"
       scale="0.1"
       camera-controls
       shadow-intensity="1.5"
@@ -494,16 +461,6 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       </div>
       <div class="zoom-label">−</div>
     </div>
-    
-    <!-- AR Button (Prominent) -->
-    <button class="ar-activate-button" id="ar-activate-button" onclick="activateARManually()" title="View in AR">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-        <path d="M2 17l10 5 10-5"></path>
-        <path d="M2 12l10 5 10-5"></path>
-      </svg>
-      <span>View in AR</span>
-    </button>
     
     <!-- Bottom Controls -->
     <div class="bottom-controls" id="bottom-controls">
@@ -620,7 +577,7 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
             modelViewer.src = blobUrl;
             // Also set the original URL as a data attribute for Scene Viewer
             modelViewer.setAttribute('data-original-src', url);
-          return;
+            return;
           }
         } catch (fetchError) {
           console.warn('Direct fetch failed (CORS issue):', fetchError);
@@ -697,76 +654,67 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       console.log('Model bounds:', modelViewer.getBoundingBox());
     });
 
-    // Manual AR activation function with multiple fallback methods
-    window.activateARManually = async function() {
-      if (modelLoadError || !modelLoaded) {
-        infoText.textContent = 'Model must load successfully before opening AR.';
-        infoText.style.background = 'rgba(239, 68, 68, 0.95)';
-        return;
-      }
-      
-      const isMobile = isMobileDevice();
-      if (!isMobile) {
-        infoText.textContent = 'AR is only available on mobile devices.';
-        infoText.style.background = 'rgba(239, 68, 68, 0.95)';
-        return;
-      }
-      
-      infoText.textContent = 'Opening AR...';
-      infoText.style.background = 'rgba(0, 0, 0, 0.8)';
-      
-      try {
-        // Method 1: Try model-viewer's activateAR
-        if (modelViewer.activateAR) {
-          await modelViewer.activateAR();
-          return;
-        }
-      } catch (error) {
-        console.warn('Method 1 (model-viewer) failed:', error);
-      }
-      
-      // Method 2: Try direct Scene Viewer intent URL (Android)
-      try {
-        const modelUrl = encodeURIComponent(modelViewer.src);
-        const sceneViewerUrl = 'https://arvr.google.com/scene-viewer/1.0?file=' + modelUrl + '&mode=ar_only';
-        window.location.href = sceneViewerUrl;
-        return;
-      } catch (error) {
-        console.warn('Method 2 (Scene Viewer intent) failed:', error);
-      }
-      
-      // Method 3: Try WebXR
-      try {
-        if (navigator.xr) {
-          await modelViewer.activateAR('webxr');
-          return;
-        }
-      } catch (error) {
-        console.warn('Method 3 (WebXR) failed:', error);
-      }
-      
-      infoText.textContent = 'AR activation failed. Please try again or check device compatibility.';
-      infoText.style.background = 'rgba(239, 68, 68, 0.95)';
-    };
-    
-    // Show AR button when model loads
+    // Auto-trigger AR when model loads - only on mobile devices
     modelViewer.addEventListener('load', async () => {
-      modelLoaded = true;
+      if (arAutoTriggered || modelLoadError) return;
+      
+      // Check if device is mobile before attempting AR
       const isMobile = isMobileDevice();
       
-      if (isMobile) {
-        // Show manual AR button instead of auto-activating
-        infoText.textContent = 'Model loaded! Tap "View in AR" to open AR experience.';
-        infoText.style.background = 'rgba(34, 197, 94, 0.95)';
-        setTimeout(() => {
-          infoText.style.display = 'none';
-        }, 3000);
-      } else {
-        infoText.textContent = 'AR is only available on mobile devices.';
+      if (!isMobile) {
+        infoText.textContent = 'AR is only available on mobile and tablet devices. Please open this on your mobile device to view in AR.';
         infoText.style.background = 'rgba(239, 68, 68, 0.95)';
+        // Hide after 5 seconds
         setTimeout(() => {
           infoText.style.display = 'none';
         }, 5000);
+        return;
+      }
+      
+      // Wait a bit to ensure model is fully loaded and check for errors
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Don't activate AR if model failed to load
+      if (modelLoadError || !modelLoaded) {
+        console.error('Cannot activate AR: Model failed to load');
+        return;
+      }
+      
+      // Check AR availability
+      const arAvailable = await checkARAvailability();
+      
+      if (!arAvailable) {
+        infoText.textContent = 'AR is not available on this device. Please ensure Google ARCore is installed (Android) or use a compatible device.';
+        infoText.style.background = 'rgba(239, 68, 68, 0.95)';
+        return;
+      }
+      
+      try {
+        if (modelViewer.activateAR) {
+          arAutoTriggered = true;
+          infoText.textContent = 'Opening AR view...';
+          
+          // Activate AR - model-viewer will handle Scene Viewer with proper CORS
+          await modelViewer.activateAR();
+          
+          // Hide info text and show all controls after AR activates
+          setTimeout(() => {
+            infoText.style.display = 'none';
+            infoButton.classList.add('visible');
+            closeButton.classList.add('visible');
+            zoomInButton.classList.add('visible');
+            zoomControls.classList.add('visible');
+            bottomControls.classList.add('visible');
+            dragIndicator.classList.add('visible');
+          }, 1000);
+        } else {
+          infoText.textContent = 'AR is not supported on this device/browser.';
+          infoText.style.background = 'rgba(239, 68, 68, 0.95)';
+        }
+      } catch (error) {
+        console.error('AR activation error:', error);
+        infoText.textContent = 'Failed to open AR. Please ensure the model file is accessible and try again.';
+        infoText.style.background = 'rgba(239, 68, 68, 0.95)';
       }
     });
 
@@ -1092,7 +1040,7 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
     // Initialize zoom slider position
     updateScale();
     updateRotation();
-
+    
     // Go back navigation
     function goBack() {
       if (window.parent) {

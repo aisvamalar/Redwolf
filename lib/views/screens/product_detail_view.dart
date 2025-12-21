@@ -6,6 +6,7 @@ import 'ar_view_screen.dart';
 import '../../services/product_detail_service.dart';
 import '../../services/device_detection_service.dart';
 import '../../utils/responsive_helper.dart';
+import '../../config/supabase_config.dart';
 import 'product_detail_view_web_stub.dart'
     if (dart.library.html) 'product_detail_view_web.dart'
     as web_utils;
@@ -56,15 +57,19 @@ class _ProductDetailViewState extends State<ProductDetailView> {
 
   /// Gets the 3D model URL for the current product
   /// Uses the product's modelUrl if available, otherwise falls back to default
+  /// Converts to proxy URL for better CORS support with Google Scene Viewer
   String get modelUrl {
     // Always use the product's specific modelUrl if it exists
     final productModelUrl = _product.modelUrl;
     if (productModelUrl != null && productModelUrl.isNotEmpty) {
-      return productModelUrl;
+      // Convert to proxy URL for CORS support
+      return SupabaseConfig.convertToProxyUrl(productModelUrl);
     }
     // Fallback to default model (should not be needed if products are configured correctly)
-    // Use the exact URL format that works (spaces as %20, parentheses unencoded)
-    return 'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/32_EASEL%20STANDEE%20(1).glb';
+    // Use proxy URL for better CORS support
+    final fallbackUrl =
+        'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/32_EASEL%20STANDEE%20(1).glb';
+    return SupabaseConfig.convertToProxyUrl(fallbackUrl);
   }
 
   List<String> get _productImages {
