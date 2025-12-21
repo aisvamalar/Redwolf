@@ -108,6 +108,15 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
     );
   }
 
+  /// Escapes HTML attribute values to prevent XSS and syntax errors
+  /// Only escapes quotes, as URLs should remain intact
+  String _escapeHtmlAttribute(String value) {
+    return value
+        .replaceAll('&', '&amp;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#x27;');
+  }
+
   String _createArHtml() {
     return '''
 <!DOCTYPE html>
@@ -402,8 +411,8 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
   <div id="ar-container">
     <model-viewer
       id="ar-model"
-      src="${widget.modelUrl}"
-      alt="${widget.productName ?? '3D Model'}"
+      src="${_escapeHtmlAttribute(widget.modelUrl)}"
+      alt="${_escapeHtmlAttribute(widget.productName ?? '3D Model')}"
       ar
       ar-modes="scene-viewer webxr quick-look"
       ar-scale="0.1"
@@ -524,26 +533,77 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
 
     // Log initial model URL for debugging
     console.log('Model Viewer initialized');
-    console.log('Model URL:', modelViewer.src);
+    const originalModelUrl = modelViewer.src;
+    console.log('Original Model URL:', originalModelUrl);
     console.log('Model URL attribute:', modelViewer.getAttribute('src'));
     
     // Verify model URL is set
-    if (!modelViewer.src || modelViewer.src.trim() === '') {
+    if (!originalModelUrl || originalModelUrl.trim() === '') {
       console.error('ERROR: Model URL is empty or not set!');
       infoText.textContent = 'Error: Model URL is not set. Please check the configuration.';
       infoText.style.background = 'rgba(239, 68, 68, 0.95)';
       modelLoadError = true;
     } else {
-      // Test if URL is accessible (this will help diagnose CORS or 404 issues)
-      console.log('Testing model URL accessibility...');
-      fetch(modelViewer.src, { method: 'HEAD', mode: 'no-cors' })
-        .then(() => {
-          console.log('Model URL appears to be accessible');
-        })
-        .catch((error) => {
-          console.warn('Model URL accessibility test:', error);
-          console.warn('This might indicate CORS issues or the file might not exist');
-        });
+      // Try to load model with CORS workaround
+      loadModelWithCorsWorkaround(originalModelUrl);
+    }
+
+    // Function to load model with CORS workaround
+    async function loadModelWithCorsWorkaround(url) {
+      try {
+        console.log('Attempting to load model with CORS workaround...');
+        infoText.textContent = 'Loading model...';
+        infoText.style.background = 'rgba(0, 0, 0, 0.8)';
+        infoText.style.display = 'block';
+        
+        // Try method 1: Direct fetch and create blob URL (for model-viewer preview)
+        // This works if CORS allows our domain, but Scene Viewer needs direct URL
+        try {
+          const response = await fetch(url, {
+            method: 'GET',
+            mode: 'cors',
+            credentials: 'omit',
+            headers: {
+              'Accept': 'model/gltf-binary,application/octet-stream,*/*'
+            }
+          });
+          
+          if (response.ok) {
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            console.log('Successfully created blob URL from fetch');
+            // Use blob URL for preview, but keep original for Scene Viewer
+            // Scene Viewer will use the original URL from ar-modes
+            modelViewer.src = blobUrl;
+            // Also set the original URL as a data attribute for Scene Viewer
+            modelViewer.setAttribute('data-original-src', url);
+            return;
+          }
+        } catch (fetchError) {
+          console.warn('Direct fetch failed (CORS issue):', fetchError);
+          console.warn('This is expected if CORS is not configured. Scene Viewer will try the original URL.');
+        }
+        
+        // For Scene Viewer, we need to use the original URL directly
+        // Scene Viewer handles its own CORS, so it might work even if our fetch fails
+        console.log('Using original URL - Scene Viewer will handle CORS');
+        modelViewer.src = url;
+        
+        // Show helpful message if CORS might be an issue
+        setTimeout(() => {
+          if (!modelLoaded && !modelLoadError) {
+            console.warn('Model loading is taking longer than expected. This might indicate CORS issues.');
+            console.warn('To fix: Configure CORS in Supabase API settings to allow:');
+            console.warn('  - https://arvr.google.com');
+            console.warn('  - https://arvr.google.com/scene-viewer');
+          }
+        }, 3000);
+        
+      } catch (error) {
+        console.error('CORS workaround failed:', error);
+        // Fall back to original URL
+        modelViewer.src = url;
+      }
     }
 
     // Check if device is mobile/tablet (AR capable)
@@ -753,9 +813,34 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
         errorMessage += 'Error details: ' + (errorSource?.message || errorType || 'Unknown error');
       }
       
-      infoText.textContent = errorMessage;
+      // Show user-friendly error message
+      infoText.textContent = 'Unable to load 3D model. This is usually a CORS (Cross-Origin) issue. The model file needs to allow access from Scene Viewer. Please contact support or try again later.';
       infoText.style.background = 'rgba(239, 68, 68, 0.95)';
       infoText.style.display = 'block';
+      infoText.style.maxWidth = '90%';
+      infoText.style.padding = '20px 24px';
+      infoText.style.fontSize = '16px';
+      
+      // Add a close/back button to the error message
+      setTimeout(() => {
+        const errorContainer = document.createElement('div');
+        errorContainer.style.position = 'absolute';
+        errorContainer.style.top = '50%';
+        errorContainer.style.left = '50%';
+        errorContainer.style.transform = 'translate(-50%, -50%)';
+        errorContainer.style.background = 'rgba(0, 0, 0, 0.9)';
+        errorContainer.style.padding = '24px';
+        errorContainer.style.borderRadius = '16px';
+        errorContainer.style.zIndex = '200';
+        errorContainer.style.textAlign = 'center';
+        errorContainer.style.maxWidth = '90%';
+        errorContainer.innerHTML = `
+          <div style="color: white; font-size: 18px; font-weight: 600; margin-bottom: 12px;">Couldn't load object</div>
+          <div style="color: rgba(255, 255, 255, 0.8); font-size: 14px; margin-bottom: 20px;">Looks like there's something wrong with this object. This is usually due to CORS configuration on the server.</div>
+          <button onclick="goBack()" style="background: #4285f4; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;">Go back</button>
+        `;
+        document.body.appendChild(errorContainer);
+      }, 500);
       
       // Don't try to activate AR if model failed to load
       arAutoTriggered = true; // Prevent AR activation attempts
