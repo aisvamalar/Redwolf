@@ -66,9 +66,9 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       return SupabaseConfig.convertToProxyUrl(productModelUrl);
     }
     // Fallback to default model (should not be needed if products are configured correctly)
-    // Use proxy URL for better CORS support
     final fallbackUrl =
-        'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/32_EASEL%20STANDEE%20(1).glb';
+        'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/32_EASEL%20STANDEE%20.glb';
+    // Convert to proxy URL if enabled, otherwise use direct URL
     return SupabaseConfig.convertToProxyUrl(fallbackUrl);
   }
 

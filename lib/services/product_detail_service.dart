@@ -63,7 +63,7 @@ class ProductDetailService {
         imageUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/img/Screenshot_2025-12-18_093321-removebg-preview.png',
         modelUrl:
-            'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/32_EASEL%20STANDEE%20(1).glb',
+            'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/32_EASEL%20STANDEE%20.glb',
         category: 'Standees',
         description:
             'Elegant easel standee design perfect for retail displays and exhibitions.',

@@ -14,7 +14,7 @@ class StandeeContainersSection extends StatelessWidget {
         imageUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/Screenshot%202025-12-16%20193255.png',
         modelUrl:
-            'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/32_EASEL%20STANDEE.glb',
+            'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/32_EASEL%20STANDEE%20.glb',
         category: 'Standees',
         description: 'Elegant easel standee design perfect for retail displays and exhibitions.',
       ),
