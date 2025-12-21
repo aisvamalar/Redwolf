@@ -63,6 +63,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       return productModelUrl;
     }
     // Fallback to default model (should not be needed if products are configured correctly)
+    // Use the exact URL format that works (spaces as %20, parentheses unencoded)
     return 'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/models3d/32_EASEL%20STANDEE%20(1).glb';
   }
 
@@ -721,12 +722,12 @@ class _ProductDetailViewState extends State<ProductDetailView> {
             builder: (context, constraints) {
               final isMobile = ResponsiveHelper.isMobile(context);
               final buttonSpacing = isMobile ? 12.0 : 16.0;
-              final buttonPadding = isMobile 
+              final buttonPadding = isMobile
                   ? const EdgeInsets.symmetric(horizontal: 12, vertical: 10)
                   : const EdgeInsets.symmetric(horizontal: 16, vertical: 10);
               final buttonFontSize = isMobile ? 12.0 : 14.0;
               final iconSize = isMobile ? 16.0 : 18.0;
-              
+
               return SizedBox(
                 width: double.infinity,
                 child: Row(
@@ -823,7 +824,8 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                           );
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: DeviceDetectionService.isDesktop(context)
+                          backgroundColor:
+                              DeviceDetectionService.isDesktop(context)
                               ? Colors.grey[400]
                               : const Color(0xFFED1F24),
                           foregroundColor: Colors.white,

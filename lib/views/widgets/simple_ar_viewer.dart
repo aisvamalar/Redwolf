@@ -533,6 +533,17 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       infoText.textContent = 'Error: Model URL is not set. Please check the configuration.';
       infoText.style.background = 'rgba(239, 68, 68, 0.95)';
       modelLoadError = true;
+    } else {
+      // Test if URL is accessible (this will help diagnose CORS or 404 issues)
+      console.log('Testing model URL accessibility...');
+      fetch(modelViewer.src, { method: 'HEAD', mode: 'no-cors' })
+        .then(() => {
+          console.log('Model URL appears to be accessible');
+        })
+        .catch((error) => {
+          console.warn('Model URL accessibility test:', error);
+          console.warn('This might indicate CORS issues or the file might not exist');
+        });
     }
 
     // Check if device is mobile/tablet (AR capable)
