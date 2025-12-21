@@ -18,7 +18,7 @@ https://zsipfgtlfnfvmnrohtdo.supabase.co/functions/v1/proxy-model?path=products/
 
 **Example:**
 ```
-https://zsipfgtlfnfvmnrohtdo.supabase.co/functions/v1/proxy-model?path=products/products/glb/32_EASEL%20STANDEE%20(1).glb
+https://zsipfgtlfnfvmnrohtdo.supabase.co/functions/v1/proxy-model?path=products/products/glb/32_EASEL%20STANDEE%20.glb
 ```
 
 ## Deployment
@@ -49,7 +49,7 @@ To deploy the Edge Functions, you need the Supabase CLI:
 
 After deployment, test the function:
 ```bash
-curl "https://zsipfgtlfnfvmnrohtdo.supabase.co/functions/v1/proxy-model?path=products/products/glb/32_EASEL%20STANDEE%20(1).glb"
+curl "https://zsipfgtlfnfvmnrohtdo.supabase.co/functions/v1/proxy-model?path=products/products/glb/32_EASEL%20STANDEE%20.glb"
 ```
 
 The function should return the GLB file with proper CORS headers.

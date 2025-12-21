@@ -38,7 +38,7 @@ npx supabase functions deploy proxy-model
 
 After deployment, test the function:
 ```bash
-curl "https://zsipfgtlfnfvmnrohtdo.supabase.co/functions/v1/proxy-model?path=products/products/glb/32_EASEL%20STANDEE%20(1).glb"
+curl "https://zsipfgtlfnfvmnrohtdo.supabase.co/functions/v1/proxy-model?path=products/products/glb/32_EASEL%20STANDEE%20.glb"
 ```
 
 You should receive the GLB file with proper CORS headers.

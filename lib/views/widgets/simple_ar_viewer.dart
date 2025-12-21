@@ -114,7 +114,20 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
     return value
         .replaceAll('&', '&amp;')
         .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#x27;');
+        .replaceAll("'", '&#x27;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;');
+  }
+
+  /// Escapes JavaScript string values to prevent syntax errors
+  /// Used for values that will be embedded in JavaScript code
+  String _escapeJsString(String value) {
+    return value
+        .replaceAll('\\', '\\\\')
+        .replaceAll("'", "\\'")
+        .replaceAll('"', '\\"')
+        .replaceAll('\n', '\\n')
+        .replaceAll('\r', '\\r');
   }
 
   String _createArHtml() {
@@ -123,7 +136,7 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
 <html>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>AR Viewer - ${widget.productName ?? '3D Model'}</title>
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
   <style>
@@ -577,7 +590,7 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
             modelViewer.src = blobUrl;
             // Also set the original URL as a data attribute for Scene Viewer
             modelViewer.setAttribute('data-original-src', url);
-            return;
+          return;
           }
         } catch (fetchError) {
           console.warn('Direct fetch failed (CORS issue):', fetchError);
@@ -596,7 +609,7 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
             console.warn('Note: Supabase Storage public buckets automatically allow CORS.');
             console.warn('Please verify:');
             console.warn('  1. The storage bucket is set to Public (Storage → Buckets)');
-            console.warn('  2. The file URL is accessible: ' + url);
+            console.warn('  2. The file URL is accessible:', url);
             console.warn('  3. Google Scene Viewer may have specific requirements for GLB files');
           }
         }, 3000);
@@ -794,7 +807,7 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       if (errorType === 'fetchfailure' || errorSource?.message?.includes('CORS') || errorSource?.message?.includes('Failed to fetch')) {
         errorMessage += 'Unable to load the model file. This is likely a CORS (Cross-Origin) issue. ';
         errorMessage += 'Please check: 1) The file URL is correct, 2) CORS is enabled on Supabase storage, 3) The file is publicly accessible. ';
-        errorMessage += 'Model URL: ' + modelViewer.src;
+        errorMessage += 'Model URL: ' + JSON.stringify(modelViewer.src);
         
         // Try to test if URL is accessible
         fetch(modelViewer.src, { method: 'HEAD', mode: 'no-cors' })
@@ -807,6 +820,24 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
       } else if (errorType === 'parsingfailure' || errorSource?.message?.includes('parse') || errorSource?.message?.includes('format')) {
         errorMessage += 'The model file format is invalid or corrupted. Please check the GLB/GLTF file.';
       } else if (errorSource?.status === 403 || errorSource?.status === 404) {
+        // If proxy returns 404, try direct URL as fallback
+        if (modelViewer.src.includes('/functions/v1/proxy-model')) {
+          console.warn('Proxy function returned 404, trying direct storage URL as fallback...');
+          // Extract the path from proxy URL and convert to direct URL
+          try {
+            const proxyUrl = new URL(modelViewer.src);
+            const pathParam = proxyUrl.searchParams.get('path');
+            if (pathParam) {
+              const directUrl = 'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/' + pathParam;
+              console.log('Falling back to direct URL:', directUrl);
+              modelViewer.src = directUrl;
+              modelLoadError = false; // Reset error flag to allow retry
+              return; // Exit early to allow retry with direct URL
+            }
+          } catch (e) {
+            console.error('Failed to extract path from proxy URL:', e);
+          }
+        }
         errorMessage += 'File not found or access denied (HTTP ' + errorSource.status + '). Please check the file URL.';
       } else if (errorSource?.status) {
         errorMessage += 'HTTP Error ' + errorSource.status + ': Unable to load the model file.';
@@ -836,11 +867,10 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
         errorContainer.style.zIndex = '200';
         errorContainer.style.textAlign = 'center';
         errorContainer.style.maxWidth = '90%';
-        errorContainer.innerHTML = `
-          <div style="color: white; font-size: 18px; font-weight: 600; margin-bottom: 12px;">Couldn't load object</div>
-          <div style="color: rgba(255, 255, 255, 0.8); font-size: 14px; margin-bottom: 20px;">Looks like there's something wrong with this object. This is usually due to CORS configuration on the server.</div>
-          <button onclick="goBack()" style="background: #4285f4; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;">Go back</button>
-        `;
+        errorContainer.innerHTML = 
+          '<div style="color: white; font-size: 18px; font-weight: 600; margin-bottom: 12px;">Could not load object</div>' +
+          '<div style="color: rgba(255, 255, 255, 0.8); font-size: 14px; margin-bottom: 20px;">Looks like there is something wrong with this object. This is usually due to CORS configuration on the server.</div>' +
+          '<button onclick="goBack()" style="background: #4285f4; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;">Go back</button>';
         document.body.appendChild(errorContainer);
       }, 500);
       
@@ -1033,14 +1063,14 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
     
     // Info function
     function showInfo() {
-      const productName = '${widget.productName ?? '3D Model'}';
+      const productName = '${_escapeJsString(widget.productName ?? '3D Model')}';
       alert('Product: ' + productName + '\\n\\nAR Controls:\\n- Tap on a flat surface to place the model\\n- Drag to move the model\\n- Zoom: Use the slider or zoom button\\n- Rotate: Use the rotation slider (0°-360°)\\n- Camera: Take a screenshot\\n- Reset: Restore default view\\n\\nNote: If the model appears floating, you can drag it down to the surface.');
     }
     
     // Initialize zoom slider position
     updateScale();
     updateRotation();
-    
+
     // Go back navigation
     function goBack() {
       if (window.parent) {

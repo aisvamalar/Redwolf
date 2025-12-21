@@ -30,6 +30,11 @@ class SupabaseConfig {
   // Edge Function base URL for proxying models with CORS
   static const String edgeFunctionBaseUrl =
       'https://zsipfgtlfnfvmnrohtdo.supabase.co/functions/v1';
+  
+  // Set to false to use direct storage URLs (bypass proxy)
+  // Set to true to use proxy URLs (requires Edge Function to be deployed)
+  // Currently set to false since Edge Function is not deployed yet
+  static const bool useProxyForModels = false;
 
   /// Get proxy URL for a model file (uses Edge Function for CORS support)
   /// This is needed for Google Scene Viewer which requires specific CORS headers
@@ -54,7 +59,11 @@ class SupabaseConfig {
 
   /// Convert a full storage URL to a proxy URL
   /// Extracts the path from the full URL and converts it to proxy format
+  /// Returns original URL if useProxyForModels is false
   static String convertToProxyUrl(String fullStorageUrl) {
+    if (!useProxyForModels) {
+      return fullStorageUrl;
+    }
     try {
       // Extract the path after /object/public/
       final uri = Uri.parse(fullStorageUrl);
