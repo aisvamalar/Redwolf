@@ -63,7 +63,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       return productModelUrl;
     }
     // Fallback to default model (should not be needed if products are configured correctly)
-    return 'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/models3d/Digital%20standee%204.5%20feet.glb';
+    return 'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/models3d/32_EASEL%20STANDEE%20(1).glb';
   }
 
   List<String> get _productImages {
