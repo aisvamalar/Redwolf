@@ -3,11 +3,15 @@
 class SupabaseConfig {
   // Supabase Storage Public URL
   static const String storageBaseUrl =
-      'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public';
+      'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public';
 
   // Storage bucket names
-  static const String modelsBucket = 'models3d';
-  static const String imagesBucket = 'images'; // For preview images
+  static const String modelsBucket = 'products/products/glb';
+  static const String imagesBucket = 'products/products/img'; // For preview images
+  
+  // Supabase API credentials
+  static const String publishableKey = 'sb_publishable_wmZqFa8wSJhsyPeWcFOmYg_ta4eoCcS';
+  static const String secretKey = 'sb_secret_9umn23jj2dE7m7x4B5wjuw_tGmHqLqf';
 
   // List of standee files in your Supabase storage
   // Update this list when you add new standees

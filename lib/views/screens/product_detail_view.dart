@@ -64,7 +64,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
     }
     // Fallback to default model (should not be needed if products are configured correctly)
     // Use the exact URL format that works (spaces as %20, parentheses unencoded)
-    return 'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/models3d/32_EASEL%20STANDEE%20(1).glb';
+    return 'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/32_EASEL%20STANDEE%20(1).glb';
   }
 
   List<String> get _productImages {

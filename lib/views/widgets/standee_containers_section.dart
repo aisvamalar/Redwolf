@@ -12,9 +12,9 @@ class StandeeContainersSection extends StatelessWidget {
         id: 'standee_1',
         name: 'Easel Standee',
         imageUrl:
-            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot%202025-12-16%20193255.png',
+            'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/Screenshot%202025-12-16%20193255.png',
         modelUrl:
-            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/models3d/32_EASEL%20STANDEE.glb',
+            'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/32_EASEL%20STANDEE.glb',
         category: 'Standees',
         description: 'Elegant easel standee design perfect for retail displays and exhibitions.',
       ),
@@ -22,9 +22,9 @@ class StandeeContainersSection extends StatelessWidget {
         id: 'standee_2',
         name: 'Totem Standee',
         imageUrl:
-            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot%202025-12-16%20193437.png',
+            'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/Screenshot%202025-12-16%20193437.png',
         modelUrl:
-            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/models3d/32_TOTEM%20STANDEE.glb',
+            'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/32_TOTEM%20STANDEE.glb',
         category: 'Standees',
         description: 'Premium totem standee for high-traffic environments and brand visibility.',
       ),
@@ -32,9 +32,9 @@ class StandeeContainersSection extends StatelessWidget {
         id: 'standee_3',
         name: 'Wall Mount',
         imageUrl:
-            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot%202025-12-16%20193658.png',
+            'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/Screenshot%202025-12-16%20193658.png',
         modelUrl:
-            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/models3d/32_WALL%20MOUNT.glb',
+            'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/32_WALL%20MOUNT.glb',
         category: 'Standees',
         description: 'Space-efficient wall mount design ideal for modern retail spaces.',
       ),
@@ -42,9 +42,9 @@ class StandeeContainersSection extends StatelessWidget {
         id: 'standee_4',
         name: 'Wall Mount with Stand',
         imageUrl:
-            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot%202025-12-16%20193719.png',
+            'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/Screenshot%202025-12-16%20193719.png',
         modelUrl:
-            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/models3d/32_WALL%20MOUNT%20WITH%20STAND.glb',
+            'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/32_WALL%20MOUNT%20WITH%20STAND.glb',
         category: 'Standees',
         description: 'Versatile wall mount with stand for flexible placement options.',
       ),
@@ -52,9 +52,9 @@ class StandeeContainersSection extends StatelessWidget {
         id: 'standee_5',
         name: 'Easel Standee 43',
         imageUrl:
-            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/images/Screenshot%202025-12-16%20193744.png',
+            'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/Screenshot%202025-12-16%20193744.png',
         modelUrl:
-            'https://drrsxgopvzhnqfvdfjlm.supabase.co/storage/v1/object/public/models3d/43_EASEL%20STANDEE.glb',
+            'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/43_EASEL%20STANDEE.glb',
         category: 'Standees',
         description: 'Enhanced easel standee design with improved stability and display quality.',
       ),

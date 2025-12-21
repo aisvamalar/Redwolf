@@ -589,13 +589,15 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
         console.log('Using original URL - Scene Viewer will handle CORS');
         modelViewer.src = url;
         
-        // Show helpful message if CORS might be an issue
+        // Show helpful message if model loading is slow
         setTimeout(() => {
           if (!modelLoaded && !modelLoadError) {
-            console.warn('Model loading is taking longer than expected. This might indicate CORS issues.');
-            console.warn('To fix: Configure CORS in Supabase API settings to allow:');
-            console.warn('  - https://arvr.google.com');
-            console.warn('  - https://arvr.google.com/scene-viewer');
+            console.warn('Model loading is taking longer than expected.');
+            console.warn('Note: Supabase Storage public buckets automatically allow CORS.');
+            console.warn('Please verify:');
+            console.warn('  1. The storage bucket is set to Public (Storage → Buckets)');
+            console.warn('  2. The file URL is accessible: ' + url);
+            console.warn('  3. Google Scene Viewer may have specific requirements for GLB files');
           }
         }, 3000);
         
