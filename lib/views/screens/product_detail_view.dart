@@ -949,6 +949,14 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                         final isUsdzFile = _isUsdzFile(_directModelUrl);
                         final isIOS = DeviceDetectionService.isIOS(context);
 
+                        if (kDebugMode) {
+                          print('AR Launch Check:');
+                          print('  - Direct Model URL: $_directModelUrl');
+                          print('  - Is USDZ File: $isUsdzFile');
+                          print('  - Is iOS Device: $isIOS');
+                          print('  - Is Web: $kIsWeb');
+                        }
+
                         if (isUsdzFile && isIOS) {
                           // For iOS devices (iPhone/iPad) with USDZ files, use Apple Quick Look AR
                           // iOS Safari automatically opens USDZ files in AR Quick Look when linked directly
@@ -957,28 +965,60 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                           try {
                             // Use direct URL for Apple Quick Look (bypass proxy)
                             final directUrl = _directModelUrl;
-                            final uri = Uri.parse(directUrl);
 
-                            // For iOS, we can use LaunchMode.platformDefault or externalApplication
-                            // Safari will automatically detect USDZ and open in AR Quick Look
-                            final launched = await launchUrl(
-                              uri,
-                              mode: LaunchMode.externalApplication,
-                            );
+                            if (kDebugMode) {
+                              print('Launching USDZ AR with URL: $directUrl');
+                            }
 
-                            if (!launched && mounted) {
-                              // Fallback: Navigate to AR view screen if direct launch fails
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (context) => ARViewScreen(
-                                    product: _product,
-                                    modelUrl:
-                                        directUrl, // Use direct URL for fallback too
-                                  ),
-                                ),
+                            // Track AR view before launching
+                            if (_product.id != null) {
+                              final analyticsService = AnalyticsService();
+                              await analyticsService.trackARView(_product.id!);
+                            }
+
+                            // On web (iPad Safari), use special method to trigger AR Quick Look
+                            if (kIsWeb) {
+                              if (kDebugMode) {
+                                print('Using web-specific AR launch method');
+                              }
+                              final launched = await web_utils
+                                  .WebUtils.openUsdzInAR(directUrl);
+                              if (!launched && mounted) {
+                                if (kDebugMode) {
+                                  print(
+                                    'Web AR launch failed, trying URL launcher fallback',
+                                  );
+                                }
+                                // Fallback: Try regular URL launcher
+                                final uri = Uri.parse(directUrl);
+                                await launchUrl(
+                                  uri,
+                                  mode: LaunchMode.externalApplication,
+                                );
+                              }
+                            } else {
+                              // For non-web platforms, use regular URL launcher
+                              final uri = Uri.parse(directUrl);
+                              final launched = await launchUrl(
+                                uri,
+                                mode: LaunchMode.externalApplication,
                               );
+
+                              if (!launched && mounted) {
+                                // Fallback: Navigate to AR view screen if direct launch fails
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (context) => ARViewScreen(
+                                      product: _product,
+                                      modelUrl:
+                                          directUrl, // Use direct URL for fallback too
+                                    ),
+                                  ),
+                                );
+                              }
                             }
                           } catch (e) {
+                            print('Error launching USDZ AR: $e');
                             // Fallback: Navigate to AR view screen on error
                             if (mounted) {
                               Navigator.of(context).push(
