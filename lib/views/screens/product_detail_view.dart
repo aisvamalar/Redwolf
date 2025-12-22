@@ -136,12 +136,31 @@ class _ProductDetailViewState extends State<ProductDetailView> {
   }
 
   /// Check if the model URL is a USDZ file
+  /// Supports various URL formats including query parameters and fragments
   bool _isUsdzFile(String url) {
-    final lowerUrl = url.toLowerCase();
-    return lowerUrl.endsWith('.usdz') ||
-        lowerUrl.contains('.usdz?') ||
-        lowerUrl.contains('.usdz#') ||
-        lowerUrl.contains('usdz');
+    if (url.isEmpty) return false;
+    final lowerUrl = url.toLowerCase().trim();
+
+    // Check for .usdz extension (most common)
+    if (lowerUrl.endsWith('.usdz')) return true;
+
+    // Check for .usdz with query parameters
+    if (lowerUrl.contains('.usdz?')) return true;
+
+    // Check for .usdz with fragment
+    if (lowerUrl.contains('.usdz#')) return true;
+
+    // Check if URL contains 'usdz' (fallback for edge cases)
+    // But make sure it's not part of another word like 'usdzfile' or path like '/usdz/'
+    final usdzIndex = lowerUrl.indexOf('usdz');
+    if (usdzIndex != -1) {
+      // Check if it's a file extension (preceded by a dot)
+      if (usdzIndex > 0 && lowerUrl[usdzIndex - 1] == '.') {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /// Check if device is a true desktop/laptop (not a tablet)
@@ -948,16 +967,43 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                         // Check if model is USDZ and device is iOS (iPhone/iPad) - use Apple Quick Look AR
                         final isUsdzFile = _isUsdzFile(_directModelUrl);
                         final isIOS = DeviceDetectionService.isIOS(context);
+                        final isTablet = DeviceDetectionService.isTablet(
+                          context,
+                        );
+                        final isTabletByUA =
+                            DeviceDetectionService.isTabletByUserAgent();
 
                         if (kDebugMode) {
-                          print('AR Launch Check:');
-                          print('  - Direct Model URL: $_directModelUrl');
-                          print('  - Is USDZ File: $isUsdzFile');
-                          print('  - Is iOS Device: $isIOS');
-                          print('  - Is Web: $kIsWeb');
+                          print('=== AR LAUNCH DEBUG INFO ===');
+                          print('Direct Model URL: $_directModelUrl');
+                          print('Model URL (proxy): $modelUrl');
+                          print('Is USDZ File: $isUsdzFile');
+                          print('Is iOS Device: $isIOS');
+                          print('Is Tablet: $isTablet');
+                          print('Is Tablet by UA: $isTabletByUA');
+                          print('Is Web: $kIsWeb');
+                          if (kIsWeb) {
+                            try {
+                              // Try to get user agent for debugging
+                              final userAgent =
+                                  web_utils.WebUtils.getUserAgent();
+                              print('User Agent: $userAgent');
+                              print(
+                                'Contains "ipad": ${userAgent.toLowerCase().contains('ipad')}',
+                              );
+                              print(
+                                'Contains "iphone": ${userAgent.toLowerCase().contains('iphone')}',
+                              );
+                            } catch (e) {
+                              print('Could not get user agent: $e');
+                            }
+                          }
+                          print('============================');
                         }
 
-                        if (isUsdzFile && isIOS) {
+                        // For iOS devices (iPhone/iPad), prioritize Apple Quick Look AR
+                        // Try USDZ first, but also check if we should use Quick Look for other formats
+                        if (isIOS && isUsdzFile) {
                           // For iOS devices (iPhone/iPad) with USDZ files, use Apple Quick Look AR
                           // iOS Safari automatically opens USDZ files in AR Quick Look when linked directly
                           // iPad Safari also supports AR Quick Look for USDZ files
@@ -979,7 +1025,9 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                             // On web (iPad Safari), use special method to trigger AR Quick Look
                             if (kIsWeb) {
                               if (kDebugMode) {
-                                print('Using web-specific AR launch method');
+                                print(
+                                  'Using web-specific AR launch method for USDZ',
+                                );
                               }
                               final launched = await web_utils
                                   .WebUtils.openUsdzInAR(directUrl);
@@ -990,11 +1038,37 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                   );
                                 }
                                 // Fallback: Try regular URL launcher
-                                final uri = Uri.parse(directUrl);
-                                await launchUrl(
-                                  uri,
-                                  mode: LaunchMode.externalApplication,
-                                );
+                                try {
+                                  final uri = Uri.parse(directUrl);
+                                  final fallbackLaunched = await launchUrl(
+                                    uri,
+                                    mode: LaunchMode.externalApplication,
+                                  );
+                                  if (!fallbackLaunched && mounted) {
+                                    // Show helpful message
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: const Text(
+                                          'Please ensure you are using Safari browser on iPad/iPhone to view AR models.',
+                                          style: TextStyle(color: Colors.white),
+                                        ),
+                                        backgroundColor: const Color(
+                                          0xFFED1F24,
+                                        ),
+                                        duration: const Duration(seconds: 5),
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (kDebugMode) {
+                                    print('URL launcher fallback error: $e');
+                                  }
+                                }
+                              } else {
+                                // AR launched successfully
+                                if (kDebugMode) {
+                                  print('USDZ AR launch successful');
+                                }
                               }
                             } else {
                               // For non-web platforms, use regular URL launcher
@@ -1032,8 +1106,28 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                               );
                             }
                           }
+                        } else if (isIOS && !isUsdzFile) {
+                          // iOS device but not USDZ file - show message that USDZ is needed
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text(
+                                  'AR Quick Look requires a USDZ file format. This product uses GLB format which is not supported by Apple Quick Look.',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                backgroundColor: const Color(0xFFED1F24),
+                                duration: const Duration(seconds: 5),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                          if (kDebugMode) {
+                            print(
+                              'iOS device detected but file is not USDZ. File URL: $_directModelUrl',
+                            );
+                          }
                         } else {
-                          // For GLB files or non-iOS devices, use Google Scene Viewer
+                          // For GLB files on non-iOS devices, use Google Scene Viewer
                           try {
                             final encodedModelUrl = Uri.encodeComponent(
                               modelUrl,
@@ -1043,6 +1137,12 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                             // This will trigger Scene Viewer directly without showing the cube first
                             final sceneViewerUrl =
                                 'https://arvr.google.com/scene-viewer/1.0?file=$encodedModelUrl&mode=ar_only';
+
+                            if (kDebugMode) {
+                              print(
+                                'Launching Google Scene Viewer with URL: $sceneViewerUrl',
+                              );
+                            }
 
                             // Track AR view before launching
                             if (_product.id != null) {
@@ -1058,6 +1158,9 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                             );
 
                             if (!launched && mounted) {
+                              if (kDebugMode) {
+                                print('Google Scene Viewer launch failed');
+                              }
                               // Fallback: Navigate to AR view screen if direct launch fails
                               Navigator.of(context).push(
                                 MaterialPageRoute(
@@ -1069,6 +1172,9 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                               );
                             }
                           } catch (e) {
+                            if (kDebugMode) {
+                              print('Error launching Google Scene Viewer: $e');
+                            }
                             // Fallback: Navigate to AR view screen on error
                             if (mounted) {
                               Navigator.of(context).push(
