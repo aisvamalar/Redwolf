@@ -14,6 +14,14 @@ class AnalyticsService {
       });
     } catch (e) {
       // Silently fail - analytics should not break the app
+      // Check if error is due to missing table (PGRST205) and ignore it
+      final errorString = e.toString();
+      if (errorString.contains('PGRST205') || 
+          errorString.contains('Could not find the table')) {
+        // Table doesn't exist - silently skip analytics
+        return;
+      }
+      // For other errors, log but don't break the app
       print('Error tracking product view: $e');
     }
   }
@@ -28,6 +36,14 @@ class AnalyticsService {
       });
     } catch (e) {
       // Silently fail - analytics should not break the app
+      // Check if error is due to missing table (PGRST205) and ignore it
+      final errorString = e.toString();
+      if (errorString.contains('PGRST205') || 
+          errorString.contains('Could not find the table')) {
+        // Table doesn't exist - silently skip analytics
+        return;
+      }
+      // For other errors, log but don't break the app
       print('Error tracking AR view: $e');
     }
   }

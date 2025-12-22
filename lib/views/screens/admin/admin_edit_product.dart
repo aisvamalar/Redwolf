@@ -20,6 +20,7 @@ class AdminEditProduct extends StatelessWidget {
       secondImageUrl: product.secondImageUrl,
       thirdImageUrl: product.thirdImageUrl,
       glbFileUrl: product.glbFileUrl,
+      usdzFileUrl: product.usdzFileUrl,
       description: product.description,
       specifications: product.specifications,
       keyFeatures: product.keyFeatures,

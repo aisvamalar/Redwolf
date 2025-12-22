@@ -1,5 +1,6 @@
 import '../models/admin_product.dart';
 import 'admin_supabase_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AdminProductService {
   static final AdminProductService _instance = AdminProductService._internal();
@@ -96,11 +97,30 @@ class AdminProductService {
   // Add product to database
   Future<String?> addProduct(AdminProduct product) async {
     try {
-      final response = await _supabase.client
-          .from(_tableName)
-          .insert(product.toJson())
-          .select()
-          .single();
+      var productData = product.toJson();
+      
+      // Try to insert with usdz_file_url
+      dynamic response;
+      try {
+        response = await _supabase.client
+            .from(_tableName)
+            .insert(productData)
+            .select()
+            .single();
+      } on PostgrestException catch (e) {
+        // If usdz_file_url column doesn't exist (code PGRST204), remove it and retry
+        if (e.code == 'PGRST204' || e.message.contains('usdz_file_url')) {
+          print('⚠️ usdz_file_url column not found. Adding product without it...');
+          productData.remove('usdz_file_url');
+          response = await _supabase.client
+              .from(_tableName)
+              .insert(productData)
+              .select()
+              .single();
+        } else {
+          rethrow;
+        }
+      }
 
       if (response.isEmpty) return null;
 
@@ -131,6 +151,7 @@ class AdminProductService {
         secondImageUrl: product.secondImageUrl,
         thirdImageUrl: product.thirdImageUrl,
         glbFileUrl: product.glbFileUrl,
+        usdzFileUrl: product.usdzFileUrl,
         description: product.description,
         specifications: product.specifications,
         keyFeatures: product.keyFeatures,
@@ -146,16 +167,34 @@ class AdminProductService {
   // Update product in database
   Future<bool> updateProduct(String id, AdminProduct product) async {
     try {
-      final productData = product.toJson();
+      var productData = product.toJson();
       productData.remove('id'); // Remove id from update data
       productData['updated_at'] = DateTime.now().toIso8601String();
 
-      final response = await _supabase.client
-          .from(_tableName)
-          .update(productData)
-          .eq('id', id)
-          .select()
-          .single();
+      // Try to update with usdz_file_url
+      dynamic response;
+      try {
+        response = await _supabase.client
+            .from(_tableName)
+            .update(productData)
+            .eq('id', id)
+            .select()
+            .single();
+      } on PostgrestException catch (e) {
+        // If usdz_file_url column doesn't exist (code PGRST204), remove it and retry
+        if (e.code == 'PGRST204' || e.message.contains('usdz_file_url')) {
+          print('⚠️ usdz_file_url column not found. Updating product without it...');
+          productData.remove('usdz_file_url');
+          response = await _supabase.client
+              .from(_tableName)
+              .update(productData)
+              .eq('id', id)
+              .select()
+              .single();
+        } else {
+          rethrow;
+        }
+      }
 
       if (response.isEmpty) {
         return false;

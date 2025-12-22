@@ -105,24 +105,38 @@ class _ARViewScreenState extends State<ARViewScreen> {
     }
 
     // Web mobile/tablet - use web AR viewer
+    if (kDebugMode) {
+      print('ARViewScreen: Building web AR viewer');
+      print('Model URL: ${widget.modelUrl}');
+      print('Product: ${widget.product.name}');
+    }
+    
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SizedBox(
-        width: double.infinity,
-        height: double.infinity,
-        child: Stack(
-          children: [
-            // AR Viewer takes full screen
-            Positioned.fill(
-              child: SimpleARViewer(
-                modelUrl: widget.modelUrl,
-                altText: widget.product.name,
-                productName: widget.product.name,
-                onBackPressed: () => Navigator.of(context).pop(),
-              ),
-            ),
-          ],
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
         ),
+        title: Text(
+          widget.product.name,
+          style: const TextStyle(color: Colors.white),
+        ),
+      ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return SizedBox(
+            width: constraints.maxWidth > 0 ? constraints.maxWidth : double.infinity,
+            height: constraints.maxHeight > 0 ? constraints.maxHeight : double.infinity,
+            child: SimpleARViewer(
+              modelUrl: widget.modelUrl,
+              altText: widget.product.name,
+              productName: widget.product.name,
+              onBackPressed: () => Navigator.of(context).pop(),
+            ),
+          );
+        },
       ),
     );
   }

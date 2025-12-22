@@ -35,25 +35,20 @@ class AdminSupabaseService {
     }
   }
 
-  // Upload GLB or USDZ file to Supabase Storage
+  // Upload GLB file to Supabase Storage
   Future<String?> uploadGlbFile({
     required Uint8List fileBytes,
     required String fileName,
     required String bucketName,
   }) async {
     try {
-      // Determine content type based on file extension
-      final contentType = fileName.toLowerCase().endsWith('.usdz')
-          ? 'model/vnd.usdz+zip'
-          : 'model/gltf-binary';
-      
       // Upload to products/glb/ folder (matching admin panel structure)
       final path = 'glb/$fileName';
       await client.storage.from(bucketName).uploadBinary(
         path,
         fileBytes,
-        fileOptions: FileOptions(
-          contentType: contentType,
+        fileOptions: const FileOptions(
+          contentType: 'model/gltf-binary',
           upsert: true,
         ),
       );
@@ -62,7 +57,34 @@ class AdminSupabaseService {
       final url = client.storage.from(bucketName).getPublicUrl(path);
       return url;
     } catch (e) {
-      print('Error uploading GLB/USDZ file: $e');
+      print('Error uploading GLB file: $e');
+      return null;
+    }
+  }
+
+  // Upload USDZ file to Supabase Storage (separate folder for Apple devices)
+  Future<String?> uploadUsdzFile({
+    required Uint8List fileBytes,
+    required String fileName,
+    required String bucketName,
+  }) async {
+    try {
+      // Upload to products/usdz/ folder (separate bucket/folder for USDZ files)
+      final path = 'usdz/$fileName';
+      await client.storage.from(bucketName).uploadBinary(
+        path,
+        fileBytes,
+        fileOptions: const FileOptions(
+          contentType: 'model/vnd.usdz+zip',
+          upsert: true,
+        ),
+      );
+
+      // Get public URL
+      final url = client.storage.from(bucketName).getPublicUrl(path);
+      return url;
+    } catch (e) {
+      print('Error uploading USDZ file: $e');
       return null;
     }
   }

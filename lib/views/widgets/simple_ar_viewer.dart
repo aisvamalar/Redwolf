@@ -26,14 +26,48 @@ class SimpleARViewer extends StatefulWidget {
 
 class _SimpleARViewerState extends State<SimpleARViewer> {
   String? _iframeKey;
+  bool _isRegistered = false;
+  bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
     if (kIsWeb) {
       _iframeKey = 'simple-ar-${widget.modelUrl.hashCode}';
-      _registerARViewer();
-      _setupMessageListener();
+      // Validate model URL before registering
+      if (widget.modelUrl.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _errorMessage = 'Model URL is empty';
+            _isLoading = false;
+          });
+        }
+      } else {
+        // Register AR viewer asynchronously to ensure it completes
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _registerARViewer();
+          }
+        });
+        _setupMessageListener();
+
+        // Add timeout to prevent infinite loading
+        Future.delayed(const Duration(seconds: 10), () {
+          if (mounted && _isLoading && !_isRegistered) {
+            if (kDebugMode) {
+              print('⏱️ AR Viewer registration timeout - showing error');
+            }
+            setState(() {
+              _errorMessage =
+                  'AR Viewer failed to load. Please try refreshing the page.';
+              _isLoading = false;
+            });
+          }
+        });
+      }
+    } else {
+      _isLoading = false;
     }
   }
 
@@ -52,59 +86,304 @@ class _SimpleARViewerState extends State<SimpleARViewer> {
   }
 
   void _registerARViewer() {
-    if (!kIsWeb || _iframeKey == null) return;
+    if (!kIsWeb || _iframeKey == null) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+      return;
+    }
+    if (_isRegistered) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+      return; // Prevent double registration
+    }
 
-    final iframe = web_utils.WebUtils.createIFrameElement();
-    if (iframe == null) return;
+    try {
+      final iframe = web_utils.WebUtils.createIFrameElement();
+      if (iframe == null) {
+        if (mounted) {
+          setState(() {
+            _errorMessage = 'Failed to create iframe element';
+            _isLoading = false;
+          });
+        }
+        return;
+      }
 
-    iframe.id = _iframeKey!;
-    iframe.style.border = 'none';
-    iframe.style.width = '100%';
-    iframe.style.height = '100%';
-    iframe.allow = 'camera; xr-spatial-tracking';
-    iframe.srcdoc = _createArHtml();
+      iframe.id = _iframeKey!;
+      iframe.style.border = 'none';
+      iframe.style.width = '100%';
+      iframe.style.height = '100%';
+      iframe.style.display = 'block';
+      iframe.allow = 'camera; xr-spatial-tracking; fullscreen';
+      iframe.allowFullscreen = true;
+      // Add sandbox attributes for security while allowing necessary features
+      iframe.setAttribute(
+        'sandbox',
+        'allow-scripts allow-same-origin allow-forms allow-popups allow-presentation allow-downloads',
+      );
 
-    web_utils.WebUtils.registerViewFactory(_iframeKey!, (int viewId) => iframe);
+      // Validate model URL
+      if (widget.modelUrl.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _errorMessage = 'Model URL is empty';
+            _isLoading = false;
+          });
+        }
+        return;
+      }
+
+      // Debug: Log model URL
+      if (kDebugMode) {
+        print('🔍 Registering AR Viewer with URL: ${widget.modelUrl}');
+        print('🔍 Iframe Key: $_iframeKey');
+      }
+
+      iframe.srcdoc = _createArHtml();
+
+      web_utils.WebUtils.registerViewFactory(_iframeKey!, (int viewId) {
+        if (kDebugMode) {
+          print('✅ AR Viewer iframe registered with viewId: $viewId');
+        }
+        return iframe;
+      });
+
+      // Mark as registered and update state
+      if (mounted) {
+        setState(() {
+          _isRegistered = true;
+          _isLoading = false;
+        });
+      }
+    } catch (e, stackTrace) {
+      if (kDebugMode) {
+        print('❌ Error registering AR viewer: $e');
+        print('Stack trace: $stackTrace');
+      }
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Error registering AR viewer: $e';
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (kIsWeb && _iframeKey != null) {
-      return HtmlElementView(viewType: _iframeKey!);
-    } else {
-      return _buildUnsupportedView();
+    // Debug logging
+    if (kDebugMode) {
+      print(
+        '🔍 SimpleARViewer build - isLoading: $_isLoading, isRegistered: $_isRegistered, error: $_errorMessage, iframeKey: $_iframeKey',
+      );
     }
+
+    // Show error if any
+    if (_errorMessage != null) {
+      if (kDebugMode) {
+        print('❌ Showing error view: $_errorMessage');
+      }
+      return _buildErrorView(_errorMessage!);
+    }
+
+    // Show loading while registering or if not registered yet
+    if (_isLoading || (kIsWeb && _iframeKey != null && !_isRegistered)) {
+      if (kDebugMode) {
+        print(
+          '⏳ Showing loading view - isLoading: $_isLoading, isRegistered: $_isRegistered',
+        );
+      }
+      return _buildLoadingView();
+    }
+
+    // Show AR viewer if registered
+    if (kIsWeb && _iframeKey != null && _isRegistered) {
+      if (kDebugMode) {
+        print('✅ Showing AR viewer with iframe key: $_iframeKey');
+      }
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          // Ensure we have valid constraints
+          final width = constraints.maxWidth > 0
+              ? constraints.maxWidth
+              : MediaQuery.of(context).size.width;
+          final height = constraints.maxHeight > 0
+              ? constraints.maxHeight
+              : MediaQuery.of(context).size.height;
+
+          if (kDebugMode) {
+            print(
+              '📐 AR Viewer constraints: ${constraints.maxWidth}x${constraints.maxHeight}, using ${width}x$height',
+            );
+          }
+
+          return SizedBox(
+            width: width,
+            height: height,
+            child: HtmlElementView(
+              viewType: _iframeKey!,
+              onPlatformViewCreated: (int viewId) {
+                // Iframe created successfully
+                if (kDebugMode) {
+                  print('✅ AR Viewer iframe created with ID: $viewId');
+                }
+              },
+            ),
+          );
+        },
+      );
+    }
+
+    // Unsupported platform or not web
+    if (kDebugMode) {
+      print(
+        '⚠️ Showing unsupported view - kIsWeb: $kIsWeb, iframeKey: $_iframeKey',
+      );
+    }
+    return _buildUnsupportedView();
+  }
+
+  Widget _buildLoadingView() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Container(
+          width: constraints.maxWidth > 0
+              ? constraints.maxWidth
+              : double.infinity,
+          height: constraints.maxHeight > 0
+              ? constraints.maxHeight
+              : double.infinity,
+          color: Colors.black,
+          child: const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: Color(0xFFED1F24)),
+                SizedBox(height: 24),
+                Text(
+                  'Loading AR Viewer...',
+                  style: TextStyle(fontSize: 16, color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildErrorView(String error) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Container(
+          width: constraints.maxWidth > 0
+              ? constraints.maxWidth
+              : double.infinity,
+          height: constraints.maxHeight > 0
+              ? constraints.maxHeight
+              : double.infinity,
+          color: Colors.black,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: Color(0xFFED1F24),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'AR Viewer Error',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    error,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Model URL: ${widget.modelUrl.isEmpty ? "Not provided" : widget.modelUrl}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFED1F24),
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Go Back'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildUnsupportedView() {
-    return Container(
-      color: Colors.black,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.view_in_ar, size: 80, color: Color(0xFFDC2626)),
-            const SizedBox(height: 24),
-            const Text(
-              'AR Not Available',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Container(
+          width: constraints.maxWidth > 0
+              ? constraints.maxWidth
+              : double.infinity,
+          height: constraints.maxHeight > 0
+              ? constraints.maxHeight
+              : double.infinity,
+          color: Colors.black,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.view_in_ar,
+                  size: 80,
+                  color: Color(0xFFDC2626),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'AR Not Available',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 48),
+                  child: Text(
+                    'AR features require a web browser with AR support.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16, color: Colors.grey[400]),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 48),
-              child: Text(
-                'AR features require a web browser with AR support.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.grey[400]),
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 

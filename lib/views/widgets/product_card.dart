@@ -194,14 +194,18 @@ class _ProductCardState extends State<ProductCard> {
                 aspectRatio: 1.4,
                 child: MouseRegion(
                   onEnter: (_) {
-                    setState(() {
-                      _isHovered = true;
-                    });
+                    if (mounted) {
+                      setState(() {
+                        _isHovered = true;
+                      });
+                    }
                   },
                   onExit: (_) {
-                    setState(() {
-                      _isHovered = false;
-                    });
+                    if (mounted) {
+                      setState(() {
+                        _isHovered = false;
+                      });
+                    }
                   },
                   child: Container(
                     decoration: BoxDecoration(
@@ -277,6 +281,7 @@ class _ProductCardState extends State<ProductCard> {
                       // View details link - red text with arrow (wrapped to prevent overflow)
                       Row(
                         mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.start,
                         children: [
                           Flexible(
                             child: Text(

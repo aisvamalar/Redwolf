@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:model_viewer_plus/model_viewer_plus.dart';
@@ -10,6 +11,7 @@ import '../../../models/admin_product.dart';
 import '../../../services/admin_product_service.dart';
 import '../../../services/admin_supabase_service.dart';
 import '../../../services/admin_category_service.dart';
+import '../../../services/product_service.dart';
 import '../../../widgets/admin/manage_category_dialog.dart';
 
 class AdminAddProduct extends StatefulWidget {
@@ -33,6 +35,7 @@ class _AdminAddProductState extends State<AdminAddProduct> {
   final AdminCategoryService _categoryService = AdminCategoryService();
   List<String> _availableCategories = [];
   PlatformFile? _glbFile;
+  PlatformFile? _usdzFile; // Separate USDZ file for Apple devices
   // Three images: [0] thumbnail, [1] second image, [2] third image
   final List<PlatformFile?> _productImages = [null, null, null];
   bool _isEditing = false;
@@ -228,6 +231,27 @@ class _AdminAddProductState extends State<AdminAddProduct> {
         }
       } catch (e) {
         print('Error loading GLB file: $e');
+      }
+    }
+
+    // Load USDZ file if available
+    if (product.usdzFileUrl != null &&
+        product.usdzFileUrl!.isNotEmpty &&
+        (product.usdzFileUrl!.startsWith('http://') ||
+            product.usdzFileUrl!.startsWith('https://'))) {
+      try {
+        final response = await http.get(Uri.parse(product.usdzFileUrl!));
+        if (response.statusCode == 200) {
+          setState(() {
+            _usdzFile = PlatformFile(
+              name: 'model.usdz',
+              bytes: response.bodyBytes,
+              size: response.bodyBytes.length,
+            );
+          });
+        }
+      } catch (e) {
+        print('Error loading USDZ file: $e');
       }
     }
   }
@@ -434,7 +458,7 @@ class _AdminAddProductState extends State<AdminAddProduct> {
       return;
     }
 
-    // Require GLB file
+    // Require GLB file (USDZ is optional but recommended for Apple devices)
     final hasGlbFile =
         _glbFile != null ||
         (_isEditing &&
@@ -494,6 +518,7 @@ class _AdminAddProductState extends State<AdminAddProduct> {
       String thumbnailImageUrl = '';
       String? secondImageUrl;
       String? glbFileUrl;
+      String? usdzFileUrl;
       String? thirdImageUrl;
 
       // If editing, start with existing URLs
@@ -501,6 +526,7 @@ class _AdminAddProductState extends State<AdminAddProduct> {
         thumbnailImageUrl = widget.product!.imageUrl;
         secondImageUrl = widget.product!.secondImageUrl;
         glbFileUrl = widget.product!.glbFileUrl;
+        usdzFileUrl = widget.product!.usdzFileUrl;
         thirdImageUrl = widget.product!.thirdImageUrl;
       }
 
@@ -560,6 +586,48 @@ class _AdminAddProductState extends State<AdminAddProduct> {
         }
       }
 
+      // Upload USDZ file if new file is selected (optional, for Apple devices)
+      if (_usdzFile != null && _usdzFile!.bytes != null) {
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        final fileName = 'model_${timestamp}_${_usdzFile!.name}';
+        
+        // Safety check: Ensure file extension is .usdz
+        final fileExtension = _usdzFile!.name.toLowerCase().split('.').last;
+        if (fileExtension == 'usdz') {
+          final uploadedUrl = await supabase.uploadUsdzFile(
+            fileBytes: Uint8List.fromList(_usdzFile!.bytes!),
+            fileName: fileName,
+            bucketName: bucketName,
+          );
+          if (uploadedUrl != null) {
+            usdzFileUrl = uploadedUrl;
+            if (kDebugMode) {
+              print('✅ USDZ file uploaded successfully: $uploadedUrl');
+            }
+          } else {
+            if (kDebugMode) {
+              print('❌ Failed to upload USDZ file');
+            }
+          }
+        } else {
+          if (kDebugMode) {
+            print('⚠️ Invalid file extension for USDZ: $fileExtension');
+          }
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Invalid file type. Only .usdz files are allowed for USDZ upload.',
+                  style: const TextStyle(color: Colors.white),
+                ),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
+        }
+      }
+
       // Use default placeholder if no thumbnail available
       if (thumbnailImageUrl.isEmpty) {
         thumbnailImageUrl = 'assets/images/image_1.png';
@@ -586,6 +654,7 @@ class _AdminAddProductState extends State<AdminAddProduct> {
         secondImageUrl: secondImageUrl,
         thirdImageUrl: thirdImageUrl,
         glbFileUrl: glbFileUrl,
+        usdzFileUrl: usdzFileUrl,
         description: _descriptionController.text.trim().isEmpty
             ? null
             : _descriptionController.text.trim(),
@@ -614,6 +683,8 @@ class _AdminAddProductState extends State<AdminAddProduct> {
         if (mounted) {
           // Invalidate cache to ensure fresh data
           productService.invalidateCache();
+          // Also invalidate ProductService cache (used by home screen)
+          ProductService().invalidateCache();
           // Force refresh cache before navigating
           await productService.getProducts(forceRefresh: true);
 
@@ -728,17 +799,28 @@ class _AdminAddProductState extends State<AdminAddProduct> {
               ),
               const SizedBox(height: 12),
               _buildImageUploadSection(),
-              const SizedBox(height: 24),
-              const Text(
-                '3D Model for AR(.glb or .usdz)',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF374151),
-                ),
-              ),
-              const SizedBox(height: 12),
-              _buildGlbUploadBox(),
+                  const SizedBox(height: 24),
+                  const Text(
+                    '3D Model for AR - GLB (Required)',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF374151),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildGlbUploadBox(),
+                  const SizedBox(height: 24),
+                  const Text(
+                    '3D Model for AR - USDZ (Optional, for Apple devices)',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF374151),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildUsdzUploadBox(),
             ]),
             const SizedBox(height: 24),
             // Categories
@@ -909,7 +991,7 @@ class _AdminAddProductState extends State<AdminAddProduct> {
                   _buildImageUploadSection(),
                   const SizedBox(height: 24),
                   const Text(
-                    '3D Model for AR(.glb or .usdz)',
+                    '3D Model for AR - GLB (Required)',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -918,6 +1000,17 @@ class _AdminAddProductState extends State<AdminAddProduct> {
                   ),
                   const SizedBox(height: 12),
                   _buildGlbUploadBox(),
+                  const SizedBox(height: 24),
+                  const Text(
+                    '3D Model for AR - USDZ (Optional, for Apple devices)',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF374151),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildUsdzUploadBox(),
                 ]),
               ],
             ),
@@ -1167,14 +1260,17 @@ class _AdminAddProductState extends State<AdminAddProduct> {
   }
 
   Widget _buildImageUploadSection() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (int i = 0; i < 3; i++) ...[
-          if (i > 0) const SizedBox(width: 12),
-          SizedBox(width: 150, child: _buildImageUploadBox(i)),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (int i = 0; i < 3; i++) ...[
+            if (i > 0) const SizedBox(width: 12),
+            SizedBox(width: 150, child: _buildImageUploadBox(i)),
+          ],
         ],
-      ],
+      ),
     );
   }
 
@@ -1344,7 +1440,7 @@ class _AdminAddProductState extends State<AdminAddProduct> {
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    '.glb or .usdz files',
+                    '.glb files',
                     style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
                   ),
                 ],
@@ -1362,10 +1458,8 @@ class _AdminAddProductState extends State<AdminAddProduct> {
                             src: _getGlbFileUrl()!,
                             alt: '3D Model',
                             ar: true,
-                            arModes: _isUsdzFile()
-                                ? ['quick-look']
-                                : ['webxr', 'scene-viewer', 'quick-look'],
-                            autoRotate: true,
+                            arModes: ['webxr', 'scene-viewer', 'quick-look'],
+                            autoRotate: false,
                             cameraControls: true,
                             backgroundColor: const Color(0xFFF9FAFB),
                             loading: Loading.auto,
@@ -1401,12 +1495,6 @@ class _AdminAddProductState extends State<AdminAddProduct> {
     );
   }
 
-  /// Check if the uploaded file is USDZ format
-  bool _isUsdzFile() {
-    if (_glbFile == null) return false;
-    return _glbFile!.name.toLowerCase().endsWith('.usdz');
-  }
-
   String? _getGlbFileUrl() {
     if (_glbFile == null) return null;
 
@@ -1414,11 +1502,7 @@ class _AdminAddProductState extends State<AdminAddProduct> {
     if (_glbFile!.bytes != null) {
       // For web, convert bytes to data URL with correct MIME type
       final base64 = base64Encode(_glbFile!.bytes!);
-      final extension = _isUsdzFile() ? 'usdz' : 'glb';
-      final mimeType = extension == 'usdz'
-          ? 'model/vnd.usdz+zip'
-          : 'model/gltf-binary';
-      return 'data:$mimeType;base64,$base64';
+      return 'data:model/gltf-binary;base64,$base64';
     }
     // For desktop/mobile, try to use path (but don't access it if it might throw)
     try {
@@ -1431,11 +1515,166 @@ class _AdminAddProductState extends State<AdminAddProduct> {
     return null;
   }
 
+  Widget _buildUsdzUploadBox() {
+    return Container(
+      height: 400,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: const Color(0xFFD1D5DB),
+          style: BorderStyle.solid,
+          width: 2,
+        ),
+      ),
+      child: _getUsdzFileUrl() == null
+          ? InkWell(
+              onTap: _pickUsdzFile,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.view_in_ar,
+                    size: 32,
+                    color: const Color(0xFF9CA3AF),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Upload USDZ Model',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF6B7280),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    '.usdz files (for Apple devices)',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+                  ),
+                ],
+              ),
+            )
+          : Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: SizedBox(
+                    height: 400,
+                    width: double.infinity,
+                    child: _getUsdzFileUrl() != null
+                        ? ModelViewer(
+                            src: _getUsdzFileUrl()!,
+                            alt: '3D Model USDZ',
+                            ar: true,
+                            arModes: ['quick-look'],
+                            autoRotate: false,
+                            cameraControls: true,
+                            backgroundColor: const Color(0xFFF9FAFB),
+                            loading: Loading.auto,
+                          )
+                        : const Center(
+                            child: Text(
+                              'USDZ Model file selected',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Color(0xFF6B7280),
+                              ),
+                            ),
+                          ),
+                  ),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.black54,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _usdzFile = null;
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  String? _getUsdzFileUrl() {
+    if (_usdzFile == null) return null;
+
+    // On web, path is unavailable, so check bytes first
+    if (_usdzFile!.bytes != null) {
+      // For web, convert bytes to data URL with correct MIME type
+      final base64 = base64Encode(_usdzFile!.bytes!);
+      return 'data:model/vnd.usdz+zip;base64,$base64';
+    }
+    // For desktop/mobile, try to use path (but don't access it if it might throw)
+    try {
+      if (_usdzFile!.path != null && _usdzFile!.path!.isNotEmpty) {
+        return _usdzFile!.path;
+      }
+    } catch (e) {
+      // On web, accessing path throws, so we ignore it
+    }
+    return null;
+  }
+
+  Future<void> _pickUsdzFile() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['usdz'],
+        withData: true,
+      );
+
+      if (result != null) {
+        final file = result.files.single;
+        // On web, path is unavailable and accessing it throws
+        // So we check bytes first (which works on all platforms)
+        bool hasValidFile = false;
+        if (file.bytes != null) {
+          hasValidFile = true;
+        } else {
+          // Only check path on non-web platforms (wrapped in try-catch)
+          try {
+            if (file.path != null && file.path!.isNotEmpty) {
+              hasValidFile = true;
+            }
+          } catch (e) {
+            // On web, accessing path throws, so we ignore it
+            // File should have bytes instead
+          }
+        }
+
+        if (hasValidFile) {
+          setState(() {
+            _usdzFile = file;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error picking USDZ file: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _pickGlbFile() async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['glb', 'usdz'],
+        allowedExtensions: ['glb'],
         withData: true,
       );
 

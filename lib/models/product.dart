@@ -7,6 +7,8 @@ class Product {
   final String? secondImageUrl; // Second image URL
   final String? thirdImageUrl; // Third image URL
   final String? glbFileUrl; // GLB file URL (from glb_file_url field)
+  final String?
+  usdzFileUrl; // USDZ file URL (from usdz_file_url field) - for Apple devices
   final String? description;
   final List<Map<String, String>>? specifications;
   final List<String>? keyFeatures;
@@ -22,6 +24,7 @@ class Product {
     this.secondImageUrl,
     this.thirdImageUrl,
     this.glbFileUrl,
+    this.usdzFileUrl,
     this.description,
     this.specifications,
     this.keyFeatures,
@@ -32,29 +35,45 @@ class Product {
   // Convert from JSON (database)
   factory Product.fromJson(Map<String, dynamic> json) {
     // Extract and construct image URL
-    String? imageUrl = json['image_url']?.toString() ?? json['thumbnail']?.toString();
+    String? imageUrl =
+        json['image_url']?.toString() ?? json['thumbnail']?.toString();
     if (imageUrl != null && !imageUrl.startsWith('http')) {
       imageUrl = _constructStorageUrl('img', imageUrl);
     }
-    
+
     // Extract and construct GLB file URL
-    String? glbFileUrl = json['glb_file_url']?.toString() ?? json['model_url']?.toString();
+    String? glbFileUrl =
+        json['glb_file_url']?.toString() ?? json['model_url']?.toString();
     if (glbFileUrl != null && !glbFileUrl.startsWith('http')) {
       glbFileUrl = _constructStorageUrl('glb', glbFileUrl);
     }
-    
+
+    // Extract and construct USDZ file URL
+    String? usdzFileUrl = json['usdz_file_url']?.toString();
+    // Handle case where database stores "NULL" as string instead of null
+    if (usdzFileUrl != null &&
+        usdzFileUrl.isNotEmpty &&
+        usdzFileUrl.toUpperCase() != 'NULL' &&
+        !usdzFileUrl.startsWith('http')) {
+      usdzFileUrl = _constructStorageUrl('usdz', usdzFileUrl);
+    } else if (usdzFileUrl != null &&
+        (usdzFileUrl.isEmpty || usdzFileUrl.toUpperCase() == 'NULL')) {
+      // Treat "NULL" string or empty string as null
+      usdzFileUrl = null;
+    }
+
     // Extract and construct second image URL
     String? secondImageUrl = json['second_image_url']?.toString();
     if (secondImageUrl != null && !secondImageUrl.startsWith('http')) {
       secondImageUrl = _constructStorageUrl('img', secondImageUrl);
     }
-    
+
     // Extract and construct third image URL
     String? thirdImageUrl = json['third_image_url']?.toString();
     if (thirdImageUrl != null && !thirdImageUrl.startsWith('http')) {
       thirdImageUrl = _constructStorageUrl('img', thirdImageUrl);
     }
-    
+
     return Product(
       id: json['id']?.toString(),
       name: json['name']?.toString() ?? 'Unnamed Product',
@@ -64,10 +83,14 @@ class Product {
       secondImageUrl: secondImageUrl,
       thirdImageUrl: thirdImageUrl,
       glbFileUrl: glbFileUrl,
+      usdzFileUrl: usdzFileUrl,
       description: json['description']?.toString(),
       specifications: json['specifications'] != null
           ? List<Map<String, String>>.from(
-              (json['specifications'] as List).map((item) => Map<String, String>.from(item)))
+              (json['specifications'] as List).map(
+                (item) => Map<String, String>.from(item),
+              ),
+            )
           : null,
       keyFeatures: json['key_features'] != null
           ? List<String>.from(json['key_features'] as List)
@@ -80,14 +103,21 @@ class Product {
           : null,
     );
   }
-  
+
   // Helper method to construct storage URLs from relative paths
   static String _constructStorageUrl(String folder, String fileName) {
-    const baseUrl = 'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products';
-    final cleanFileName = fileName.startsWith('/') ? fileName.substring(1) : fileName;
+    const baseUrl =
+        'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products';
+    final cleanFileName = fileName.startsWith('/')
+        ? fileName.substring(1)
+        : fileName;
     // Handle if fileName already contains folder path
     if (cleanFileName.contains('/')) {
       return '$baseUrl/$cleanFileName';
+    }
+    // Handle USDZ files in usdz folder
+    if (folder == 'usdz') {
+      return '$baseUrl/$folder/${Uri.encodeComponent(cleanFileName)}';
     }
     return '$baseUrl/$folder/${Uri.encodeComponent(cleanFileName)}';
   }
@@ -103,6 +133,7 @@ class Product {
       if (secondImageUrl != null) 'second_image_url': secondImageUrl,
       if (thirdImageUrl != null) 'third_image_url': thirdImageUrl,
       if (glbFileUrl != null) 'glb_file_url': glbFileUrl,
+      if (usdzFileUrl != null) 'usdz_file_url': usdzFileUrl,
       if (description != null) 'description': description,
       if (specifications != null) 'specifications': specifications,
       if (keyFeatures != null) 'key_features': keyFeatures,
@@ -119,6 +150,7 @@ class Product {
     String? secondImageUrl,
     String? thirdImageUrl,
     String? glbFileUrl,
+    String? usdzFileUrl,
     String? description,
     List<Map<String, String>>? specifications,
     List<String>? keyFeatures,
@@ -134,6 +166,7 @@ class Product {
       secondImageUrl: secondImageUrl ?? this.secondImageUrl,
       thirdImageUrl: thirdImageUrl ?? this.thirdImageUrl,
       glbFileUrl: glbFileUrl ?? this.glbFileUrl,
+      usdzFileUrl: usdzFileUrl ?? this.usdzFileUrl,
       description: description ?? this.description,
       specifications: specifications ?? this.specifications,
       keyFeatures: keyFeatures ?? this.keyFeatures,
@@ -175,19 +208,18 @@ class Product {
   }
 
   // Get default key features if not provided (for backward compatibility)
-  List<String> get defaultKeyFeatures => keyFeatures ?? [
-    '2 Years Warranty',
-    '4K Display',
-    'Portable Design',
-    'Touch Enabled',
-  ];
+  List<String> get defaultKeyFeatures =>
+      keyFeatures ??
+      ['2 Years Warranty', '4K Display', 'Portable Design', 'Touch Enabled'];
 
   // Get images list (for backward compatibility)
   List<String>? get images {
     final List<String> imageList = [];
     if (imageUrl.isNotEmpty) imageList.add(imageUrl);
-    if (secondImageUrl != null && secondImageUrl!.isNotEmpty) imageList.add(secondImageUrl!);
-    if (thirdImageUrl != null && thirdImageUrl!.isNotEmpty) imageList.add(thirdImageUrl!);
+    if (secondImageUrl != null && secondImageUrl!.isNotEmpty)
+      imageList.add(secondImageUrl!);
+    if (thirdImageUrl != null && thirdImageUrl!.isNotEmpty)
+      imageList.add(thirdImageUrl!);
     return imageList.isEmpty ? null : imageList;
   }
 }

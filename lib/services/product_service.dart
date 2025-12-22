@@ -35,33 +35,91 @@ class ProductService {
     }
     
     try {
-      final response = await _client
-          .from(_tableName)
-          .select()
-          .order('created_at', ascending: false);
+      // Try to select all fields including usdz_file_url
+      // If column doesn't exist, fall back to selecting without it
+      dynamic response;
+      try {
+        response = await _client
+            .from(_tableName)
+            .select('id, name, category, status, image_url, second_image_url, third_image_url, glb_file_url, usdz_file_url, description, specifications, key_features, created_at, updated_at')
+            .order('created_at', ascending: false);
+      } on PostgrestException catch (e) {
+        // If usdz_file_url column doesn't exist (code 42703), retry without it
+        if (e.code == '42703') {
+          print('⚠️ usdz_file_url column not found. Fetching without it...');
+          response = await _client
+              .from(_tableName)
+              .select('id, name, category, status, image_url, second_image_url, third_image_url, glb_file_url, description, specifications, key_features, created_at, updated_at')
+              .order('created_at', ascending: false);
+        } else {
+          rethrow;
+        }
+      }
 
-      if (response.isEmpty) {
+      // Convert response to List<dynamic> to handle JSArray on web
+      // Force conversion to native Dart List
+      final List<dynamic> responseList;
+      if (response is List) {
+        responseList = List<dynamic>.from(response);
+      } else {
+        responseList = [response];
+      }
+
+      if (responseList.isEmpty) {
         _cachedProducts = [];
         _lastFetchTime = DateTime.now();
         return [];
       }
 
-      final products = response
-          .map((json) => Product.fromJson(json))
-          .toList();
+      // Convert each item to Product, ensuring proper type conversion
+      final List<Product> products = [];
+      for (var item in responseList) {
+        try {
+          // Ensure item is a Map<String, dynamic>
+          Map<String, dynamic> productJson;
+          if (item is Map<String, dynamic>) {
+            productJson = item;
+          } else if (item is Map) {
+            productJson = Map<String, dynamic>.from(item);
+          } else {
+            print('⚠️ Skipping invalid product item: $item');
+            continue;
+          }
+          
+          // Debug: Log USDZ file URL status
+          final usdzValue = productJson['usdz_file_url'];
+          if (usdzValue != null) {
+            final usdzStr = usdzValue.toString();
+            if (usdzStr.toUpperCase() == 'NULL' || usdzStr.isEmpty) {
+              print('📱 Product "${productJson['name']}" has USDZ file: NULL (empty or NULL string)');
+            } else {
+              print('📱 Product "${productJson['name']}" has USDZ file: $usdzStr');
+            }
+          } else {
+            print('📱 Product "${productJson['name']}" has USDZ file: NULL (null value)');
+          }
+          
+          products.add(Product.fromJson(productJson));
+        } catch (e) {
+          print('⚠️ Error parsing product: $e');
+          continue;
+        }
+      }
       
-      // Update cache
-      _cachedProducts = products;
+      // Update cache with explicit type conversion
+      _cachedProducts = List<Product>.from(products);
       _lastFetchTime = DateTime.now();
       
-      return products;
-    } catch (e) {
+      // Return explicitly typed list
+      return List<Product>.from(products);
+    } catch (e, stackTrace) {
       print('Error fetching products: $e');
+      print('Stack trace: $stackTrace');
       // Return cached products if available, even if expired
       if (_cachedProducts.isNotEmpty) {
-        return List.from(_cachedProducts);
+        return List<Product>.from(_cachedProducts);
       }
-      return [];
+      return <Product>[];
     }
   }
   
@@ -95,15 +153,37 @@ class ProductService {
   // Get product by ID
   Future<Product?> getProductById(String id) async {
     try {
-      final response = await _client
-          .from(_tableName)
-          .select()
-          .eq('id', id)
-          .single();
+      // Try to select all fields including usdz_file_url
+      // If column doesn't exist, fall back to selecting without it
+      dynamic response;
+      try {
+        response = await _client
+            .from(_tableName)
+            .select('id, name, category, status, image_url, second_image_url, third_image_url, glb_file_url, usdz_file_url, description, specifications, key_features, created_at, updated_at')
+            .eq('id', id)
+            .single();
+      } on PostgrestException catch (e) {
+        // If usdz_file_url column doesn't exist (code 42703), retry without it
+        if (e.code == '42703') {
+          print('⚠️ usdz_file_url column not found. Fetching without it...');
+          response = await _client
+              .from(_tableName)
+              .select('id, name, category, status, image_url, second_image_url, third_image_url, glb_file_url, description, specifications, key_features, created_at, updated_at')
+              .eq('id', id)
+              .single();
+        } else {
+          rethrow;
+        }
+      }
 
-      if (response.isEmpty) return null;
+      if (response == null || (response is Map && response.isEmpty)) return null;
 
-      return Product.fromJson(response);
+      // Ensure response is a Map<String, dynamic>
+      final Map<String, dynamic> productJson = response is Map<String, dynamic>
+          ? response
+          : Map<String, dynamic>.from(response);
+
+      return Product.fromJson(productJson);
     } catch (e) {
       print('Error fetching product by ID: $e');
       return null;
@@ -148,6 +228,7 @@ class ProductService {
         secondImageUrl: product.secondImageUrl,
         thirdImageUrl: product.thirdImageUrl,
         glbFileUrl: product.glbFileUrl,
+        usdzFileUrl: product.usdzFileUrl, // Include USDZ file URL
         description: product.description,
         specifications: product.specifications,
         keyFeatures: product.keyFeatures,

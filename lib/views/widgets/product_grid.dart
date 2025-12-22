@@ -76,10 +76,22 @@ class ProductGrid extends StatelessWidget {
     }
 
     // Display all products from database in a grid
-    // Filter products that have GLB file URLs (for AR viewing)
+    // Filter products that have GLB or USDZ file URLs (for AR viewing)
     final productsWithModels = products
-        .where((p) => p.glbFileUrl != null && p.glbFileUrl!.isNotEmpty)
+        .where((p) => 
+            (p.glbFileUrl != null && p.glbFileUrl!.isNotEmpty) ||
+            (p.usdzFileUrl != null && p.usdzFileUrl!.isNotEmpty))
         .toList();
+    
+    // Debug: Log products with USDZ files
+    final usdzProducts = productsWithModels.where((p) => 
+        p.usdzFileUrl != null && p.usdzFileUrl!.isNotEmpty).toList();
+    if (usdzProducts.isNotEmpty) {
+      print('📱 Found ${usdzProducts.length} product(s) with USDZ files:');
+      for (var product in usdzProducts) {
+        print('   - "${product.name}": ${product.usdzFileUrl}');
+      }
+    }
 
     if (productsWithModels.isEmpty) {
       return Padding(
