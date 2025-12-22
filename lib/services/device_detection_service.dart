@@ -162,9 +162,23 @@ class DeviceDetectionService {
     if (kIsWeb) {
       try {
         final userAgent = web_utils.WebUtils.getUserAgent().toLowerCase();
-        return userAgent.contains('iphone') || 
-               userAgent.contains('ipad') ||
-               userAgent.contains('ipod');
+        // Check for explicit iOS device strings
+        final hasIOSDevice = userAgent.contains('iphone') || 
+                             userAgent.contains('ipad') ||
+                             userAgent.contains('ipod');
+        
+        // Also check for iPadOS 13+ which might identify as Mac but has touch support
+        // iPadOS 13+ Safari reports as "Macintosh" but has touch support
+        if (!hasIOSDevice && context != null) {
+          final hasTouch = hasTouchSupport();
+          final isTablet = isTabletByWidth(MediaQuery.of(context).size.width);
+          // If it's a tablet with touch support and Safari-like user agent, likely iPad
+          if (hasTouch && isTablet && userAgent.contains('safari') && !userAgent.contains('chrome') && !userAgent.contains('firefox')) {
+            return true; // Likely iPad running iPadOS 13+
+          }
+        }
+        
+        return hasIOSDevice;
       } catch (e) {
         return false;
       }

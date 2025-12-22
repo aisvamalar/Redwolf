@@ -943,7 +943,28 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                         final isTablet = DeviceDetectionService.isTablet(
                           context,
                         );
-                        final isIOS = DeviceDetectionService.isIOS(context);
+                        var isIOS = DeviceDetectionService.isIOS(context);
+
+                        // Enhanced iPad detection: If product has USDZ file and device is tablet with touch,
+                        // it's likely an iPad (iPadOS 13+ might not report as "iPad" in user agent)
+                        if (!isIOS &&
+                            isTablet &&
+                            kIsWeb &&
+                            _product.usdzFileUrl != null &&
+                            _product.usdzFileUrl!.isNotEmpty &&
+                            _product.usdzFileUrl!.toUpperCase() != 'NULL') {
+                          final hasTouch =
+                              DeviceDetectionService.hasTouchSupport();
+                          if (hasTouch) {
+                            // Likely iPad - enable iOS mode for USDZ support
+                            isIOS = true;
+                            if (kDebugMode) {
+                              print(
+                                '🔍 Enhanced iPad detection: Tablet with touch + USDZ file = treating as iPad',
+                              );
+                            }
+                          }
+                        }
 
                         // AR is only available on mobile, tablet, and iPad (not desktop)
                         final isARSupported = isMobile || isTablet || isIOS;
@@ -1268,8 +1289,104 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                       }
                                     } else if (!isIOS && isUsdzFile) {
                                       // Non-iOS device trying to use USDZ file - USDZ is Apple-only
-                                      // Block only if the actual file being used is USDZ
-                                      // If glbFileUrl exists and is GLB, it should have been used instead
+                                      // BUT: Double-check if this is actually an iPad that wasn't detected correctly
+                                      // Some iPad Safari user agents might not contain "ipad" string
+                                      final recheckIOS =
+                                          DeviceDetectionService.isIOS(context);
+                                      final recheckTablet =
+                                          DeviceDetectionService.isTablet(
+                                            context,
+                                          );
+
+                                      if (kDebugMode) {
+                                        print('=== iPad Detection Recheck ===');
+                                        print('Initial isIOS: $isIOS');
+                                        print('Recheck isIOS: $recheckIOS');
+                                        print(
+                                          'Recheck isTablet: $recheckTablet',
+                                        );
+                                        if (kIsWeb) {
+                                          try {
+                                            final userAgent = web_utils
+                                                .WebUtils.getUserAgent();
+                                            print('User Agent: $userAgent');
+                                            print(
+                                              'Contains "ipad": ${userAgent.contains('ipad')}',
+                                            );
+                                            print(
+                                              'Contains "iphone": ${userAgent.contains('iphone')}',
+                                            );
+                                          } catch (e) {
+                                            print(
+                                              'Error getting user agent: $e',
+                                            );
+                                          }
+                                        }
+                                        print('=============================');
+                                      }
+
+                                      // If recheck shows it's iOS/iPad, use USDZ file with Apple Quick Look
+                                      // Also check if it's a tablet with touch support (likely iPad)
+                                      if (recheckIOS ||
+                                          (recheckTablet &&
+                                              kIsWeb &&
+                                              DeviceDetectionService.hasTouchSupport())) {
+                                        if (kDebugMode) {
+                                          print(
+                                            'iPad detected on recheck! Using Apple AR Quick Look',
+                                          );
+                                        }
+                                        // Use the USDZ file path - it should be in usdzFileUrl or glbFileUrl
+                                        final usdzUrl =
+                                            _product.usdzFileUrl ??
+                                            (isGlbFileUsdz ? glbFileUrl : null);
+                                        if (usdzUrl != null && mounted) {
+                                          // Launch Apple AR Quick Look
+                                          try {
+                                            if (_product.id != null) {
+                                              final analyticsService =
+                                                  AnalyticsService();
+                                              await analyticsService
+                                                  .trackARView(_product.id!);
+                                            }
+
+                                            if (kIsWeb) {
+                                              final launched =
+                                                  await web_utils
+                                                      .WebUtils.openUsdzInAR(
+                                                    usdzUrl,
+                                                  );
+                                              if (!launched && mounted) {
+                                                Navigator.of(context).push(
+                                                  MaterialPageRoute(
+                                                    builder: (context) =>
+                                                        ARViewScreen(
+                                                          product: _product,
+                                                          modelUrl: usdzUrl,
+                                                        ),
+                                                  ),
+                                                );
+                                              }
+                                            } else {
+                                              final uri = Uri.parse(usdzUrl);
+                                              await launchUrl(
+                                                uri,
+                                                mode: LaunchMode
+                                                    .externalApplication,
+                                              );
+                                            }
+                                          } catch (e) {
+                                            if (kDebugMode) {
+                                              print(
+                                                'Error launching AR on iPad: $e',
+                                              );
+                                            }
+                                          }
+                                        }
+                                        return;
+                                      }
+
+                                      // Block only if confirmed non-iOS device
                                       if (mounted) {
                                         ScaffoldMessenger.of(
                                           context,
