@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../utils/responsive_helper.dart';
 
 class HeaderWidget extends StatelessWidget {
@@ -12,8 +13,7 @@ class HeaderWidget extends StatelessWidget {
     final logoHeight = isMobile ? 40.0 : (isTablet ? 46.0 : 52.21);
 
     return Row(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
@@ -34,6 +34,17 @@ class HeaderWidget extends StatelessWidget {
                 ),
               );
             },
+          ),
+        ),
+        // Admin Panel Link - Navigate to login
+        TextButton.icon(
+          onPressed: () {
+            context.push('/admin/login');
+          },
+          icon: const Icon(Icons.admin_panel_settings, size: 18),
+          label: const Text('Admin'),
+          style: TextButton.styleFrom(
+            foregroundColor: const Color(0xFFDC2626),
           ),
         ),
       ],

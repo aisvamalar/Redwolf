@@ -1,74 +1,144 @@
 import 'package:flutter/material.dart';
 import '../../models/product.dart';
 import '../screens/product_detail_view.dart';
+import '../../services/background_removal_service.dart';
 
-class ProductCard extends StatelessWidget {
+class ProductCard extends StatefulWidget {
   final Product product;
 
   const ProductCard({super.key, required this.product});
 
-  // Derive a standee name from the model URL (e.g. "32_EASEL STANDEE.glb")
-  // If parsing fails, fall back to the product name.
-  String _getStandeeDisplayName() {
-    final url = product.modelUrl;
-    if (url == null || url.isEmpty) {
-      return product.name;
-    }
+  @override
+  State<ProductCard> createState() => _ProductCardState();
+}
+
+class _ProductCardState extends State<ProductCard> {
+  String? _processedImageUrl;
+  bool _isProcessing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _processImage();
+  }
+
+  Future<void> _processImage() async {
+    if (_isProcessing) return;
+    
+    setState(() {
+      _isProcessing = true;
+    });
 
     try {
-      // Try to get the last segment of the URL path
-      final uri = Uri.parse(url);
-      String fileName = uri.pathSegments.isNotEmpty
-          ? uri.pathSegments.last
-          : url.split('/').last;
-
-      // Remove extension
-      if (fileName.toLowerCase().endsWith('.glb')) {
-        fileName = fileName.substring(0, fileName.length - 4);
+      final processedUrl = await BackgroundRemovalService.removeBackground(
+        widget.product.imageUrl,
+      );
+      
+      if (mounted) {
+        setState(() {
+          _processedImageUrl = processedUrl;
+          _isProcessing = false;
+        });
       }
-
-      // Decode URL-encoded characters (e.g. %20 -> space)
-      fileName = Uri.decodeComponent(fileName);
-
-      return fileName;
-    } catch (_) {
-      return product.name;
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _processedImageUrl = widget.product.imageUrl;
+          _isProcessing = false;
+        });
+      }
     }
   }
 
   Widget _buildProductImage() {
-    // Show network image from Supabase
+    // Show network image from Supabase with proper styling to match reference
+    final imageUrl = _processedImageUrl ?? widget.product.imageUrl;
+    final hasProcessedImage = _processedImageUrl != null && _processedImageUrl != widget.product.imageUrl;
+    
     return Stack(
       fit: StackFit.expand,
       children: [
-        // Product image
-        Image.network(
-          product.imageUrl,
-          fit: BoxFit.cover,
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            return Center(
-              child: CircularProgressIndicator(
-                value: loadingProgress.expectedTotalBytes != null
-                    ? loadingProgress.cumulativeBytesLoaded /
-                          loadingProgress.expectedTotalBytes!
-                    : null,
-                color: const Color(0xFFDC2626),
-              ),
-            );
-          },
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              decoration: const BoxDecoration(color: Colors.transparent),
-              child: const Center(
-                child: Icon(
-                  Icons.image_not_supported,
-                  size: 48,
-                  color: Colors.grey,
+        // Product image with cover fit to fill the container
+        ClipRRect(
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(12),
+            topRight: Radius.circular(12),
+          ),
+          child: hasProcessedImage
+              ? Image.network(
+                  imageUrl,
+                  fit: BoxFit.contain,
+                  width: double.infinity,
+                  height: double.infinity,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      color: const Color(0xFFF5F5F7),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          value: loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded /
+                                    loadingProgress.expectedTotalBytes!
+                              : null,
+                          color: const Color(0xFFDC2626),
+                          strokeWidth: 2,
+                        ),
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: const Color(0xFFF5F5F7),
+                      child: const Center(
+                        child: Icon(
+                          Icons.image_not_supported,
+                          size: 48,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    );
+                  },
+                )
+              : Container(
+                  color: const Color(0xFFF5F5F7), // Light grey background
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.contain,
+                    width: double.infinity,
+                    height: double.infinity,
+                    // Use color blend to make dark backgrounds blend with light background
+                    color: const Color(0xFFF5F5F7).withOpacity(0.3),
+                    colorBlendMode: BlendMode.lighten,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        color: const Color(0xFFF5F5F7),
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded /
+                                      loadingProgress.expectedTotalBytes!
+                                : null,
+                            color: const Color(0xFFDC2626),
+                            strokeWidth: 2,
+                          ),
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: const Color(0xFFF5F5F7),
+                        child: const Center(
+                          child: Icon(
+                            Icons.image_not_supported,
+                            size: 48,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ),
-              ),
-            );
-          },
         ),
         // 3D Model indicator badge (always shown on the card)
         Positioned(
@@ -89,14 +159,9 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String baseCategory = product.category.isNotEmpty
-        ? product.category
+    final String baseCategory = widget.product.category.isNotEmpty
+        ? widget.product.category
         : 'Portable';
-
-    // Use derived standee name (from model URL) when available
-    final String standeeName = _getStandeeDisplayName();
-    // Show category combined with standee name on home screen
-    final String categoryLabel = '$baseCategory • $standeeName';
 
     return Card(
       elevation: 0,
@@ -109,7 +174,7 @@ class ProductCard extends StatelessWidget {
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (context) => ProductDetailView(product: product),
+              builder: (context) => ProductDetailView(product: widget.product),
             ),
           );
         },
@@ -120,68 +185,110 @@ class ProductCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Product image container - significantly reduced size
               AspectRatio(
-                // Higher aspect ratio = shorter image height
-                aspectRatio: 1.9,
-                child: _buildProductImage(),
+                aspectRatio: 1.4, // Much taller aspect ratio to significantly reduce image container size
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5F5F7), // Light grey background
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(12),
+                      topRight: Radius.circular(12),
+                    ),
+                  ),
+                  child: _buildProductImage(),
+                ),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Portable label
-                    Text(
-                      categoryLabel,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey[600],
-                        fontWeight: FontWeight.w500,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+              // Content section - minimal padding to prevent overflow
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(12),
+                      bottomRight: Radius.circular(12),
                     ),
-                    const SizedBox(height: 4),
-                    // Product name
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                    // Portable label - light grey rounded tag
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF5F5F7),
+                        borderRadius: BorderRadius.circular(73),
+                      ),
+                      child: Text(
+                        baseCategory,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF2C2C34),
+                          fontWeight: FontWeight.w400,
+                          height: 1.0,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    // Product name - bold black text
                     Text(
-                      product.name,
+                      widget.product.name,
                       style: const TextStyle(
-                        fontSize: 13,
+                        fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: Colors.black,
+                        color: Color(0xFF090919),
+                        height: 1.1,
                       ),
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
-                    // Description
-                    Text(
-                      product.description,
-                      style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    const SizedBox(height: 3),
+                    // Description - smaller grey text (wrapped in Flexible to prevent overflow)
+                    Flexible(
+                      child: Text(
+                        widget.product.description ?? 'Digital display thingy',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF2C2C34),
+                          fontWeight: FontWeight.w400,
+                          height: 1.2,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    const SizedBox(height: 6),
-                    // View details link
+                    const SizedBox(height: 5),
+                    // View details link - red text with arrow (wrapped to prevent overflow)
                     Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          'view details',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: const Color(0xFFDC2626),
-                            fontWeight: FontWeight.w500,
+                        Flexible(
+                          child: Text(
+                            'view details',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFFED1F24),
+                              fontWeight: FontWeight.w500,
+                              height: 1.0,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 3),
                         const Icon(
                           Icons.arrow_forward,
-                          size: 16,
-                          color: Color(0xFFDC2626),
+                          size: 12,
+                          color: Color(0xFFED1F24),
                         ),
                       ],
                     ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],

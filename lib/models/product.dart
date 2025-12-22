@@ -1,78 +1,193 @@
 class Product {
-  final String id;
+  final String? id; // Database ID
   final String name;
-  final String imageUrl;
-  final String? modelUrl; // 3D model URL (.glb file)
   final String category;
-  final String description;
-  final List<String>? images; // Multiple product images
-  final List<String>? keyFeatures; // Key features list
-  final Map<String, String>? technicalSpecs; // Technical specifications
+  final String status;
+  final String imageUrl; // Thumbnail image URL (from image_url field)
+  final String? secondImageUrl; // Second image URL
+  final String? thirdImageUrl; // Third image URL
+  final String? glbFileUrl; // GLB file URL (from glb_file_url field)
+  final String? description;
+  final List<Map<String, String>>? specifications;
+  final List<String>? keyFeatures;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   Product({
-    required this.id,
+    this.id,
     required this.name,
-    required this.imageUrl,
-    this.modelUrl,
     required this.category,
-    required this.description,
-    this.images,
+    required this.status,
+    required this.imageUrl,
+    this.secondImageUrl,
+    this.thirdImageUrl,
+    this.glbFileUrl,
+    this.description,
+    this.specifications,
     this.keyFeatures,
-    this.technicalSpecs,
+    this.createdAt,
+    this.updatedAt,
   });
 
-  Product.fromJson(Map<String, dynamic> json)
-    : id = json['id'] as String,
-      name = json['name'] as String,
-      imageUrl = json['imageUrl'] as String,
-      modelUrl = json['modelUrl'] as String?,
-      category = json['category'] as String,
-      description = json['description'] as String,
-      images = json['images'] != null 
-          ? List<String>.from(json['images'] as List)
+  // Convert from JSON (database)
+  factory Product.fromJson(Map<String, dynamic> json) {
+    // Extract and construct image URL
+    String? imageUrl = json['image_url']?.toString() ?? json['thumbnail']?.toString();
+    if (imageUrl != null && !imageUrl.startsWith('http')) {
+      imageUrl = _constructStorageUrl('img', imageUrl);
+    }
+    
+    // Extract and construct GLB file URL
+    String? glbFileUrl = json['glb_file_url']?.toString() ?? json['model_url']?.toString();
+    if (glbFileUrl != null && !glbFileUrl.startsWith('http')) {
+      glbFileUrl = _constructStorageUrl('glb', glbFileUrl);
+    }
+    
+    // Extract and construct second image URL
+    String? secondImageUrl = json['second_image_url']?.toString();
+    if (secondImageUrl != null && !secondImageUrl.startsWith('http')) {
+      secondImageUrl = _constructStorageUrl('img', secondImageUrl);
+    }
+    
+    // Extract and construct third image URL
+    String? thirdImageUrl = json['third_image_url']?.toString();
+    if (thirdImageUrl != null && !thirdImageUrl.startsWith('http')) {
+      thirdImageUrl = _constructStorageUrl('img', thirdImageUrl);
+    }
+    
+    return Product(
+      id: json['id']?.toString(),
+      name: json['name']?.toString() ?? 'Unnamed Product',
+      category: json['category']?.toString() ?? 'Standees',
+      status: json['status']?.toString() ?? 'Published',
+      imageUrl: imageUrl ?? '',
+      secondImageUrl: secondImageUrl,
+      thirdImageUrl: thirdImageUrl,
+      glbFileUrl: glbFileUrl,
+      description: json['description']?.toString(),
+      specifications: json['specifications'] != null
+          ? List<Map<String, String>>.from(
+              (json['specifications'] as List).map((item) => Map<String, String>.from(item)))
           : null,
-      keyFeatures = json['keyFeatures'] != null
-          ? List<String>.from(json['keyFeatures'] as List)
+      keyFeatures: json['key_features'] != null
+          ? List<String>.from(json['key_features'] as List)
           : null,
-      technicalSpecs = json['technicalSpecs'] != null
-          ? Map<String, String>.from(json['technicalSpecs'] as Map)
-          : null;
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : null,
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'] as String)
+          : null,
+    );
+  }
+  
+  // Helper method to construct storage URLs from relative paths
+  static String _constructStorageUrl(String folder, String fileName) {
+    const baseUrl = 'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products';
+    final cleanFileName = fileName.startsWith('/') ? fileName.substring(1) : fileName;
+    // Handle if fileName already contains folder path
+    if (cleanFileName.contains('/')) {
+      return '$baseUrl/$cleanFileName';
+    }
+    return '$baseUrl/$folder/${Uri.encodeComponent(cleanFileName)}';
+  }
 
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    'imageUrl': imageUrl,
-    'modelUrl': modelUrl,
-    'category': category,
-    'description': description,
-    if (images != null) 'images': images,
-    if (keyFeatures != null) 'keyFeatures': keyFeatures,
-    if (technicalSpecs != null) 'technicalSpecs': technicalSpecs,
-  };
+  // Convert to JSON (for database)
+  Map<String, dynamic> toJson() {
+    return {
+      if (id != null) 'id': id,
+      'name': name,
+      'category': category,
+      'status': status,
+      'image_url': imageUrl,
+      if (secondImageUrl != null) 'second_image_url': secondImageUrl,
+      if (thirdImageUrl != null) 'third_image_url': thirdImageUrl,
+      if (glbFileUrl != null) 'glb_file_url': glbFileUrl,
+      if (description != null) 'description': description,
+      if (specifications != null) 'specifications': specifications,
+      if (keyFeatures != null) 'key_features': keyFeatures,
+    };
+  }
 
-  // Get default technical specs if not provided
-  Map<String, String> get defaultTechnicalSpecs => technicalSpecs ?? {
-    'Model': '50" Totem',
-    'Software Mode': 'Online/Offline',
-    'Display Resolution': '4K',
-    'Brightness': '400 nits',
-    'Aspect Ratio': '9:16',
-    'Viewing Angle': '178°/178°',
-    'Operating Hours': '10-12 Hours/Day',
-    'Colour': 'Black',
-    'Storage': '2 GB RAM, 16 GB ROM',
-    'Connectivity': 'Wi-Fi / USB',
-    'Stable Voltage': '50HZ; 100-240V AC',
-    'Power Supply': '50W Max',
-    'Working Temperature': '0-40°c',
-    'Warranty': 'One Year',
-  };
+  // Copy with method for updates
+  Product copyWith({
+    String? id,
+    String? name,
+    String? category,
+    String? status,
+    String? imageUrl,
+    String? secondImageUrl,
+    String? thirdImageUrl,
+    String? glbFileUrl,
+    String? description,
+    List<Map<String, String>>? specifications,
+    List<String>? keyFeatures,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return Product(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      category: category ?? this.category,
+      status: status ?? this.status,
+      imageUrl: imageUrl ?? this.imageUrl,
+      secondImageUrl: secondImageUrl ?? this.secondImageUrl,
+      thirdImageUrl: thirdImageUrl ?? this.thirdImageUrl,
+      glbFileUrl: glbFileUrl ?? this.glbFileUrl,
+      description: description ?? this.description,
+      specifications: specifications ?? this.specifications,
+      keyFeatures: keyFeatures ?? this.keyFeatures,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
 
-  // Get default key features if not provided
+  // Get modelUrl for AR (alias for glbFileUrl for backward compatibility)
+  String? get modelUrl => glbFileUrl;
+
+  // Get default technical specs if not provided (for backward compatibility)
+  Map<String, String> get defaultTechnicalSpecs {
+    if (specifications != null && specifications!.isNotEmpty) {
+      final Map<String, String> specs = {};
+      for (var spec in specifications!) {
+        if (spec.containsKey('label') && spec.containsKey('value')) {
+          specs[spec['label']!] = spec['value']!;
+        }
+      }
+      return specs;
+    }
+    return {
+      'Model': '50" Totem',
+      'Software Mode': 'Online/Offline',
+      'Display Resolution': '4K',
+      'Brightness': '400 nits',
+      'Aspect Ratio': '9:16',
+      'Viewing Angle': '178°/178°',
+      'Operating Hours': '10-12 Hours/Day',
+      'Colour': 'Black',
+      'Storage': '2 GB RAM, 16 GB ROM',
+      'Connectivity': 'Wi-Fi / USB',
+      'Stable Voltage': '50HZ; 100-240V AC',
+      'Power Supply': '50W Max',
+      'Working Temperature': '0-40°c',
+      'Warranty': 'One Year',
+    };
+  }
+
+  // Get default key features if not provided (for backward compatibility)
   List<String> get defaultKeyFeatures => keyFeatures ?? [
     '2 Years Warranty',
     '4K Display',
     'Portable Design',
     'Touch Enabled',
   ];
+
+  // Get images list (for backward compatibility)
+  List<String>? get images {
+    final List<String> imageList = [];
+    if (imageUrl.isNotEmpty) imageList.add(imageUrl);
+    if (secondImageUrl != null && secondImageUrl!.isNotEmpty) imageList.add(secondImageUrl!);
+    if (thirdImageUrl != null && thirdImageUrl!.isNotEmpty) imageList.add(thirdImageUrl!);
+    return imageList.isEmpty ? null : imageList;
+  }
 }

@@ -6,3 +6,5 @@ export const corsHeaders = {
   'Access-Control-Max-Age': '86400',
 }
 
+
+

@@ -11,51 +11,56 @@ class StandeeContainersSection extends StatelessWidget {
       Product(
         id: 'standee_1',
         name: 'Easel Standee',
+        category: 'Standees',
+        status: 'Published',
         imageUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/Screenshot%202025-12-16%20193255.png',
-        modelUrl:
+        glbFileUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/32_EASEL%20STANDEE%20.glb',
-        category: 'Standees',
         description: 'Elegant easel standee design perfect for retail displays and exhibitions.',
       ),
       Product(
         id: 'standee_2',
         name: 'Totem Standee',
+        category: 'Standees',
+        status: 'Published',
         imageUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/Screenshot%202025-12-16%20193437.png',
-        modelUrl:
+        glbFileUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/32_TOTEM%20STANDEE.glb',
-        category: 'Standees',
         description: 'Premium totem standee for high-traffic environments and brand visibility.',
       ),
       Product(
         id: 'standee_3',
         name: 'Wall Mount',
+        category: 'Standees',
+        status: 'Published',
         imageUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/Screenshot%202025-12-16%20193658.png',
-        modelUrl:
+        glbFileUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/32_WALL%20MOUNT.glb',
-        category: 'Standees',
         description: 'Space-efficient wall mount design ideal for modern retail spaces.',
       ),
       Product(
         id: 'standee_4',
         name: 'Wall Mount with Stand',
+        category: 'Standees',
+        status: 'Published',
         imageUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/Screenshot%202025-12-16%20193719.png',
-        modelUrl:
+        glbFileUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/32_WALL%20MOUNT%20WITH%20STAND.glb',
-        category: 'Standees',
         description: 'Versatile wall mount with stand for flexible placement options.',
       ),
       Product(
         id: 'standee_5',
         name: 'Easel Standee 43',
+        category: 'Standees',
+        status: 'Published',
         imageUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/Screenshot%202025-12-16%20193744.png',
-        modelUrl:
+        glbFileUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/43_EASEL%20STANDEE.glb',
-        category: 'Standees',
         description: 'Enhanced easel standee design with improved stability and display quality.',
       ),
     ];
@@ -183,7 +188,7 @@ class StandeeContainersSection extends StatelessWidget {
                   const SizedBox(height: 4),
                   // Description
                   Text(
-                    product.description,
+                    product.description ?? '',
                     style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,

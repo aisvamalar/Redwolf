@@ -1,17 +1,30 @@
 /// Supabase Configuration
 /// Update these values with your Supabase project details
 class SupabaseConfig {
+  // Supabase Project URL
+  static const String supabaseUrl = 'https://zsipfgtlfnfvmnrohtdo.supabase.co';
+  
   // Supabase Storage Public URL
   static const String storageBaseUrl =
       'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public';
 
   // Storage bucket names
-  static const String modelsBucket = 'products/products/glb';
-  static const String imagesBucket = 'products/products/img'; // For preview images
+  // Based on actual Supabase storage structure: files are in 'products' bucket
+  // Files can be in root, 'img' folder, or 'glb' folder
+  static const String bucketName = 'products';
+  static const String modelsBucket = 'products/glb'; // GLB files folder
+  static const String imagesBucket = 'products/img'; // Image files folder
   
   // Supabase API credentials
   static const String publishableKey = 'sb_publishable_wmZqFa8wSJhsyPeWcFOmYg_ta4eoCcS';
   static const String secretKey = 'sb_secret_9umn23jj2dE7m7x4B5wjuw_tGmHqLqf';
+
+  // Background Removal API (remove.bg)
+  // Get your free API key from: https://www.remove.bg/api
+  // Note: Background removal is enabled by default with visual effects
+  // Set enableBackgroundRemoval = true and add API key for true background removal
+  static const String removeBgApiKey = 'YOUR_REMOVE_BG_API_KEY'; // Replace with your API key
+  static const bool enableBackgroundRemoval = true; // Set to true to enable background removal (requires API key)
 
   // List of standee files in your Supabase storage
   // Update this list when you add new standees

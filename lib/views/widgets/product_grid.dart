@@ -75,24 +75,61 @@ class ProductGrid extends StatelessWidget {
       );
     }
 
-    // For now, home screen should only show a single featured product card.
-    // When an admin panel is added, this can be driven by backend config.
-    final featuredProduct = products.firstWhere(
-      (p) => p.modelUrl != null && p.modelUrl!.isNotEmpty,
-      orElse: () => products.first,
-    );
+    // Display all products from database in a grid
+    // Filter products that have GLB file URLs (for AR viewing)
+    final productsWithModels = products
+        .where((p) => p.glbFileUrl != null && p.glbFileUrl!.isNotEmpty)
+        .toList();
 
-    final maxCardWidth = isDesktop
-        ? 320.0
-        : (isTablet ? 300.0 : double.infinity);
+    if (productsWithModels.isEmpty) {
+      return Padding(
+        padding: EdgeInsets.all(isMobile ? 32.0 : 48.0),
+        child: Center(
+          child: Text(
+            'No products with AR models available',
+            style: TextStyle(fontSize: isMobile ? 16 : 18, color: Colors.grey),
+          ),
+        ),
+      );
+    }
 
-    return Container(
-      width: isDesktop ? 960 : double.infinity,
-      alignment: isDesktop ? Alignment.centerLeft : Alignment.center,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: maxCardWidth),
-        child: ProductCard(product: featuredProduct),
-      ),
+    // Calculate grid layout based on controller layout preference
+    final layout = controller.layout;
+    final crossAxisCount = layout == ProductLayout.grid2
+        ? (isDesktop ? 3 : (isTablet ? 2 : 2)) // 2 columns on mobile when grid mode
+        : (isDesktop ? 3 : (isTablet ? 2 : 1)); // Single column on mobile when list mode
+    // Adjusted aspect ratios to account for significantly reduced image size (1.4 instead of 1.0)
+    final childAspectRatio = layout == ProductLayout.grid2
+        ? (isDesktop ? 0.78 : (isTablet ? 0.80 : 0.78)) // Adjusted for reduced image container
+        : (isDesktop ? 0.78 : (isTablet ? 0.82 : 1.0)); // Adjusted list mode aspect ratio
+    final spacing = isDesktop ? 24.0 : (isTablet ? 20.0 : 16.0);
+    final padding = isDesktop ? 24.0 : (isTablet ? 20.0 : 16.0);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Calculate available width for grid items
+        final availableWidth = constraints.maxWidth - (padding * 2) - (spacing * (crossAxisCount - 1));
+        final itemWidth = availableWidth / crossAxisCount;
+        
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            childAspectRatio: childAspectRatio,
+            crossAxisSpacing: spacing,
+            mainAxisSpacing: spacing,
+          ),
+          padding: EdgeInsets.all(padding),
+          itemCount: productsWithModels.length,
+          itemBuilder: (context, index) {
+            return SizedBox(
+              width: itemWidth,
+              child: ProductCard(product: productsWithModels[index]),
+            );
+          },
+        );
+      },
     );
   }
 }

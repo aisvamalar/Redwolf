@@ -1,6 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'dart:typed_data';
 import 'ar_analytics_service_web_stub.dart'
     if (dart.library.html) 'ar_analytics_service_web.dart'
@@ -11,6 +9,7 @@ import 'ar_analytics_service_web_stub.dart'
 class ARAnalyticsService {
   static const String _baseUrl = 'https://your-api-endpoint.com/api';
   static const String _analyticsEndpoint = '$_baseUrl/analytics/ar';
+  // ignore: unused_field
   static const String _screenshotEndpoint = '$_baseUrl/screenshots';
 
   /// Track AR interaction events
@@ -173,6 +172,7 @@ class ARAnalyticsService {
         queryParams['start_date'] = startDate.toIso8601String();
       if (endDate != null) queryParams['end_date'] = endDate.toIso8601String();
 
+      // ignore: unused_local_variable
       final uri = Uri.parse(
         '$_analyticsEndpoint/summary',
       ).replace(queryParameters: queryParams);
@@ -218,6 +218,7 @@ class ARAnalyticsService {
     return 'ar_session_${DateTime.now().millisecondsSinceEpoch}';
   }
 
+  // ignore: unused_element
   static Future<String> _getAuthToken() async {
     // In production, implement proper authentication
     // For now, return a mock token

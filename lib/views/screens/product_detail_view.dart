@@ -4,9 +4,11 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../models/product.dart';
 import 'ar_view_screen.dart';
 import '../../services/product_detail_service.dart';
+import '../../services/product_service.dart';
 import '../../services/device_detection_service.dart';
 import '../../utils/responsive_helper.dart';
 import '../../config/supabase_config.dart';
+import '../widgets/product_card.dart';
 import 'product_detail_view_web_stub.dart'
     if (dart.library.html) 'product_detail_view_web.dart'
     as web_utils;
@@ -24,20 +26,25 @@ class _ProductDetailViewState extends State<ProductDetailView> {
   int _selectedImageIndex = 0;
   bool _isLoading = false;
   Product? _enhancedProduct;
+  List<Product> _similarProducts = [];
+  bool _isLoadingSimilar = false;
 
   @override
   void initState() {
     super.initState();
     _loadProductDetails();
     _trackProductView();
+    _loadSimilarProducts();
   }
 
   Future<void> _loadProductDetails() async {
+    if (widget.product.id == null) return;
+    
     setState(() => _isLoading = true);
     try {
       // Fetch enhanced product details from backend
       final product = await ProductDetailService.fetchProductDetail(
-        widget.product.id,
+        widget.product.id!,
       );
       if (product != null) {
         setState(() => _enhancedProduct = product);
@@ -50,17 +57,56 @@ class _ProductDetailViewState extends State<ProductDetailView> {
   }
 
   Future<void> _trackProductView() async {
-    await ProductDetailService.trackProductView(widget.product.id);
+    if (widget.product.id != null) {
+      await ProductDetailService.trackProductView(widget.product.id!);
+    }
+  }
+
+  Future<void> _loadSimilarProducts() async {
+    setState(() => _isLoadingSimilar = true);
+    try {
+      final productService = ProductService();
+      // Fetch all published products
+      final allProducts = await productService.getProducts(forceRefresh: false);
+      
+      // Filter similar products:
+      // 1. Exclude current product
+      // 2. Same category preferred, or any other products
+      // 3. Must have GLB file for AR viewing
+      final currentProduct = _product;
+      final similar = allProducts
+          .where((p) => 
+              p.id != currentProduct.id && // Exclude current product
+              p.glbFileUrl != null && 
+              p.glbFileUrl!.isNotEmpty && // Must have AR model
+              p.status == 'Published') // Only published products
+          .toList();
+      
+      // Sort by category match first, then take up to 6 products
+      similar.sort((a, b) {
+        final aMatchesCategory = a.category == currentProduct.category ? 1 : 0;
+        final bMatchesCategory = b.category == currentProduct.category ? 1 : 0;
+        return bMatchesCategory.compareTo(aMatchesCategory);
+      });
+      
+      setState(() {
+        _similarProducts = similar.take(6).toList(); // Show max 6 similar products
+        _isLoadingSimilar = false;
+      });
+    } catch (e) {
+      print('Error loading similar products: $e');
+      setState(() => _isLoadingSimilar = false);
+    }
   }
 
   Product get _product => _enhancedProduct ?? widget.product;
 
   /// Gets the 3D model URL for the current product
-  /// Uses the product's modelUrl if available, otherwise falls back to default
+  /// Uses the product's glbFileUrl if available, otherwise falls back to modelUrl
   /// Converts to proxy URL for better CORS support with Google Scene Viewer
   String get modelUrl {
-    // Always use the product's specific modelUrl if it exists
-    final productModelUrl = _product.modelUrl;
+    // Always use the product's specific glbFileUrl if it exists (from database)
+    final productModelUrl = _product.glbFileUrl ?? _product.modelUrl;
     if (productModelUrl != null && productModelUrl.isNotEmpty) {
       // Convert to proxy URL for CORS support
       return SupabaseConfig.convertToProxyUrl(productModelUrl);
@@ -73,14 +119,29 @@ class _ProductDetailViewState extends State<ProductDetailView> {
   }
 
   List<String> get _productImages {
-    if (_product.images != null && _product.images!.isNotEmpty) {
+    // Use images from database: thumbnail, secondImageUrl, thirdImageUrl
+    final List<String> imageList = [];
+    if (_product.imageUrl.isNotEmpty) {
+      imageList.add(_product.imageUrl);
+    }
+    if (_product.secondImageUrl != null && _product.secondImageUrl!.isNotEmpty) {
+      imageList.add(_product.secondImageUrl!);
+    }
+    if (_product.thirdImageUrl != null && _product.thirdImageUrl!.isNotEmpty) {
+      imageList.add(_product.thirdImageUrl!);
+    }
+    
+    // Fallback to images property if available
+    if (imageList.isEmpty && _product.images != null && _product.images!.isNotEmpty) {
       return _product.images!;
     }
-    // Return multiple images - main image and variations
-    return [
-      _product.imageUrl,
-      _product.imageUrl, // In real app, this would be different images
-    ];
+    
+    // If still empty, return at least the thumbnail
+    if (imageList.isEmpty) {
+      return [_product.imageUrl];
+    }
+    
+    return imageList;
   }
 
   double _getMaxWidth(BuildContext context) {
@@ -109,7 +170,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       // Try Web Share API first
       final shared = await web_utils.WebUtils.shareContent(
         _product.name,
-        _product.description,
+        _product.description ?? '',
         url,
       );
 
@@ -420,10 +481,12 @@ class _ProductDetailViewState extends State<ProductDetailView> {
 
     // Main hero product image (white card)
     Widget buildMainImage(double maxWidth) {
-      // More compact card so image + details feel lighter
+      // Reduced size to show full image
+      final imageWidth = maxWidth * 0.85; // Reduce width by 15%
+      final imageHeight = imageWidth * 0.9; // Slightly taller than square
       return Container(
-        width: maxWidth,
-        height: maxWidth, // square-ish, smaller overall height
+        width: imageWidth,
+        height: imageHeight,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -443,7 +506,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
             color: const Color(0xFFF8F9FA),
             child: Image.network(
               mainImageUrl,
-              fit: BoxFit.cover,
+              fit: BoxFit.contain, // Changed from cover to contain to show full image
               width: double.infinity,
               height: double.infinity,
               loadingBuilder: (context, child, loadingProgress) {
@@ -595,10 +658,9 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       );
     }
 
-    // Use a slightly smaller hero width so the image container is reduced
-    // and better balanced with the details column.
+    // Reduced width to show full image better
     // Re‑use the existing `isMobile` defined above.
-    final double mainWidth = isMobile ? screenWidth * 0.7 : 320.0;
+    final double mainWidth = isMobile ? screenWidth * 0.65 : 280.0; // Reduced from 0.7 and 320
 
     if (isMobile) {
       // Mobile: main image centered with thumbnails below (horizontal strip)
@@ -618,7 +680,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          height: mainWidth, // match the main image card height
+          height: mainWidth * 0.9, // match the main image card height (reduced)
           width: 56, // a bit wider than the thumbnail width
           child: ListView.builder(
             padding: EdgeInsets.zero,
@@ -707,7 +769,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                 ? double.infinity
                 : (isDesktop ? 440 : double.infinity),
             child: Text(
-              _product.description,
+              _product.description ?? '',
               style: TextStyle(
                 color: const Color(0xFF2C2C34),
                 fontSize: ResponsiveHelper.getResponsiveFontSize(
@@ -816,17 +878,46 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                             return;
                           }
 
-                          // Navigate to AR view - let the AR screen handle availability checks
-                          // This allows the AR view to appear even on emulators (with appropriate error message)
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => ARViewScreen(
-                                product: _product,
-                                modelUrl:
-                                    modelUrl, // Uses the specific product's modelUrl
-                              ),
-                            ),
-                          );
+                          // Directly open Google Scene Viewer using intent URL
+                          // This bypasses the intermediate screen and opens AR immediately
+                          try {
+                            final encodedModelUrl = Uri.encodeComponent(modelUrl);
+                            
+                            // Use Google Scene Viewer URL format to directly open AR
+                            // This will trigger Scene Viewer directly without showing the cube first
+                            final sceneViewerUrl = 'https://arvr.google.com/scene-viewer/1.0?file=$encodedModelUrl&mode=ar_only';
+                            
+                            // Try to launch Scene Viewer directly
+                            final uri = Uri.parse(sceneViewerUrl);
+                            final launched = await launchUrl(
+                              uri,
+                              mode: LaunchMode.externalApplication,
+                            );
+                            
+                            if (!launched && mounted) {
+                              // Fallback: Navigate to AR view screen if direct launch fails
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) => ARViewScreen(
+                                    product: _product,
+                                    modelUrl: modelUrl,
+                                  ),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            // Fallback: Navigate to AR view screen on error
+                            if (mounted) {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) => ARViewScreen(
+                                    product: _product,
+                                    modelUrl: modelUrl,
+                                  ),
+                                ),
+                              );
+                            }
+                          }
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor:
@@ -1122,9 +1213,81 @@ class _ProductDetailViewState extends State<ProductDetailView> {
   }
 
   Widget _buildSimilarProducts() {
-    // Temporarily hide similar products section.
-    // Once the admin panel is live and we have real
-    // related products configured, this can be re-enabled.
-    return const SizedBox.shrink();
+    final isTablet = ResponsiveHelper.isTablet(context);
+    final isDesktop = ResponsiveHelper.isDesktop(context);
+    final horizontalPadding = _getHorizontalPadding(context);
+
+    if (_isLoadingSimilar) {
+      return Padding(
+        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+        child: const Center(
+          child: CircularProgressIndicator(color: Color(0xFFDC2626)),
+        ),
+      );
+    }
+
+    if (_similarProducts.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Section Title
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+          child: Text(
+            'Similar Products',
+            style: TextStyle(
+              color: const Color(0xFF090919),
+              fontSize: ResponsiveHelper.getResponsiveFontSize(
+                context,
+                mobile: 20,
+                tablet: 21,
+                desktop: 22,
+              ),
+              fontWeight: FontWeight.w600,
+              height: 1.36,
+            ),
+          ),
+        ),
+        SizedBox(
+          height: ResponsiveHelper.getResponsiveSpacing(
+            context,
+            mobile: 24,
+            tablet: 28,
+            desktop: 32,
+          ),
+        ),
+        // Similar Products Grid
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // Calculate grid layout
+              final crossAxisCount = isDesktop ? 3 : (isTablet ? 2 : 2);
+              final childAspectRatio = isDesktop ? 0.70 : (isTablet ? 0.75 : 0.70);
+              final spacing = isDesktop ? 24.0 : (isTablet ? 20.0 : 16.0);
+
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  childAspectRatio: childAspectRatio,
+                  crossAxisSpacing: spacing,
+                  mainAxisSpacing: spacing,
+                ),
+                itemCount: _similarProducts.length,
+                itemBuilder: (context, index) {
+                  final product = _similarProducts[index];
+                  return ProductCard(product: product);
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
   }
 }

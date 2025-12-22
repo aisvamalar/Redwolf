@@ -37,6 +37,7 @@ class SearchFilterBar extends StatelessWidget {
           _buildSearchField(context, controller),
           const SizedBox(height: 12),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(child: _buildCategoryDropdown(context, controller)),
               const SizedBox(width: 12),
@@ -54,14 +55,16 @@ class SearchFilterBar extends StatelessWidget {
           _buildSearchField(context, controller),
           const SizedBox(height: 12),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
-                flex: 2,
                 child: _buildCategoryDropdown(context, controller),
               ),
-              const SizedBox(width: 8),
-              Expanded(flex: 2, child: _buildSortDropdown(context, controller)),
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildSortDropdown(context, controller),
+              ),
+              const SizedBox(width: 12),
               _buildLayoutToggleButton(context, controller),
             ],
           ),
@@ -146,13 +149,14 @@ class SearchFilterBar extends StatelessWidget {
     );
 
     return Container(
+      height: isMobile ? 40 : 44,
       padding: EdgeInsets.symmetric(
-        horizontal: isMobile ? 12 : 24,
-        vertical: isMobile ? 10 : 12,
+        horizontal: isMobile ? 16 : 20,
+        vertical: 0,
       ),
       decoration: ShapeDecoration(
         color: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(82)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         shadows: const [
           BoxShadow(
             color: Color(0x0F000000),
@@ -162,75 +166,59 @@ class SearchFilterBar extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: controller.selectedCategory,
-                isExpanded: true,
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: controller.selectedCategory,
+          isExpanded: true,
+          style: textStyleValue,
+          icon: Icon(
+            Icons.keyboard_arrow_down,
+            size: isMobile ? 18 : 20,
+            color: const Color(0xFF8C8D96),
+          ),
+          items: [
+            DropdownMenuItem<String>(
+              value: 'all',
+              child: Text(
+                'All',
                 style: textStyleValue,
-                items: [
-                  DropdownMenuItem<String>(
-                    value: 'all',
-                    child: Text(
-                      'All',
-                      style: textStyleValue,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  ...products.map(
-                    (product) => DropdownMenuItem<String>(
-                      value: product.id,
-                      child: Text(
-                        product.name,
-                        style: textStyleValue,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                ],
-                selectedItemBuilder: (context) {
-                  final items = <String>['all', ...products.map((p) => p.id)];
-                  return items.map((id) {
-                    final name = id == 'all'
-                        ? 'All'
-                        : products.firstWhere((p) => p.id == id).name;
-                    return Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        name,
-                        style: textStyleValue,
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    );
-                  }).toList();
-                },
-                onChanged: (value) {
-                  if (value != null) {
-                    controller.setCategory(value);
-                  }
-                },
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-          ),
-          SizedBox(width: isMobile ? 4 : 12),
-          Container(
-            width: isMobile ? 16 : 20,
-            height: isMobile ? 16 : 20,
-            clipBehavior: Clip.antiAlias,
-            decoration: const BoxDecoration(),
-            child: Icon(
-              Icons.keyboard_arrow_down,
-              size: isMobile ? 16 : 20,
-              color: const Color(0xFF8C8D96),
+            ...products.map(
+              (product) => DropdownMenuItem<String>(
+                value: product.id,
+                child: Text(
+                  product.name,
+                  style: textStyleValue,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ),
-          ),
-        ],
+          ],
+          selectedItemBuilder: (context) {
+            final items = <String>['all', ...products.where((p) => p.id != null).map((p) => p.id!)];
+            return items.map((id) {
+              final name = id == 'all'
+                  ? 'All'
+                  : products.firstWhere((p) => p.id == id).name;
+              return Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  name,
+                  style: textStyleValue,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              );
+            }).toList();
+          },
+          onChanged: (value) {
+            if (value != null) {
+              controller.setCategory(value);
+            }
+          },
+        ),
       ),
     );
   }
@@ -241,23 +229,24 @@ class SearchFilterBar extends StatelessWidget {
   ) {
     final isMobile = ResponsiveHelper.isMobile(context);
 
-    // On mobile, show shorter text without "sort by:" prefix
+    // Use consistent text style matching the category dropdown
     final sortTextStyle = TextStyle(
       color: const Color(0xFF2C2C34),
-      fontSize: isMobile ? 12 : 14,
+      fontSize: isMobile ? 13 : 14,
       fontFamily: 'Inter',
       fontWeight: FontWeight.w400,
       height: 1.43,
     );
 
     return Container(
+      height: isMobile ? 40 : 44,
       padding: EdgeInsets.symmetric(
-        horizontal: isMobile ? 12 : 24,
-        vertical: isMobile ? 10 : 12,
+        horizontal: isMobile ? 16 : 20,
+        vertical: 0,
       ),
       decoration: ShapeDecoration(
         color: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(82)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         shadows: const [
           BoxShadow(
             color: Color(0x0F000000),
@@ -267,260 +256,81 @@ class SearchFilterBar extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<SortOption>(
-                value: controller.sortOption,
-                isExpanded: true,
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<SortOption>(
+          value: controller.sortOption,
+          isExpanded: true,
+          style: sortTextStyle,
+          icon: Icon(
+            Icons.keyboard_arrow_down,
+            size: isMobile ? 18 : 20,
+            color: const Color(0xFF8C8D96),
+          ),
+          items: [
+            // All devices: Simple labels without "sort by:" prefix
+            DropdownMenuItem(
+              value: SortOption.defaultSort,
+              child: Text(
+                'Default',
                 style: sortTextStyle,
-                items: isMobile
-                    ? [
-                        // Mobile: Short labels
-                        DropdownMenuItem(
-                          value: SortOption.defaultSort,
-                          child: Text(
-                            'Default',
-                            style: sortTextStyle,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value: SortOption.nameAsc,
-                          child: Text(
-                            'A-Z',
-                            style: sortTextStyle,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value: SortOption.nameDesc,
-                          child: Text(
-                            'Z-A',
-                            style: sortTextStyle,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ]
-                    : [
-                        // Desktop/Tablet: Full labels with "sort by:"
-                        DropdownMenuItem(
-                          value: SortOption.defaultSort,
-                          child: Text.rich(
-                            TextSpan(
-                              children: [
-                                TextSpan(
-                                  text: 'sort by: ',
-                                  style: TextStyle(
-                                    color: Color(0xFF8C8D96),
-                                    fontSize: 14,
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.w400,
-                                    height: 1.43,
-                                  ),
-                                ),
-                                TextSpan(
-                                  text: 'Default',
-                                  style: TextStyle(
-                                    color: Color(0xFF2C2C34),
-                                    fontSize: 14,
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.w400,
-                                    height: 1.43,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value: SortOption.nameAsc,
-                          child: Text.rich(
-                            TextSpan(
-                              children: [
-                                TextSpan(
-                                  text: 'sort by: ',
-                                  style: TextStyle(
-                                    color: const Color(0xFF8C8D96),
-                                    fontSize: 14,
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.w400,
-                                    height: 1.43,
-                                  ),
-                                ),
-                                TextSpan(
-                                  text: 'Name (A-Z)',
-                                  style: TextStyle(
-                                    color: const Color(0xFF2C2C34),
-                                    fontSize: 14,
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.w400,
-                                    height: 1.43,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value: SortOption.nameDesc,
-                          child: Text.rich(
-                            TextSpan(
-                              children: [
-                                TextSpan(
-                                  text: 'sort by: ',
-                                  style: TextStyle(
-                                    color: const Color(0xFF8C8D96),
-                                    fontSize: 14,
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.w400,
-                                    height: 1.43,
-                                  ),
-                                ),
-                                TextSpan(
-                                  text: 'Name (Z-A)',
-                                  style: TextStyle(
-                                    color: const Color(0xFF2C2C34),
-                                    fontSize: 14,
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.w400,
-                                    height: 1.43,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            DropdownMenuItem(
+              value: SortOption.nameAsc,
+              child: Text(
+                isMobile ? 'A-Z' : 'Name (A-Z)',
+                style: sortTextStyle,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            DropdownMenuItem(
+              value: SortOption.nameDesc,
+              child: Text(
+                isMobile ? 'Z-A' : 'Name (Z-A)',
+                style: sortTextStyle,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
                 selectedItemBuilder: (context) {
-                  if (isMobile) {
-                    // Mobile: Show short labels
-                    return [
-                      Text(
+                  // All devices: Simple labels without "sort by:" prefix
+                  return [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
                         'Default',
                         style: sortTextStyle,
                         overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
-                      Text(
-                        'A-Z',
+                    ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        isMobile ? 'A-Z' : 'Name (A-Z)',
                         style: sortTextStyle,
                         overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
-                      Text(
-                        'Z-A',
+                    ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        isMobile ? 'Z-A' : 'Name (Z-A)',
                         style: sortTextStyle,
                         overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
-                    ];
-                  } else {
-                    // Desktop/Tablet: Show full labels
-                    return [
-                      Text.rich(
-                        TextSpan(
-                          children: [
-                            TextSpan(
-                              text: 'sort by: ',
-                              style: TextStyle(
-                                color: Color(0xFF8C8D96),
-                                fontSize: 14,
-                                fontFamily: 'Inter',
-                                fontWeight: FontWeight.w400,
-                                height: 1.43,
-                              ),
-                            ),
-                            TextSpan(
-                              text: 'Default',
-                              style: TextStyle(
-                                color: Color(0xFF2C2C34),
-                                fontSize: 14,
-                                fontFamily: 'Inter',
-                                fontWeight: FontWeight.w400,
-                                height: 1.43,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Text.rich(
-                        TextSpan(
-                          children: [
-                            TextSpan(
-                              text: 'sort by: ',
-                              style: TextStyle(
-                                color: Color(0xFF8C8D96),
-                                fontSize: 14,
-                                fontFamily: 'Inter',
-                                fontWeight: FontWeight.w400,
-                                height: 1.43,
-                              ),
-                            ),
-                            TextSpan(
-                              text: 'Name (A-Z)',
-                              style: TextStyle(
-                                color: Color(0xFF2C2C34),
-                                fontSize: 14,
-                                fontFamily: 'Inter',
-                                fontWeight: FontWeight.w400,
-                                height: 1.43,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Text.rich(
-                        TextSpan(
-                          children: [
-                            TextSpan(
-                              text: 'sort by: ',
-                              style: TextStyle(
-                                color: Color(0xFF8C8D96),
-                                fontSize: 14,
-                                fontFamily: 'Inter',
-                                fontWeight: FontWeight.w400,
-                                height: 1.43,
-                              ),
-                            ),
-                            TextSpan(
-                              text: 'Name (Z-A)',
-                              style: TextStyle(
-                                color: Color(0xFF2C2C34),
-                                fontSize: 14,
-                                fontFamily: 'Inter',
-                                fontWeight: FontWeight.w400,
-                                height: 1.43,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ];
-                  }
+                    ),
+                  ];
                 },
-                onChanged: (value) {
-                  if (value != null) {
-                    controller.setSortOption(value);
-                  }
-                },
-              ),
-            ),
-          ),
-          SizedBox(width: isMobile ? 4 : 12),
-          Container(
-            width: isMobile ? 16 : 20,
-            height: isMobile ? 16 : 20,
-            clipBehavior: Clip.antiAlias,
-            decoration: const BoxDecoration(),
-            child: Icon(
-              Icons.keyboard_arrow_down,
-              size: isMobile ? 16 : 20,
-              color: const Color(0xFF8C8D96),
-            ),
-          ),
-        ],
+          onChanged: (value) {
+            if (value != null) {
+              controller.setSortOption(value);
+            }
+          },
+        ),
       ),
     );
   }
@@ -539,7 +349,10 @@ class SearchFilterBar extends StatelessWidget {
       height: isMobile ? 40 : 44,
       decoration: ShapeDecoration(
         color: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: const BorderSide(color: Color(0xFFE5E5E5), width: 1),
+        ),
         shadows: const [
           BoxShadow(
             color: Color(0x0F000000),
@@ -550,14 +363,65 @@ class SearchFilterBar extends StatelessWidget {
         ],
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(8),
         onTap: controller.toggleLayout,
-        child: Icon(
-          isGrid ? Icons.view_agenda_rounded : Icons.grid_view_rounded,
-          size: isMobile ? 18 : 20,
-          color: const Color(0xFF2C2C34),
+        child: Center(
+          child: _buildGridIcon(context, isGrid),
         ),
       ),
     );
   }
+
+  /// Build custom 4-square grid icon
+  /// Shows 4-square icon when NOT in grid mode (to switch TO grid)
+  /// Shows list icon when IN grid mode (to switch back to list)
+  Widget _buildGridIcon(BuildContext context, bool isGrid) {
+    final isMobile = ResponsiveHelper.isMobile(context);
+    final iconSize = isMobile ? 18.0 : 20.0;
+    
+    if (isGrid) {
+      // Currently in grid mode - show list icon to switch back to list
+      return Icon(
+        Icons.view_agenda_rounded,
+        size: iconSize,
+        color: const Color(0xFF2C2C34),
+      );
+    } else {
+      // Currently in list mode - show 4-square icon to switch to grid
+      return CustomPaint(
+        size: Size(iconSize, iconSize),
+        painter: GridIconPainter(),
+      );
+    }
+  }
+}
+
+/// Custom painter for 4-square grid icon
+class GridIconPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFF2C2C34) // Dark grey
+      ..style = PaintingStyle.fill;
+
+    final squareSize = size.width / 2;
+    final gap = 2.0; // Gap between squares
+    final borderRadius = 1.5;
+
+    // Draw 4 rounded squares in a 2x2 grid with gaps
+    for (int row = 0; row < 2; row++) {
+      for (int col = 0; col < 2; col++) {
+        final x = col * squareSize + (col > 0 ? gap : 0);
+        final y = row * squareSize + (row > 0 ? gap : 0);
+        final rect = RRect.fromRectAndRadius(
+          Rect.fromLTWH(x, y, squareSize - gap, squareSize - gap),
+          Radius.circular(borderRadius),
+        );
+        canvas.drawRRect(rect, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

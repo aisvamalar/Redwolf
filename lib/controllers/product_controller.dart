@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../models/product.dart';
-import '../services/supabase_service.dart';
+import '../services/product_service.dart';
 
 enum SortOption { defaultSort, nameAsc, nameDesc }
 
@@ -13,7 +13,7 @@ class ProductController extends ChangeNotifier {
   String _searchQuery = '';
   String _selectedCategory = 'all';
   SortOption _sortOption = SortOption.defaultSort;
-  ProductLayout _layout = ProductLayout.grid2;
+  ProductLayout _layout = ProductLayout.singleColumn; // Start with list view (single column)
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -35,19 +35,23 @@ class ProductController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Fetch products from Supabase
-      _allProducts = await SupabaseService.fetchProducts();
+      // Fetch products directly from database using ProductService
+      final productService = ProductService();
+      _allProducts = await productService.getProducts(forceRefresh: true);
 
-      // If no products from Supabase, use fallback
+      // Filter to only show Published products on home screen
+      _allProducts = _allProducts.where((p) => p.status == 'Published').toList();
+
+      // If no products from database, show error message
       if (_allProducts.isEmpty) {
-        _allProducts = _getFallbackProducts();
+        print('ℹ️ No published products in database');
+        _errorMessage = 'No products available. Please add products via admin panel.';
       }
 
       _applyFilters();
     } catch (e) {
+      print('❌ Error in ProductController: $e');
       _errorMessage = 'Failed to load products: $e';
-      // Use fallback products on error
-      _allProducts = _getFallbackProducts();
       _applyFilters();
     } finally {
       _isLoading = false;
@@ -55,188 +59,180 @@ class ProductController extends ChangeNotifier {
     }
   }
 
+  // Fallback products method - kept for potential future use
+  // ignore: unused_element
   List<Product> _getFallbackProducts() {
     // Fallback products with new standee models and images
     return [
       Product(
         id: 'standee_1',
         name: 'Easel Standee',
+        category: 'Standees',
+        status: 'Published',
         imageUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/img/Screenshot_2025-12-18_093321-removebg-preview.png',
-        modelUrl:
+        glbFileUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/32_EASEL%20STANDEE%20.glb',
-        category: 'Standees',
         description:
             'Elegant easel standee design perfect for retail displays and exhibitions.',
-        images: [
-          'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/img/Screenshot_2025-12-18_093321-removebg-preview.png',
-        ],
         keyFeatures: [
           '2 Years Warranty',
           '4K Display',
           'Portable Design',
           'Touch Enabled',
         ],
-        technicalSpecs: {
-          'Model': '32" Easel Standee',
-          'Software Mode': 'Online/Offline',
-          'Display Resolution': '4K',
-          'Brightness': '400 nits',
-          'Aspect Ratio': '9:16',
-          'Viewing Angle': '178°/178°',
-          'Operating Hours': '10-12 Hours/Day',
-          'Colour': 'Black',
-          'Storage': '2 GB RAM, 16 GB ROM',
-          'Connectivity': 'Wi-Fi / USB',
-          'Stable Voltage': '50HZ; 100-240V AC',
-          'Power Supply': '50W Max',
-          'Working Temperature': '0-40°c',
-          'Warranty': 'One Year',
-        },
+        specifications: [
+          {'label': 'Model', 'value': '32" Easel Standee'},
+          {'label': 'Software Mode', 'value': 'Online/Offline'},
+          {'label': 'Display Resolution', 'value': '4K'},
+          {'label': 'Brightness', 'value': '400 nits'},
+          {'label': 'Aspect Ratio', 'value': '9:16'},
+          {'label': 'Viewing Angle', 'value': '178°/178°'},
+          {'label': 'Operating Hours', 'value': '10-12 Hours/Day'},
+          {'label': 'Colour', 'value': 'Black'},
+          {'label': 'Storage', 'value': '2 GB RAM, 16 GB ROM'},
+          {'label': 'Connectivity', 'value': 'Wi-Fi / USB'},
+          {'label': 'Stable Voltage', 'value': '50HZ; 100-240V AC'},
+          {'label': 'Power Supply', 'value': '50W Max'},
+          {'label': 'Working Temperature', 'value': '0-40°c'},
+          {'label': 'Warranty', 'value': 'One Year'},
+        ],
       ),
       Product(
         id: 'standee_2',
         name: 'Totem Standee',
+        category: 'Standees',
+        status: 'Published',
         imageUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/img/Screenshot_2025-12-18_093321-removebg-preview.png',
-        modelUrl:
+        glbFileUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/32_TOTEM%20STANDEE.glb',
-        category: 'Standees',
         description:
             'Premium totem standee for high-traffic environments and brand visibility.',
-        images: [
-          'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/img/Screenshot_2025-12-18_093321-removebg-preview.png',
-        ],
         keyFeatures: [
           '2 Years Warranty',
           '4K Display',
           'Portable Design',
           'Touch Enabled',
         ],
-        technicalSpecs: {
-          'Model': '32" Totem Standee',
-          'Software Mode': 'Online/Offline',
-          'Display Resolution': '4K',
-          'Brightness': '400 nits',
-          'Aspect Ratio': '9:16',
-          'Viewing Angle': '178°/178°',
-          'Operating Hours': '10-12 Hours/Day',
-          'Colour': 'Black',
-          'Storage': '2 GB RAM, 16 GB ROM',
-          'Connectivity': 'Wi-Fi / USB',
-          'Stable Voltage': '50HZ; 100-240V AC',
-          'Power Supply': '50W Max',
-          'Working Temperature': '0-40°c',
-          'Warranty': 'One Year',
-        },
+        specifications: [
+          {'label': 'Model', 'value': '32" Totem Standee'},
+          {'label': 'Software Mode', 'value': 'Online/Offline'},
+          {'label': 'Display Resolution', 'value': '4K'},
+          {'label': 'Brightness', 'value': '400 nits'},
+          {'label': 'Aspect Ratio', 'value': '9:16'},
+          {'label': 'Viewing Angle', 'value': '178°/178°'},
+          {'label': 'Operating Hours', 'value': '10-12 Hours/Day'},
+          {'label': 'Colour', 'value': 'Black'},
+          {'label': 'Storage', 'value': '2 GB RAM, 16 GB ROM'},
+          {'label': 'Connectivity', 'value': 'Wi-Fi / USB'},
+          {'label': 'Stable Voltage', 'value': '50HZ; 100-240V AC'},
+          {'label': 'Power Supply', 'value': '50W Max'},
+          {'label': 'Working Temperature', 'value': '0-40°c'},
+          {'label': 'Warranty', 'value': 'One Year'},
+        ],
       ),
       Product(
         id: 'standee_3',
         name: 'Wall Mount',
+        category: 'Standees',
+        status: 'Published',
         imageUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/Screenshot_2025-12-18_093329-removebg-preview.png',
-        modelUrl:
+        glbFileUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/32_WALL%20MOUNT.glb',
-        category: 'Standees',
         description:
             'Space-efficient wall mount design ideal for modern retail spaces.',
-        images: [
-          'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/Screenshot_2025-12-18_093329-removebg-preview.png',
-        ],
         keyFeatures: [
           '2 Years Warranty',
           '4K Display',
           'Portable Design',
           'Touch Enabled',
         ],
-        technicalSpecs: {
-          'Model': '32" Wall Mount',
-          'Software Mode': 'Online/Offline',
-          'Display Resolution': '4K',
-          'Brightness': '400 nits',
-          'Aspect Ratio': '9:16',
-          'Viewing Angle': '178°/178°',
-          'Operating Hours': '10-12 Hours/Day',
-          'Colour': 'Black',
-          'Storage': '2 GB RAM, 16 GB ROM',
-          'Connectivity': 'Wi-Fi / USB',
-          'Stable Voltage': '50HZ; 100-240V AC',
-          'Power Supply': '50W Max',
-          'Working Temperature': '0-40°c',
-          'Warranty': 'One Year',
-        },
+        specifications: [
+          {'label': 'Model', 'value': '32" Wall Mount'},
+          {'label': 'Software Mode', 'value': 'Online/Offline'},
+          {'label': 'Display Resolution', 'value': '4K'},
+          {'label': 'Brightness', 'value': '400 nits'},
+          {'label': 'Aspect Ratio', 'value': '9:16'},
+          {'label': 'Viewing Angle', 'value': '178°/178°'},
+          {'label': 'Operating Hours', 'value': '10-12 Hours/Day'},
+          {'label': 'Colour', 'value': 'Black'},
+          {'label': 'Storage', 'value': '2 GB RAM, 16 GB ROM'},
+          {'label': 'Connectivity', 'value': 'Wi-Fi / USB'},
+          {'label': 'Stable Voltage', 'value': '50HZ; 100-240V AC'},
+          {'label': 'Power Supply', 'value': '50W Max'},
+          {'label': 'Working Temperature', 'value': '0-40°c'},
+          {'label': 'Warranty', 'value': 'One Year'},
+        ],
       ),
       Product(
         id: 'standee_4',
         name: 'Wall Mount with Stand',
+        category: 'Standees',
+        status: 'Published',
         imageUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/Screenshot_2025-12-18_093338-removebg-preview.png',
-        modelUrl:
+        glbFileUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/32_WALL%20MOUNT%20WITH%20STAND.glb',
-        category: 'Standees',
         description:
             'Versatile wall mount with stand for flexible placement options.',
-        images: [
-          'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/Screenshot_2025-12-18_093338-removebg-preview.png',
-        ],
         keyFeatures: [
           '2 Years Warranty',
           '4K Display',
           'Portable Design',
           'Touch Enabled',
         ],
-        technicalSpecs: {
-          'Model': '32" Wall Mount with Stand',
-          'Software Mode': 'Online/Offline',
-          'Display Resolution': '4K',
-          'Brightness': '400 nits',
-          'Aspect Ratio': '9:16',
-          'Viewing Angle': '178°/178°',
-          'Operating Hours': '10-12 Hours/Day',
-          'Colour': 'Black',
-          'Storage': '2 GB RAM, 16 GB ROM',
-          'Connectivity': 'Wi-Fi / USB',
-          'Stable Voltage': '50HZ; 100-240V AC',
-          'Power Supply': '50W Max',
-          'Working Temperature': '0-40°c',
-          'Warranty': 'One Year',
-        },
+        specifications: [
+          {'label': 'Model', 'value': '32" Wall Mount with Stand'},
+          {'label': 'Software Mode', 'value': 'Online/Offline'},
+          {'label': 'Display Resolution', 'value': '4K'},
+          {'label': 'Brightness', 'value': '400 nits'},
+          {'label': 'Aspect Ratio', 'value': '9:16'},
+          {'label': 'Viewing Angle', 'value': '178°/178°'},
+          {'label': 'Operating Hours', 'value': '10-12 Hours/Day'},
+          {'label': 'Colour', 'value': 'Black'},
+          {'label': 'Storage', 'value': '2 GB RAM, 16 GB ROM'},
+          {'label': 'Connectivity', 'value': 'Wi-Fi / USB'},
+          {'label': 'Stable Voltage', 'value': '50HZ; 100-240V AC'},
+          {'label': 'Power Supply', 'value': '50W Max'},
+          {'label': 'Working Temperature', 'value': '0-40°c'},
+          {'label': 'Warranty', 'value': 'One Year'},
+        ],
       ),
       Product(
         id: 'standee_5',
         name: 'Easel Standee 43',
+        category: 'Standees',
+        status: 'Published',
         imageUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/Screenshot_2025-12-18_093348-removebg-preview.png',
-        modelUrl:
+        glbFileUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/43_EASEL%20STANDEE.glb',
-        category: 'Standees',
         description:
             'Enhanced easel standee design with improved stability and display quality.',
-        images: [
-          'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/Screenshot_2025-12-18_093348-removebg-preview.png',
-        ],
         keyFeatures: [
           '2 Years Warranty',
           '4K Display',
           'Portable Design',
           'Touch Enabled',
         ],
-        technicalSpecs: {
-          'Model': '43" Easel Standee',
-          'Software Mode': 'Online/Offline',
-          'Display Resolution': '4K',
-          'Brightness': '400 nits',
-          'Aspect Ratio': '9:16',
-          'Viewing Angle': '178°/178°',
-          'Operating Hours': '10-12 Hours/Day',
-          'Colour': 'Black',
-          'Storage': '2 GB RAM, 16 GB ROM',
-          'Connectivity': 'Wi-Fi / USB',
-          'Stable Voltage': '50HZ; 100-240V AC',
-          'Power Supply': '50W Max',
-          'Working Temperature': '0-40°c',
-          'Warranty': 'One Year',
-        },
+        specifications: [
+          {'label': 'Model', 'value': '43" Easel Standee'},
+          {'label': 'Software Mode', 'value': 'Online/Offline'},
+          {'label': 'Display Resolution', 'value': '4K'},
+          {'label': 'Brightness', 'value': '400 nits'},
+          {'label': 'Aspect Ratio', 'value': '9:16'},
+          {'label': 'Viewing Angle', 'value': '178°/178°'},
+          {'label': 'Operating Hours', 'value': '10-12 Hours/Day'},
+          {'label': 'Colour', 'value': 'Black'},
+          {'label': 'Storage', 'value': '2 GB RAM, 16 GB ROM'},
+          {'label': 'Connectivity', 'value': 'Wi-Fi / USB'},
+          {'label': 'Stable Voltage', 'value': '50HZ; 100-240V AC'},
+          {'label': 'Power Supply', 'value': '50W Max'},
+          {'label': 'Working Temperature', 'value': '0-40°c'},
+          {'label': 'Warranty', 'value': 'One Year'},
+        ],
       ),
     ];
   }
@@ -299,9 +295,9 @@ class ProductController extends ChangeNotifier {
                 product.name.toLowerCase().contains(
                   _searchQuery.toLowerCase(),
                 ) ||
-                product.description.toLowerCase().contains(
+                (product.description?.toLowerCase().contains(
                   _searchQuery.toLowerCase(),
-                ),
+                ) ?? false),
           )
           .toList();
     }

@@ -35,9 +35,10 @@ class _ARViewScreenState extends State<ARViewScreen> {
   }
 
   Future<void> _trackARSessionStart() async {
+    if (widget.product.id == null) return;
     await ARAnalyticsService.trackARInteraction(
       eventType: AREventTypes.sessionStart,
-      productId: widget.product.id,
+      productId: widget.product.id!,
       eventData: {
         'product_name': widget.product.name,
         'model_url': widget.modelUrl,
@@ -47,17 +48,16 @@ class _ARViewScreenState extends State<ARViewScreen> {
   }
 
   Future<void> _trackARSessionEnd() async {
-    if (_sessionStartTime != null) {
-      final duration = DateTime.now().difference(_sessionStartTime!);
-      await ARAnalyticsService.trackARInteraction(
-        eventType: AREventTypes.sessionEnd,
-        productId: widget.product.id,
-        eventData: {
-          'session_duration_ms': duration.inMilliseconds,
-          'product_name': widget.product.name,
-        },
-      );
-    }
+    if (_sessionStartTime == null || widget.product.id == null) return;
+    final duration = DateTime.now().difference(_sessionStartTime!);
+    await ARAnalyticsService.trackARInteraction(
+      eventType: AREventTypes.sessionEnd,
+      productId: widget.product.id!,
+      eventData: {
+        'session_duration_ms': duration.inMilliseconds,
+        'product_name': widget.product.name,
+      },
+    );
   }
 
   @override
