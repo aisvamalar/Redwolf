@@ -402,7 +402,40 @@ class _AdminLoginState extends State<AdminLogin> {
                           ),
                           const SizedBox(width: 4),
                           TextButton(
-                            onPressed: () {},
+                            onPressed: () async {
+                              const url = 'https://ruditech.com/';
+                              try {
+                                final uri = Uri.parse(url);
+                                if (await canLaunchUrl(uri)) {
+                                  await launchUrl(
+                                    uri,
+                                    mode: LaunchMode.externalApplication,
+                                  );
+                                } else {
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Could not open the website',
+                                        ),
+                                        duration: Duration(seconds: 2),
+                                      ),
+                                    );
+                                  }
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Error opening website: $e',
+                                      ),
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
                             style: TextButton.styleFrom(
                               padding: EdgeInsets.zero,
                               minimumSize: Size.zero,
@@ -413,6 +446,7 @@ class _AdminLoginState extends State<AdminLogin> {
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Color(0xFF2563EB),
+                                decoration: TextDecoration.underline,
                               ),
                             ),
                           ),

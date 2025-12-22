@@ -98,10 +98,10 @@ class ProductGrid extends StatelessWidget {
     final crossAxisCount = layout == ProductLayout.grid2
         ? (isDesktop ? 3 : (isTablet ? 2 : 2)) // 2 columns on mobile when grid mode
         : (isDesktop ? 3 : (isTablet ? 2 : 1)); // Single column on mobile when list mode
-    // Adjusted aspect ratios to account for significantly reduced image size (1.4 instead of 1.0)
+    // Adjusted aspect ratios to match actual card content and eliminate extra space
     final childAspectRatio = layout == ProductLayout.grid2
-        ? (isDesktop ? 0.78 : (isTablet ? 0.80 : 0.78)) // Adjusted for reduced image container
-        : (isDesktop ? 0.78 : (isTablet ? 0.82 : 1.0)); // Adjusted list mode aspect ratio
+        ? (isDesktop ? 0.92 : (isTablet ? 0.90 : 0.88)) // Increased to reduce forced height
+        : (isDesktop ? 0.92 : (isTablet ? 0.90 : 0.95)); // Increased for list mode
     final spacing = isDesktop ? 24.0 : (isTablet ? 20.0 : 16.0);
     final padding = isDesktop ? 24.0 : (isTablet ? 20.0 : 16.0);
 
@@ -125,7 +125,10 @@ class ProductGrid extends StatelessWidget {
           itemBuilder: (context, index) {
             return SizedBox(
               width: itemWidth,
-              child: ProductCard(product: productsWithModels[index]),
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ProductCard(product: productsWithModels[index]),
+              ),
             );
           },
         );

@@ -179,7 +179,7 @@ class HeroSection extends StatelessWidget {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(21),
           child: Image.asset(
-            'img/image.png',
+            'img/demo.png',
             width: width,
             height: height,
             fit: BoxFit.cover,

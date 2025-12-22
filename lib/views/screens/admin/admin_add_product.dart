@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:model_viewer_plus/model_viewer_plus.dart';
 import 'package:http/http.dart' as http;
 import '../../../widgets/admin/sidebar.dart';
+import '../../../widgets/admin/footer.dart';
 import '../../../models/admin_product.dart';
 import '../../../services/admin_product_service.dart';
 import '../../../services/admin_supabase_service.dart';
@@ -295,7 +296,17 @@ class _AdminAddProductState extends State<AdminAddProduct> {
               ),
               title: _buildHeader(isMobile: true),
             ),
-            body: _buildContent(isMobile),
+            body: Stack(
+              children: [
+                _buildContent(isMobile),
+                const Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: AdminFooter(),
+                ),
+              ],
+            ),
           );
         }
 
@@ -305,10 +316,20 @@ class _AdminAddProductState extends State<AdminAddProduct> {
             children: [
               const AdminSidebar(currentRoute: '/admin/products'),
               Expanded(
-                child: Column(
+                child: Stack(
                   children: [
-                    _buildHeader(isMobile: false),
-                    Expanded(child: _buildContent(isMobile)),
+                    Column(
+                      children: [
+                        _buildHeader(isMobile: false),
+                        Expanded(child: _buildContent(isMobile)),
+                      ],
+                    ),
+                    const Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: AdminFooter(),
+                    ),
                   ],
                 ),
               ),
@@ -1341,6 +1362,9 @@ class _AdminAddProductState extends State<AdminAddProduct> {
                             src: _getGlbFileUrl()!,
                             alt: '3D Model',
                             ar: true,
+                            arModes: _isUsdzFile()
+                                ? ['quick-look']
+                                : ['webxr', 'scene-viewer', 'quick-look'],
                             autoRotate: true,
                             cameraControls: true,
                             backgroundColor: const Color(0xFFF9FAFB),
@@ -1377,6 +1401,12 @@ class _AdminAddProductState extends State<AdminAddProduct> {
     );
   }
 
+  /// Check if the uploaded file is USDZ format
+  bool _isUsdzFile() {
+    if (_glbFile == null) return false;
+    return _glbFile!.name.toLowerCase().endsWith('.usdz');
+  }
+
   String? _getGlbFileUrl() {
     if (_glbFile == null) return null;
 
@@ -1384,9 +1414,7 @@ class _AdminAddProductState extends State<AdminAddProduct> {
     if (_glbFile!.bytes != null) {
       // For web, convert bytes to data URL with correct MIME type
       final base64 = base64Encode(_glbFile!.bytes!);
-      final extension = _glbFile!.name.toLowerCase().endsWith('.usdz')
-          ? 'usdz'
-          : 'glb';
+      final extension = _isUsdzFile() ? 'usdz' : 'glb';
       final mimeType = extension == 'usdz'
           ? 'model/vnd.usdz+zip'
           : 'model/gltf-binary';

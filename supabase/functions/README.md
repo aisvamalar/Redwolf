@@ -53,4 +53,3 @@ curl "https://zsipfgtlfnfvmnrohtdo.supabase.co/functions/v1/proxy-model?path=pro
 ```
 
 The function should return the GLB file with proper CORS headers.
-

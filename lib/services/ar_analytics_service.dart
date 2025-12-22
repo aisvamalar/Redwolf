@@ -276,4 +276,3 @@ class ARActionTypes {
   static const String screenshot = 'screenshot';
   static const String exit = 'exit';
 }
-

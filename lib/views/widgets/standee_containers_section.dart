@@ -270,4 +270,3 @@ class StandeeContainersSection extends StatelessWidget {
     );
   }
 }
-

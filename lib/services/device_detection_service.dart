@@ -156,5 +156,19 @@ class DeviceDetectionService {
     }
     return false;
   }
-}
 
+  /// Check if device is iOS (iPhone/iPad)
+  static bool isIOS(BuildContext? context) {
+    if (kIsWeb) {
+      try {
+        final userAgent = web_utils.WebUtils.getUserAgent().toLowerCase();
+        return userAgent.contains('iphone') || 
+               userAgent.contains('ipad') ||
+               userAgent.contains('ipod');
+      } catch (e) {
+        return false;
+      }
+    }
+    return false;
+  }
+}

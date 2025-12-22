@@ -94,4 +94,3 @@ class BackgroundRemovalService {
     return _cache[originalUrl];
   }
 }
-

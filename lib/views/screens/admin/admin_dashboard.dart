@@ -3,9 +3,51 @@ import '../../../widgets/admin/sidebar.dart';
 import '../../../widgets/admin/footer.dart';
 import '../../../models/admin_product.dart';
 import '../../../services/admin_supabase_service.dart';
+import '../../../services/analytics_service.dart';
 
-class AdminDashboard extends StatelessWidget {
+class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
+
+  @override
+  State<AdminDashboard> createState() => _AdminDashboardState();
+}
+
+class _AdminDashboardState extends State<AdminDashboard> {
+  final AnalyticsService _analyticsService = AnalyticsService();
+  int _productPageViews = 0;
+  int _arViews = 0;
+  bool _isLoadingAnalytics = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAnalytics();
+  }
+
+  Future<void> _loadAnalytics() async {
+    setState(() {
+      _isLoadingAnalytics = true;
+    });
+
+    try {
+      final pageViews = await _analyticsService.getProductPageViews(days: 30);
+      final arViews = await _analyticsService.getARViews(days: 30);
+
+      if (mounted) {
+        setState(() {
+          _productPageViews = pageViews;
+          _arViews = arViews;
+          _isLoadingAnalytics = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingAnalytics = false;
+        });
+      }
+    }
+  }
 
   // Realtime stream of products from Supabase
   static final _productsStream = AdminSupabaseService()
@@ -101,7 +143,12 @@ class AdminDashboard extends StatelessWidget {
                       final isMobile = constraints.maxWidth < 768;
                       final isTablet = constraints.maxWidth < 1024;
 
-                      final cards = _buildMetricCards(productCount);
+                      final cards = _buildMetricCards(
+                        productCount,
+                        _productPageViews,
+                        _arViews,
+                        _isLoadingAnalytics,
+                      );
 
                       if (isMobile) {
                         return Column(children: cards);
@@ -213,7 +260,12 @@ class AdminDashboard extends StatelessWidget {
     );
   }
 
-  List<Widget> _buildMetricCards(int productCount) {
+  List<Widget> _buildMetricCards(
+    int productCount,
+    int productPageViews,
+    int arViews,
+    bool isLoadingAnalytics,
+  ) {
     return [
       _buildMetricCard(
         icon: Icons.inventory_2,
@@ -226,20 +278,33 @@ class AdminDashboard extends StatelessWidget {
       _buildMetricCard(
         icon: Icons.remove_red_eye,
         title: 'Product page views',
-        value: '12,450',
-        trend: 'pass 30 days',
-        trendColor: Colors.red,
+        value: isLoadingAnalytics
+            ? 'Loading...'
+            : _formatNumber(productPageViews),
+        trend: 'past 30 days',
+        trendColor: const Color(0xFFDC2626),
         trendIcon: Icons.trending_down,
       ),
       _buildMetricCard(
         icon: Icons.view_in_ar,
         title: 'AR Views',
-        value: '12,450',
-        trend: 'pass 30 days',
-        trendColor: Colors.red,
+        value: isLoadingAnalytics
+            ? 'Loading...'
+            : _formatNumber(arViews),
+        trend: 'past 30 days',
+        trendColor: const Color(0xFFDC2626),
         trendIcon: Icons.trending_down,
       ),
     ];
+  }
+
+  String _formatNumber(int number) {
+    if (number >= 1000000) {
+      return '${(number / 1000000).toStringAsFixed(1)}M';
+    } else if (number >= 1000) {
+      return '${(number / 1000).toStringAsFixed(1)}K';
+    }
+    return number.toString();
   }
 
   Widget _buildMetricCard({

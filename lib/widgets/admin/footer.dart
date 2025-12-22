@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AdminFooter extends StatelessWidget {
   const AdminFooter({super.key});
@@ -6,7 +7,7 @@ class AdminFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
       alignment: Alignment.center,
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -20,7 +21,33 @@ class AdminFooter extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           TextButton(
-            onPressed: () {},
+            onPressed: () async {
+              const url = 'https://ruditech.com/';
+              try {
+                final uri = Uri.parse(url);
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                } else {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Could not open the website'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error opening website: $e'),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
+              }
+            },
             style: TextButton.styleFrom(
               padding: EdgeInsets.zero,
               minimumSize: Size.zero,
@@ -31,6 +58,7 @@ class AdminFooter extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 color: Color(0xFF2563EB),
+                decoration: TextDecoration.underline,
               ),
             ),
           ),
@@ -39,6 +67,5 @@ class AdminFooter extends StatelessWidget {
     );
   }
 }
-
 
 

@@ -4,6 +4,7 @@ import '../../models/product.dart';
 import '../widgets/simple_ar_viewer.dart';
 import '../../services/device_detection_service.dart';
 import '../../services/ar_analytics_service.dart';
+import '../../services/analytics_service.dart';
 import 'ar_view_for_3d_objects.dart';
 
 /// Full-screen AR view screen that shows native AR on mobile and web AR on web
@@ -36,6 +37,12 @@ class _ARViewScreenState extends State<ARViewScreen> {
 
   Future<void> _trackARSessionStart() async {
     if (widget.product.id == null) return;
+    
+    // Track AR view in analytics
+    final analyticsService = AnalyticsService();
+    await analyticsService.trackARView(widget.product.id!);
+    
+    // Also track in AR analytics service
     await ARAnalyticsService.trackARInteraction(
       eventType: AREventTypes.sessionStart,
       productId: widget.product.id!,

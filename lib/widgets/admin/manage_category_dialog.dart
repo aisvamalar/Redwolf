@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../models/admin_category.dart';
-import '../../../services/admin_category_service.dart';
+import '../../services/admin_category_service.dart';
+import '../../models/admin_category.dart';
 
 class ManageCategoryDialog extends StatefulWidget {
   final VoidCallback? onCategoriesChanged;
@@ -16,13 +16,9 @@ class ManageCategoryDialog extends StatefulWidget {
 
 class _ManageCategoryDialogState extends State<ManageCategoryDialog> {
   final AdminCategoryService _categoryService = AdminCategoryService();
-  final Map<String, TextEditingController> _editControllers = {};
-  final TextEditingController _newCategoryController = TextEditingController();
-
   List<AdminCategory> _categories = [];
-  String? _editingCategoryId;
   bool _isLoading = true;
-  bool _isAddingNew = false;
+  final Map<String, TextEditingController> _editingControllers = {};
 
   @override
   void initState() {
@@ -30,461 +26,253 @@ class _ManageCategoryDialogState extends State<ManageCategoryDialog> {
     _loadCategories();
   }
 
-  Future<void> _loadCategories({bool forceRefresh = false}) async {
+  @override
+  void dispose() {
+    for (final controller in _editingControllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _loadCategories() async {
     setState(() {
       _isLoading = true;
     });
 
-    final categories =
-        await _categoryService.getCategories(forceRefresh: forceRefresh);
-    if (!mounted) return;
-
-    // Deduplicate by name (case-insensitive)
-    final seenNames = <String>{};
-    final uniqueCategories = <AdminCategory>[];
-    for (final category in categories) {
-      final key = category.name.trim().toLowerCase();
-      if (seenNames.contains(key)) continue;
-      seenNames.add(key);
-      uniqueCategories.add(category);
-    }
-
-    setState(() {
-      _categories = uniqueCategories;
-      _isLoading = false;
-    });
-  }
-
-  Future<void> _startEditing(AdminCategory category) async {
-    setState(() {
-      _editingCategoryId = category.id;
-      _editControllers[category.id] ??=
-          TextEditingController(text: category.name);
-    });
-  }
-
-  Future<void> _saveEdit(AdminCategory category) async {
-    final controller = _editControllers[category.id];
-    if (controller == null) return;
-
-    final newName = controller.text.trim();
-    if (newName.isEmpty || newName == category.name) {
+    try {
+      final categories = await _categoryService.getCategories(forceRefresh: true);
       setState(() {
-        _editingCategoryId = null;
+        _categories = categories;
+        _isLoading = false;
       });
-      return;
-    }
-
-    final success =
-        await _categoryService.updateCategory(category.id, newName);
-    if (!mounted) return;
-
-    if (success) {
+    } catch (e) {
       setState(() {
-        final index = _categories.indexWhere((c) => c.id == category.id);
-        if (index != -1) {
-          _categories[index] = category.copyWith(name: newName);
-        }
-        _editingCategoryId = null;
+        _isLoading = false;
       });
-      widget.onCategoriesChanged?.call();
-    }
-  }
-
-  Future<void> _deleteCategory(AdminCategory category) async {
-    final success = await _categoryService.deleteCategory(category.id);
-    if (!mounted) return;
-
-    if (success) {
-      setState(() {
-        _categories.removeWhere((c) => c.id == category.id);
-      });
-      widget.onCategoriesChanged?.call();
-    }
-  }
-
-  Future<void> _addCategory() async {
-    final name = _newCategoryController.text.trim();
-    if (name.isEmpty) return;
-
-    // Prevent adding the same name multiple times (case-insensitive)
-    final alreadyExists = _categories.any(
-      (c) => c.name.toLowerCase() == name.toLowerCase(),
-    );
-    if (alreadyExists) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('This category already exists.'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    final created = await _categoryService.addCategory(name);
-    if (!mounted) return;
-
-    if (created != null) {
-      setState(() {
-        _categories.add(created);
-        _categories.sort(
-          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading categories: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
-        _newCategoryController.clear();
-        _isAddingNew = false;
-      });
-      widget.onCategoriesChanged?.call();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not save category. Please try again.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      }
     }
   }
 
-  @override
-  void dispose() {
-    for (final controller in _editControllers.values) {
-      controller.dispose();
+  Future<void> _addCategory(String name) async {
+    if (name.trim().isEmpty) return;
+
+    final category = await _categoryService.addCategory(name);
+    if (category != null) {
+      await _loadCategories();
+      if (widget.onCategoriesChanged != null) {
+        widget.onCategoriesChanged!();
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to add category'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
-    _newCategoryController.dispose();
-    super.dispose();
+  }
+
+  Future<void> _updateCategory(String id, String name) async {
+    if (name.trim().isEmpty) return;
+
+    final success = await _categoryService.updateCategory(id, name);
+    if (success) {
+      await _loadCategories();
+      if (widget.onCategoriesChanged != null) {
+        widget.onCategoriesChanged!();
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to update category'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteCategory(String id) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Category'),
+        content: const Text('Are you sure you want to delete this category?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final success = await _categoryService.deleteCategory(id);
+      if (success) {
+        await _loadCategories();
+        if (widget.onCategoriesChanged != null) {
+          widget.onCategoriesChanged!();
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to delete category'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 80, vertical: 80),
-      backgroundColor: Colors.white,
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 640),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+      child: Container(
+        width: 500,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Header
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  child: Row(
-                    children: [
-                      const Text(
-                        'Manage Categories',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF111827),
-                        ),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 20),
-                        splashRadius: 20,
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                      ),
-                    ],
+                const Text(
+                  'Manage Categories',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                const Divider(height: 1, color: Color(0xFFE5E7EB)),
-
-                // Content
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 120,
-                          child: Center(
-                            child: CircularProgressIndicator(),
-                          ),
-                        )
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Inner white card with categories
-                            Container(
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: const Color(0xFFE5E7EB),
-                                ),
-                              ),
-                              child: ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxHeight: 260,
-                                ),
-                                child: SingleChildScrollView(
-                                  child: Column(
-                                    children: _categories.isEmpty
-                                        ? [
-                                            const Padding(
-                                              padding: EdgeInsets.all(16),
-                                              child: Text(
-                                                'No categories found. Add a new category to get started.',
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  color: Color(0xFF6B7280),
-                                                ),
-                                              ),
-                                            ),
-                                          ]
-                                        : _categories
-                                            .asMap()
-                                            .entries
-                                            .map((entry) {
-                                              final index = entry.key;
-                                              final category = entry.value;
-                                              final isEditing =
-                                                  _editingCategoryId ==
-                                                      category.id;
-                                              final controller =
-                                                  _editControllers[
-                                                          category.id] ??
-                                                      TextEditingController(
-                                                          text: category.name);
-                                              _editControllers[category.id] ??=
-                                                  controller;
-
-                                              return Column(
-                                                children: [
-                                                  if (index != 0)
-                                                    const Divider(
-                                                      height: 1,
-                                                      color: Color(0xFFE5E7EB),
-                                                    ),
-                                                  Padding(
-                                                    padding: const EdgeInsets
-                                                        .symmetric(
-                                                      horizontal: 16,
-                                                      vertical: 12,
-                                                    ),
-                                                    child: Row(
-                                                      children: [
-                                                        Expanded(
-                                                          child: isEditing
-                                                              ? TextField(
-                                                                  controller:
-                                                                      controller,
-                                                                  decoration:
-                                                                      const InputDecoration(
-                                                                    isDense:
-                                                                        true,
-                                                                    border:
-                                                                        OutlineInputBorder(),
-                                                                    contentPadding:
-                                                                        EdgeInsets
-                                                                            .symmetric(
-                                                                      horizontal:
-                                                                          12,
-                                                                      vertical:
-                                                                          10,
-                                                                    ),
-                                                                  ),
-                                                                )
-                                                              : Text(
-                                                                  category
-                                                                      .name,
-                                                                  style:
-                                                                      const TextStyle(
-                                                                    fontSize:
-                                                                        14,
-                                                                    color: Color(
-                                                                        0xFF111827),
-                                                                  ),
-                                                                ),
-                                                        ),
-                                                        const SizedBox(
-                                                            width: 16),
-                                                        TextButton(
-                                                          onPressed: () {
-                                                            if (isEditing) {
-                                                              _saveEdit(
-                                                                  category);
-                                                            } else {
-                                                              _startEditing(
-                                                                  category);
-                                                            }
-                                                          },
-                                                          child: Text(
-                                                            isEditing
-                                                                ? 'Save'
-                                                                : 'Edit',
-                                                            style:
-                                                                const TextStyle(
-                                                              fontSize: 14,
-                                                              color: Color(
-                                                                  0xFF2563EB),
-                                                            ),
-                                                          ),
-                                                        ),
-                                                        const SizedBox(
-                                                            width: 8),
-                                                        TextButton(
-                                                          onPressed: () {
-                                                            _deleteCategory(
-                                                                category);
-                                                          },
-                                                          child: const Text(
-                                                            'Delete',
-                                                            style: TextStyle(
-                                                              fontSize: 14,
-                                                              color: Color(
-                                                                  0xFFDC2626),
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ],
-                                              );
-                                            }).toList(),
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 16),
-
-                            // Inline add new category row
-                            if (_isAddingNew)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: TextField(
-                                        controller: _newCategoryController,
-                                        autofocus: true,
-                                        decoration: const InputDecoration(
-                                          hintText: 'Enter category name',
-                                          border: OutlineInputBorder(),
-                                          isDense: true,
-                                          contentPadding:
-                                              EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 10,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    TextButton(
-                                      onPressed: _addCategory,
-                                      child: const Text(
-                                        'Save',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Color(0xFF2563EB),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    TextButton(
-                                      onPressed: () {
-                                        setState(() {
-                                          _isAddingNew = false;
-                                          _newCategoryController.clear();
-                                        });
-                                      },
-                                      child: const Text(
-                                        'Cancel',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Color(0xFF6B7280),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                            // "Add new category" link
-                            TextButton(
-                              onPressed: () {
-                                setState(() {
-                                  _isAddingNew = true;
-                                  _newCategoryController.clear();
-                                });
-                              },
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: Size.zero,
-                                tapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.add,
-                                      size: 18, color: Color(0xFF2563EB)),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    'Add new category',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Color(0xFF2563EB),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                ),
-
-                const Divider(height: 1, color: Color(0xFFE5E7EB)),
-
-                // Footer with centered Close button
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 10,
-                          ),
-                          foregroundColor: const Color(0xFF374151),
-                          backgroundColor: const Color(0xFFF3F4F6),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                        ),
-                        child: const Text(
-                          'Close',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
             ),
-          ),
+            const SizedBox(height: 24),
+            if (_isLoading)
+              const Center(child: CircularProgressIndicator())
+            else
+              Expanded(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _categories.length,
+                  itemBuilder: (context, index) {
+                    final category = _categories[index];
+                    final isEditing = _editingControllers.containsKey(category.id);
+
+                    return ListTile(
+                      title: isEditing
+                          ? TextField(
+                              controller: _editingControllers[category.id],
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                              ),
+                              autofocus: true,
+                              onSubmitted: (value) {
+                                _updateCategory(category.id, value);
+                                _editingControllers.remove(category.id)?.dispose();
+                              },
+                            )
+                          : Text(category.name),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit),
+                            onPressed: () {
+                              setState(() {
+                                _editingControllers[category.id] =
+                                    TextEditingController(text: category.name);
+                              });
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () => _deleteCategory(category.id),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            const SizedBox(height: 16),
+            _AddCategoryField(onAdd: _addCategory),
+          ],
         ),
       ),
     );
   }
 }
 
+class _AddCategoryField extends StatefulWidget {
+  final Function(String) onAdd;
 
+  const _AddCategoryField({required this.onAdd});
+
+  @override
+  State<_AddCategoryField> createState() => _AddCategoryFieldState();
+}
+
+class _AddCategoryFieldState extends State<_AddCategoryField> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _handleAdd() {
+    final name = _controller.text.trim();
+    if (name.isNotEmpty) {
+      widget.onAdd(name);
+      _controller.clear();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _controller,
+            decoration: const InputDecoration(
+              hintText: 'Enter category name',
+              border: OutlineInputBorder(),
+            ),
+            onSubmitted: (_) => _handleAdd(),
+          ),
+        ),
+        const SizedBox(width: 8),
+        ElevatedButton(
+          onPressed: _handleAdd,
+          child: const Text('Add'),
+        ),
+      ],
+    );
+  }
+}

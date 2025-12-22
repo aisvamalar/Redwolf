@@ -1,5 +1,6 @@
 import '../models/product.dart';
 import 'product_service.dart';
+import 'analytics_service.dart';
 
 /// Production-level service for fetching product details
 class ProductDetailService {
@@ -29,8 +30,8 @@ class ProductDetailService {
   /// Track product view (for analytics)
   static Future<void> trackProductView(String productId) async {
     try {
-      // TODO: Implement analytics tracking
-      print('📊 Tracking product view: $productId');
+      final analyticsService = AnalyticsService();
+      await analyticsService.trackProductView(productId);
     } catch (e) {
       print('❌ Error tracking product view: $e');
     }

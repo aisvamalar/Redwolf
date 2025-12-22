@@ -47,7 +47,8 @@ dependencies:
   ar_flutter_plugin_engine: ^1.0.1
   path_provider: ^2.1.1
   vector_math: ^2.1.4
-  permission_handler: ^12.0.1
+  permission_handler: ^10.4.5
+  permission_handler_html: ^0.1.0
 
 dev_dependencies:
   flutter_test:
@@ -59,6 +60,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.4
 
 
 # For information on the generic Dart part of this file, see the
@@ -102,7 +104,24 @@ flutter:
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
 
-dependency_overrides:
-  permission_handler: ^12.0.1
-  permission_handler_android: ^13.0.1
-  permission_handler_platform_interface: ^4.3.0
+# Flutter Launcher Icons Configuration
+# Run: flutter pub get && dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "img/image.png"
+  remove_alpha_ios: true
+  background_color_ios: "#ffffff"
+  min_sdk_android: 21
+  web:
+    generate: true
+    image_path: "img/image.png"
+    background_color: "#ffffff"
+    theme_color: "#ED1F24"
+  windows:
+    generate: true
+    image_path: "img/image.png"
+    icon_size: 256
+  macos:
+    generate: true
+    image_path: "img/image.png"

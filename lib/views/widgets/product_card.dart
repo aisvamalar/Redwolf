@@ -15,6 +15,7 @@ class ProductCard extends StatefulWidget {
 class _ProductCardState extends State<ProductCard> {
   String? _processedImageUrl;
   bool _isProcessing = false;
+  bool _isHovered = false;
 
   @override
   void initState() {
@@ -24,7 +25,7 @@ class _ProductCardState extends State<ProductCard> {
 
   Future<void> _processImage() async {
     if (_isProcessing) return;
-    
+
     setState(() {
       _isProcessing = true;
     });
@@ -33,7 +34,7 @@ class _ProductCardState extends State<ProductCard> {
       final processedUrl = await BackgroundRemovalService.removeBackground(
         widget.product.imageUrl,
       );
-      
+
       if (mounted) {
         setState(() {
           _processedImageUrl = processedUrl;
@@ -53,8 +54,10 @@ class _ProductCardState extends State<ProductCard> {
   Widget _buildProductImage() {
     // Show network image from Supabase with proper styling to match reference
     final imageUrl = _processedImageUrl ?? widget.product.imageUrl;
-    final hasProcessedImage = _processedImageUrl != null && _processedImageUrl != widget.product.imageUrl;
-    
+    final hasProcessedImage =
+        _processedImageUrl != null &&
+        _processedImageUrl != widget.product.imageUrl;
+
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -165,6 +168,7 @@ class _ProductCardState extends State<ProductCard> {
 
     return Card(
       elevation: 0,
+      margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: Colors.grey[200]!, width: 1),
@@ -185,112 +189,119 @@ class _ProductCardState extends State<ProductCard> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Product image container - significantly reduced size
+              // Product image container - using AspectRatio for consistent sizing
               AspectRatio(
-                aspectRatio: 1.4, // Much taller aspect ratio to significantly reduce image container size
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF5F5F7), // Light grey background
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(12),
-                      topRight: Radius.circular(12),
+                aspectRatio: 1.4,
+                child: MouseRegion(
+                  onEnter: (_) {
+                    setState(() {
+                      _isHovered = true;
+                    });
+                  },
+                  onExit: (_) {
+                    setState(() {
+                      _isHovered = false;
+                    });
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5F5F7), // Light grey background
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(12),
+                        topRight: Radius.circular(12),
+                      ),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: AnimatedScale(
+                      scale: _isHovered ? 1.1 : 1.0,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                      child: _buildProductImage(),
                     ),
                   ),
-                  child: _buildProductImage(),
                 ),
               ),
               // Content section - minimal padding to prevent overflow
-              Flexible(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.only(
-                      bottomLeft: Radius.circular(12),
-                      bottomRight: Radius.circular(12),
-                    ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(12),
+                    bottomRight: Radius.circular(12),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                    // Portable label - light grey rounded tag
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF5F5F7),
-                        borderRadius: BorderRadius.circular(73),
-                      ),
-                      child: Text(
-                        baseCategory,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF2C2C34),
-                          fontWeight: FontWeight.w400,
-                          height: 1.0,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                      // Portable label - light grey rounded tag
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF5F5F7),
+                          borderRadius: BorderRadius.circular(73),
+                        ),
+                        child: Text(
+                          baseCategory,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF2C2C34),
+                            fontWeight: FontWeight.w400,
+                            height: 1.0,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 5),
-                    // Product name - bold black text
-                    Text(
-                      widget.product.name,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF090919),
-                        height: 1.1,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 3),
-                    // Description - smaller grey text (wrapped in Flexible to prevent overflow)
-                    Flexible(
-                      child: Text(
-                        widget.product.description ?? 'Digital display thingy',
+                      const SizedBox(height: 5),
+                      // Product name - bold black text
+                      Text(
+                        widget.product.name,
                         style: const TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFF2C2C34),
-                          fontWeight: FontWeight.w400,
-                          height: 1.2,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF090919),
+                          height: 1.1,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    const SizedBox(height: 5),
-                    // View details link - red text with arrow (wrapped to prevent overflow)
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            'view details',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: Color(0xFFED1F24),
-                              fontWeight: FontWeight.w500,
-                              height: 1.0,
+                      const SizedBox(height: 5),
+                      // View details link - red text with arrow (wrapped to prevent overflow)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              'view details',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFFED1F24),
+                                fontWeight: FontWeight.w500,
+                                height: 1.0,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        const SizedBox(width: 3),
-                        const Icon(
-                          Icons.arrow_forward,
-                          size: 12,
-                          color: Color(0xFFED1F24),
-                        ),
-                      ],
-                    ),
+                          const SizedBox(width: 3),
+                          const Icon(
+                            Icons.arrow_forward,
+                            size: 12,
+                            color: Color(0xFFED1F24),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
-              ),
             ],
           ),
         ),

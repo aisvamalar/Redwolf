@@ -104,7 +104,7 @@ class AdminProductService {
 
       if (response.isEmpty) return null;
 
-      final productId = (response as Map<String, dynamic>)['id']?.toString();
+      final productId = response['id']?.toString();
       
       // Update cache - add new product at the beginning
       if (productId != null) {
@@ -199,6 +199,5 @@ class AdminProductService {
     }
   }
 }
-
 
 

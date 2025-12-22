@@ -5,6 +5,7 @@ import '../../models/product.dart';
 import 'ar_view_screen.dart';
 import '../../services/product_detail_service.dart';
 import '../../services/product_service.dart';
+import '../../services/analytics_service.dart';
 import '../../services/device_detection_service.dart';
 import '../../utils/responsive_helper.dart';
 import '../../config/supabase_config.dart';
@@ -39,7 +40,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
 
   Future<void> _loadProductDetails() async {
     if (widget.product.id == null) return;
-    
+
     setState(() => _isLoading = true);
     try {
       // Fetch enhanced product details from backend
@@ -68,29 +69,33 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       final productService = ProductService();
       // Fetch all published products
       final allProducts = await productService.getProducts(forceRefresh: false);
-      
+
       // Filter similar products:
       // 1. Exclude current product
       // 2. Same category preferred, or any other products
       // 3. Must have GLB file for AR viewing
       final currentProduct = _product;
       final similar = allProducts
-          .where((p) => 
-              p.id != currentProduct.id && // Exclude current product
-              p.glbFileUrl != null && 
-              p.glbFileUrl!.isNotEmpty && // Must have AR model
-              p.status == 'Published') // Only published products
+          .where(
+            (p) =>
+                p.id != currentProduct.id && // Exclude current product
+                p.glbFileUrl != null &&
+                p.glbFileUrl!.isNotEmpty && // Must have AR model
+                p.status == 'Published',
+          ) // Only published products
           .toList();
-      
+
       // Sort by category match first, then take up to 6 products
       similar.sort((a, b) {
         final aMatchesCategory = a.category == currentProduct.category ? 1 : 0;
         final bMatchesCategory = b.category == currentProduct.category ? 1 : 0;
         return bMatchesCategory.compareTo(aMatchesCategory);
       });
-      
+
       setState(() {
-        _similarProducts = similar.take(6).toList(); // Show max 6 similar products
+        _similarProducts = similar
+            .take(6)
+            .toList(); // Show max 6 similar products
         _isLoadingSimilar = false;
       });
     } catch (e) {
@@ -118,29 +123,53 @@ class _ProductDetailViewState extends State<ProductDetailView> {
     return SupabaseConfig.convertToProxyUrl(fallbackUrl);
   }
 
+  /// Get direct model URL (bypass proxy) - needed for Apple Quick Look AR
+  String get _directModelUrl {
+    // Always use the product's specific glbFileUrl if it exists (from database)
+    final productModelUrl = _product.glbFileUrl ?? _product.modelUrl;
+    if (productModelUrl != null && productModelUrl.isNotEmpty) {
+      // Return direct URL (not proxy) for Apple Quick Look compatibility
+      return productModelUrl;
+    }
+    // Fallback to default model
+    return 'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/32_EASEL%20STANDEE%20.glb';
+  }
+
+  /// Check if the model URL is a USDZ file
+  bool _isUsdzFile(String url) {
+    final lowerUrl = url.toLowerCase();
+    return lowerUrl.endsWith('.usdz') ||
+        lowerUrl.contains('.usdz?') ||
+        lowerUrl.contains('.usdz#') ||
+        lowerUrl.contains('usdz');
+  }
+
   List<String> get _productImages {
     // Use images from database: thumbnail, secondImageUrl, thirdImageUrl
     final List<String> imageList = [];
     if (_product.imageUrl.isNotEmpty) {
       imageList.add(_product.imageUrl);
     }
-    if (_product.secondImageUrl != null && _product.secondImageUrl!.isNotEmpty) {
+    if (_product.secondImageUrl != null &&
+        _product.secondImageUrl!.isNotEmpty) {
       imageList.add(_product.secondImageUrl!);
     }
     if (_product.thirdImageUrl != null && _product.thirdImageUrl!.isNotEmpty) {
       imageList.add(_product.thirdImageUrl!);
     }
-    
+
     // Fallback to images property if available
-    if (imageList.isEmpty && _product.images != null && _product.images!.isNotEmpty) {
+    if (imageList.isEmpty &&
+        _product.images != null &&
+        _product.images!.isNotEmpty) {
       return _product.images!;
     }
-    
+
     // If still empty, return at least the thumbnail
     if (imageList.isEmpty) {
       return [_product.imageUrl];
     }
-    
+
     return imageList;
   }
 
@@ -412,10 +441,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
 
                         // Similar Products
                         Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: horizontalPadding,
-                            vertical: 64,
-                          ),
+                          padding: EdgeInsets.only(top: 64, bottom: 32),
                           child: _buildSimilarProducts(),
                         ),
 
@@ -481,9 +507,9 @@ class _ProductDetailViewState extends State<ProductDetailView> {
 
     // Main hero product image (white card)
     Widget buildMainImage(double maxWidth) {
-      // Reduced size to show full image
-      final imageWidth = maxWidth * 0.85; // Reduce width by 15%
-      final imageHeight = imageWidth * 0.9; // Slightly taller than square
+      // Increased size for better visibility
+      final imageWidth = maxWidth * 0.95; // Increased to 95% of max width
+      final imageHeight = imageWidth * 0.95; // Slightly taller than square
       return Container(
         width: imageWidth,
         height: imageHeight,
@@ -506,7 +532,8 @@ class _ProductDetailViewState extends State<ProductDetailView> {
             color: const Color(0xFFF8F9FA),
             child: Image.network(
               mainImageUrl,
-              fit: BoxFit.contain, // Changed from cover to contain to show full image
+              fit: BoxFit
+                  .contain, // Changed from cover to contain to show full image
               width: double.infinity,
               height: double.infinity,
               loadingBuilder: (context, child, loadingProgress) {
@@ -658,9 +685,11 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       );
     }
 
-    // Reduced width to show full image better
+    // Increased width for better visibility
     // Re‑use the existing `isMobile` defined above.
-    final double mainWidth = isMobile ? screenWidth * 0.65 : 280.0; // Reduced from 0.7 and 320
+    final double mainWidth = isMobile
+        ? screenWidth * 0.85
+        : 400.0; // Increased from 0.65 and 280
 
     if (isMobile) {
       // Mobile: main image centered with thumbnails below (horizontal strip)
@@ -797,103 +826,162 @@ class _ProductDetailViewState extends State<ProductDetailView> {
 
               return SizedBox(
                 width: double.infinity,
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Enquire now button
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () async {
-                          final uri = Uri.parse('https://wa.me/916369869996');
-                          if (!await launchUrl(
-                            uri,
-                            mode: LaunchMode.externalApplication,
-                          )) {
+                    // Enquire now button - white background with red border
+                    OutlinedButton(
+                      onPressed: () async {
+                        final uri = Uri.parse('https://wa.me/916369869996');
+                        if (!await launchUrl(
+                          uri,
+                          mode: LaunchMode.externalApplication,
+                        )) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Could not open WhatsApp'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: const Color(0xFFED1F24),
+                        side: const BorderSide(
+                          color: Color(0xFFED1F24),
+                          width: 1,
+                        ),
+                        padding: buttonPadding,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              'Enquire now',
+                              style: TextStyle(
+                                color: const Color(0xFFED1F24),
+                                fontSize: buttonFontSize,
+                                fontWeight: FontWeight.w600,
+                                height: 1.43,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          SizedBox(width: isMobile ? 4 : 8),
+                          Icon(
+                            Icons.chat_bubble_outline,
+                            size: iconSize,
+                            color: const Color(0xFFED1F24),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: buttonSpacing),
+                    // View In My Space button
+                    ElevatedButton(
+                      onPressed: () async {
+                        // Check if device is desktop
+                        if (DeviceDetectionService.isDesktop(context)) {
+                          // Show snackbar on desktop
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text(
+                                'AR is only available on mobile and tablet devices. Please open this website on your mobile or tablet to experience AR.',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                              backgroundColor: const Color(0xFFED1F24),
+                              duration: const Duration(seconds: 5),
+                              behavior: SnackBarBehavior.floating,
+                              action: SnackBarAction(
+                                label: 'OK',
+                                textColor: Colors.white,
+                                onPressed: () {},
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+
+                        // Check if model is USDZ and device is iOS - use Apple Quick Look AR
+                        final isUsdzFile = _isUsdzFile(_directModelUrl);
+                        final isIOS = DeviceDetectionService.isIOS(context);
+
+                        if (isUsdzFile && isIOS) {
+                          // For iOS devices with USDZ files, use Apple Quick Look AR
+                          // iOS Safari automatically opens USDZ files in AR Quick Look when linked directly
+                          // We need to use the direct URL (not proxy) for Apple Quick Look to work
+                          try {
+                            // Use direct URL for Apple Quick Look (bypass proxy)
+                            final directUrl = _directModelUrl;
+                            final uri = Uri.parse(directUrl);
+
+                            // For iOS, we can use LaunchMode.platformDefault or externalApplication
+                            // Safari will automatically detect USDZ and open in AR Quick Look
+                            final launched = await launchUrl(
+                              uri,
+                              mode: LaunchMode.externalApplication,
+                            );
+
+                            if (!launched && mounted) {
+                              // Fallback: Navigate to AR view screen if direct launch fails
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) => ARViewScreen(
+                                    product: _product,
+                                    modelUrl:
+                                        directUrl, // Use direct URL for fallback too
+                                  ),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            // Fallback: Navigate to AR view screen on error
                             if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Could not open WhatsApp'),
-                                  duration: Duration(seconds: 2),
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) => ARViewScreen(
+                                    product: _product,
+                                    modelUrl:
+                                        _directModelUrl, // Use direct URL for fallback
+                                  ),
                                 ),
                               );
                             }
                           }
-                        },
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFFED1F24),
-                          side: const BorderSide(
-                            color: Color(0xFFED1F24),
-                            width: 1,
-                          ),
-                          padding: buttonPadding,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Flexible(
-                              child: Text(
-                                'Enquire now',
-                                style: TextStyle(
-                                  color: const Color(0xFFED1F24),
-                                  fontSize: buttonFontSize,
-                                  fontWeight: FontWeight.w600,
-                                  height: 1.43,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            SizedBox(width: isMobile ? 4 : 8),
-                            Icon(Icons.chat_bubble_outline, size: iconSize),
-                          ],
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: buttonSpacing),
-                    // View In My Space button
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          // Check if device is desktop
-                          if (DeviceDetectionService.isDesktop(context)) {
-                            // Show snackbar on desktop
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: const Text(
-                                  'AR is only available on mobile and tablet devices. Please open this website on your mobile or tablet to experience AR.',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                                backgroundColor: const Color(0xFFED1F24),
-                                duration: const Duration(seconds: 5),
-                                behavior: SnackBarBehavior.floating,
-                                action: SnackBarAction(
-                                  label: 'OK',
-                                  textColor: Colors.white,
-                                  onPressed: () {},
-                                ),
-                              ),
-                            );
-                            return;
-                          }
-
-                          // Directly open Google Scene Viewer using intent URL
-                          // This bypasses the intermediate screen and opens AR immediately
+                        } else {
+                          // For GLB files or non-iOS devices, use Google Scene Viewer
                           try {
-                            final encodedModelUrl = Uri.encodeComponent(modelUrl);
-                            
+                            final encodedModelUrl = Uri.encodeComponent(
+                              modelUrl,
+                            );
+
                             // Use Google Scene Viewer URL format to directly open AR
                             // This will trigger Scene Viewer directly without showing the cube first
-                            final sceneViewerUrl = 'https://arvr.google.com/scene-viewer/1.0?file=$encodedModelUrl&mode=ar_only';
-                            
+                            final sceneViewerUrl =
+                                'https://arvr.google.com/scene-viewer/1.0?file=$encodedModelUrl&mode=ar_only';
+
+                            // Track AR view before launching
+                            if (_product.id != null) {
+                              final analyticsService = AnalyticsService();
+                              await analyticsService.trackARView(_product.id!);
+                            }
+
                             // Try to launch Scene Viewer directly
                             final uri = Uri.parse(sceneViewerUrl);
                             final launched = await launchUrl(
                               uri,
                               mode: LaunchMode.externalApplication,
                             );
-                            
+
                             if (!launched && mounted) {
                               // Fallback: Navigate to AR view screen if direct launch fails
                               Navigator.of(context).push(
@@ -918,43 +1006,44 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                               );
                             }
                           }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              DeviceDetectionService.isDesktop(context)
-                              ? Colors.grey[400]
-                              : const Color(0xFFED1F24),
-                          foregroundColor: Colors.white,
-                          padding: buttonPadding,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(4),
-                          ),
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            DeviceDetectionService.isDesktop(context)
+                            ? Colors.grey[400]
+                            : const Color(0xFFED1F24),
+                        foregroundColor: Colors.white,
+                        padding: buttonPadding,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Flexible(
-                              child: Text(
-                                isMobile ? 'View AR' : 'View In My Space',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: buttonFontSize,
-                                  fontWeight: FontWeight.w600,
-                                  height: 1.43,
-                                ),
-                                overflow: TextOverflow.ellipsis,
+                        elevation: 0,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              isMobile ? 'View AR' : 'View In My Space',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: buttonFontSize,
+                                fontWeight: FontWeight.w600,
+                                height: 1.43,
                               ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            SizedBox(width: isMobile ? 4 : 8),
-                            Icon(
-                              DeviceDetectionService.isDesktop(context)
-                                  ? Icons.block
-                                  : Icons.view_in_ar,
-                              size: iconSize,
-                            ),
-                          ],
-                        ),
+                          ),
+                          SizedBox(width: isMobile ? 4 : 8),
+                          Icon(
+                            DeviceDetectionService.isDesktop(context)
+                                ? Icons.block
+                                : Icons.view_in_ar,
+                            size: iconSize,
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -1230,13 +1319,14 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       return const SizedBox.shrink();
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Section Title
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-          child: Text(
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Section Title
+          Text(
             'Similar Products',
             style: TextStyle(
               color: const Color(0xFF090919),
@@ -1250,23 +1340,22 @@ class _ProductDetailViewState extends State<ProductDetailView> {
               height: 1.36,
             ),
           ),
-        ),
-        SizedBox(
-          height: ResponsiveHelper.getResponsiveSpacing(
-            context,
-            mobile: 24,
-            tablet: 28,
-            desktop: 32,
+          SizedBox(
+            height: ResponsiveHelper.getResponsiveSpacing(
+              context,
+              mobile: 20,
+              tablet: 24,
+              desktop: 28,
+            ),
           ),
-        ),
-        // Similar Products Grid
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-          child: LayoutBuilder(
+          // Similar Products Grid
+          LayoutBuilder(
             builder: (context, constraints) {
               // Calculate grid layout
               final crossAxisCount = isDesktop ? 3 : (isTablet ? 2 : 2);
-              final childAspectRatio = isDesktop ? 0.70 : (isTablet ? 0.75 : 0.70);
+              final childAspectRatio = isDesktop
+                  ? 0.70
+                  : (isTablet ? 0.75 : 0.70);
               final spacing = isDesktop ? 24.0 : (isTablet ? 20.0 : 16.0);
 
               return GridView.builder(
@@ -1286,8 +1375,8 @@ class _ProductDetailViewState extends State<ProductDetailView> {
               );
             },
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
