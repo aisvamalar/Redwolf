@@ -144,6 +144,16 @@ class _ProductDetailViewState extends State<ProductDetailView> {
         lowerUrl.contains('usdz');
   }
 
+  /// Check if device is a true desktop/laptop (not a tablet)
+  /// Tablets can have width >= 1024px, so we need to check user agent too
+  bool _isTrueDesktop(BuildContext context) {
+    final isMobileOrTablet = DeviceDetectionService.isMobileOrTablet(context);
+    final isTablet = DeviceDetectionService.isTablet(context);
+    final isTabletByUA = DeviceDetectionService.isTabletByUserAgent();
+    // True desktop if it's not mobile, not tablet by width, and not tablet by user agent
+    return !isMobileOrTablet && !isTablet && !isTabletByUA;
+  }
+
   List<String> get _productImages {
     // Use images from database: thumbnail, secondImageUrl, thirdImageUrl
     final List<String> imageList = [];
@@ -376,22 +386,42 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                               // Right: Product Details and Key Features
                                               Flexible(
                                                 flex: 1,
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    _buildProductDetails(),
-                                                    SizedBox(
-                                                      height:
-                                                          ResponsiveHelper.getResponsiveSpacing(
-                                                            context,
-                                                            mobile: 20,
-                                                            tablet: 20,
-                                                            desktop: 20,
+                                                child: LayoutBuilder(
+                                                  builder: (context, constraints) {
+                                                    return SingleChildScrollView(
+                                                      child: ConstrainedBox(
+                                                        constraints:
+                                                            BoxConstraints(
+                                                              minHeight:
+                                                                  constraints
+                                                                      .maxHeight,
+                                                            ),
+                                                        child: IntrinsicHeight(
+                                                          child: Column(
+                                                            crossAxisAlignment:
+                                                                CrossAxisAlignment
+                                                                    .start,
+                                                            children: [
+                                                              _buildProductDetails(),
+                                                              SizedBox(
+                                                                height:
+                                                                    ResponsiveHelper.getResponsiveSpacing(
+                                                                      context,
+                                                                      mobile:
+                                                                          20,
+                                                                      tablet:
+                                                                          20,
+                                                                      desktop:
+                                                                          20,
+                                                                    ),
+                                                              ),
+                                                              _buildKeyFeatures(),
+                                                            ],
                                                           ),
-                                                    ),
-                                                    _buildKeyFeatures(),
-                                                  ],
+                                                        ),
+                                                      ),
+                                                    );
+                                                  },
                                                 ),
                                               ),
                                             ],
@@ -747,6 +777,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       width: isDesktop ? 453 : double.infinity,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           // Portable label
           Container(
@@ -828,6 +859,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                 width: double.infinity,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     // Enquire now button - white background with red border
                     OutlinedButton(
@@ -889,8 +921,10 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                     // View In My Space button
                     ElevatedButton(
                       onPressed: () async {
-                        // Check if device is desktop
-                        if (DeviceDetectionService.isDesktop(context)) {
+                        // Block AR only on true desktop/laptop devices (not tablets)
+                        // Allow AR on both Android and iOS tablets (including iPad)
+                        // Tablets can have width >= 1024px, so we check user agent too
+                        if (_isTrueDesktop(context)) {
                           // Show snackbar on desktop
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -911,13 +945,14 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                           return;
                         }
 
-                        // Check if model is USDZ and device is iOS - use Apple Quick Look AR
+                        // Check if model is USDZ and device is iOS (iPhone/iPad) - use Apple Quick Look AR
                         final isUsdzFile = _isUsdzFile(_directModelUrl);
                         final isIOS = DeviceDetectionService.isIOS(context);
 
                         if (isUsdzFile && isIOS) {
-                          // For iOS devices with USDZ files, use Apple Quick Look AR
+                          // For iOS devices (iPhone/iPad) with USDZ files, use Apple Quick Look AR
                           // iOS Safari automatically opens USDZ files in AR Quick Look when linked directly
+                          // iPad Safari also supports AR Quick Look for USDZ files
                           // We need to use the direct URL (not proxy) for Apple Quick Look to work
                           try {
                             // Use direct URL for Apple Quick Look (bypass proxy)
@@ -1009,8 +1044,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                         }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            DeviceDetectionService.isDesktop(context)
+                        backgroundColor: _isTrueDesktop(context)
                             ? Colors.grey[400]
                             : const Color(0xFFED1F24),
                         foregroundColor: Colors.white,
@@ -1038,7 +1072,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                           ),
                           SizedBox(width: isMobile ? 4 : 8),
                           Icon(
-                            DeviceDetectionService.isDesktop(context)
+                            _isTrueDesktop(context)
                                 ? Icons.block
                                 : Icons.view_in_ar,
                             size: iconSize,
