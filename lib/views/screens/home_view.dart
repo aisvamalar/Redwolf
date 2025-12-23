@@ -146,7 +146,12 @@ class _HomeViewState extends State<HomeView> {
                                         bottom: BorderSide(width: 1, color: Color(0xFFE5E5E5)),
                                       ),
                                     ),
-                                    child: const HeaderWidget(),
+                                    child: Center(
+                                      child: ConstrainedBox(
+                                        constraints: BoxConstraints(maxWidth: maxWidth),
+                                        child: const HeaderWidget(),
+                                      ),
+                                    ),
                                   ),
                                   // Hero Section
                                   Padding(

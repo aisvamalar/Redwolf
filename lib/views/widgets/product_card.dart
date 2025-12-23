@@ -246,7 +246,7 @@ class _ProductCardState extends State<ProductCard> {
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
-                  vertical: 6,
+                  vertical: 12,
                 ),
                 decoration: const BoxDecoration(
                   color: Colors.white,
@@ -263,7 +263,7 @@ class _ProductCardState extends State<ProductCard> {
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
-                        vertical: 2,
+                        vertical: 4,
                       ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF5F5F7),
@@ -275,15 +275,15 @@ class _ProductCardState extends State<ProductCard> {
                           fontSize: 11,
                           color: Color(0xFF2C2C34),
                           fontWeight: FontWeight.w400,
-                          height: 1.0,
+                          height: 1.2,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(
-                      height: 8,
-                    ), // Spacing for better visual balance
+                      height: 10,
+                    ), // Spacing between category and title
                     // Product name - bold black text
                     Text(
                       widget.product.name,
@@ -291,30 +291,14 @@ class _ProductCardState extends State<ProductCard> {
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF090919),
-                        height: 1.1,
+                        height: 1.2,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    // Description - show if available
-                    if (widget.product.description != null &&
-                        widget.product.description!.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        widget.product.description!,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w400,
-                          color: Color(0xFF8C8D96),
-                          height: 1.3,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
                     const SizedBox(
-                      height: 6,
-                    ), // Spacing for better visual balance
+                      height: 10,
+                    ), // Spacing between title and view details
                     // View details link - red text with arrow (centered in container)
                     Center(
                       child: Row(
@@ -324,13 +308,13 @@ class _ProductCardState extends State<ProductCard> {
                           Text(
                             'view details',
                             style: const TextStyle(
-                              fontSize: 15,
+                              fontSize: 14,
                               color: Color(0xFFED1F24),
                               fontWeight: FontWeight.w500,
-                              height: 1.0,
+                              height: 1.2,
                             ),
                           ),
-                          const SizedBox(width: 3),
+                          const SizedBox(width: 4),
                           const Icon(
                             Icons.arrow_forward,
                             size: 14,

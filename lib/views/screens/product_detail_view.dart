@@ -1145,12 +1145,16 @@ class _ProductDetailViewState extends State<ProductDetailView> {
           LayoutBuilder(
             builder: (context, constraints) {
               final isMobile = ResponsiveHelper.isMobile(context);
+              final isDesktop = ResponsiveHelper.isDesktop(context);
               final buttonSpacing = isMobile ? 12.0 : 16.0;
+              // Reduce button size on mobile, increase on desktop
               final buttonPadding = isMobile
-                  ? const EdgeInsets.symmetric(horizontal: 12, vertical: 10)
-                  : const EdgeInsets.symmetric(horizontal: 16, vertical: 10);
-              final buttonFontSize = isMobile ? 12.0 : 14.0;
-              final iconSize = isMobile ? 16.0 : 18.0;
+                  ? const EdgeInsets.symmetric(horizontal: 10, vertical: 8)
+                  : (isDesktop
+                      ? const EdgeInsets.symmetric(horizontal: 20, vertical: 14)
+                      : const EdgeInsets.symmetric(horizontal: 16, vertical: 10));
+              final buttonFontSize = isMobile ? 11.0 : (isDesktop ? 16.0 : 14.0);
+              final iconSize = isMobile ? 14.0 : (isDesktop ? 20.0 : 18.0);
 
               return SizedBox(
                 width: double.infinity,
@@ -2071,7 +2075,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                             children: [
                               Flexible(
                                 child: Text(
-                                  isMobile ? 'View AR' : 'View In My Space',
+                                  'View In My Space',
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: buttonFontSize,
@@ -2403,7 +2407,14 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                   : (isTablet
                         ? 0.75
                         : 0.68); // Reduced for mobile to fix overflow
-              final spacing = isDesktop ? 24.0 : (isTablet ? 20.0 : 16.0);
+              final spacing = ResponsiveHelper.getResponsiveSpacing(
+                context,
+                mobile: 28.0,
+                tablet: 48.0,
+                desktop: 56.0,
+              );
+              // For equal spacing: set padding to match spacing on desktop/tablet
+              final gridPadding = isDesktop ? spacing : (isTablet ? spacing : 0.0);
 
               return GridView.builder(
                 shrinkWrap: true,
@@ -2414,6 +2425,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                   crossAxisSpacing: spacing,
                   mainAxisSpacing: spacing,
                 ),
+                padding: EdgeInsets.all(gridPadding),
                 itemCount: _similarProducts.length,
                 itemBuilder: (context, index) {
                   final product = _similarProducts[index];

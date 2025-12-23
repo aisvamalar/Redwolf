@@ -78,14 +78,17 @@ class ProductGrid extends StatelessWidget {
     // Display all products from database in a grid
     // Filter products that have GLB or USDZ file URLs (for AR viewing)
     final productsWithModels = products
-        .where((p) => 
-            (p.glbFileUrl != null && p.glbFileUrl!.isNotEmpty) ||
-            (p.usdzFileUrl != null && p.usdzFileUrl!.isNotEmpty))
+        .where(
+          (p) =>
+              (p.glbFileUrl != null && p.glbFileUrl!.isNotEmpty) ||
+              (p.usdzFileUrl != null && p.usdzFileUrl!.isNotEmpty),
+        )
         .toList();
-    
+
     // Debug: Log products with USDZ files
-    final usdzProducts = productsWithModels.where((p) => 
-        p.usdzFileUrl != null && p.usdzFileUrl!.isNotEmpty).toList();
+    final usdzProducts = productsWithModels
+        .where((p) => p.usdzFileUrl != null && p.usdzFileUrl!.isNotEmpty)
+        .toList();
     if (usdzProducts.isNotEmpty) {
       print('📱 Found ${usdzProducts.length} product(s) with USDZ files:');
       for (var product in usdzProducts) {
@@ -108,24 +111,50 @@ class ProductGrid extends StatelessWidget {
     // Calculate grid layout based on controller layout preference
     final layout = controller.layout;
     final crossAxisCount = layout == ProductLayout.grid2
-        ? (isDesktop ? 3 : (isTablet ? 2 : 2)) // 2 columns on mobile when grid mode
-        : (isDesktop ? 3 : (isTablet ? 2 : 1)); // Single column on mobile when list mode
+        ? (isDesktop
+              ? 3
+              : (isTablet ? 2 : 2)) // 2 columns on mobile when grid mode
+        : (isDesktop
+              ? 3
+              : (isTablet ? 2 : 1)); // Single column on mobile when list mode
     // Adjusted aspect ratios to match actual card content with proper Figma spacing
     final childAspectRatio = layout == ProductLayout.grid2
-        ? (isDesktop ? 0.85 : (isTablet ? 0.82 : 0.67)) // Reduced for mobile to fix 8.3px overflow
-        : (isDesktop ? 0.85 : (isTablet ? 0.82 : 0.82)); // Adjusted for list mode
-    // Spacing between cards
-    final crossAxisSpacing = isDesktop ? 24.0 : (isTablet ? 20.0 : 16.0);
-    final mainAxisSpacing = isDesktop ? 24.0 : (isTablet ? 20.0 : 20.0); // Increased vertical spacing on mobile
-    // Minimal padding on mobile - just enough for card spacing, no large margins
-    final padding = isDesktop ? 24.0 : (isTablet ? 20.0 : 8.0);
+        ? (isDesktop
+              ? 0.85
+              : (isTablet
+                    ? 0.82
+                    : 0.67)) // Reduced for mobile to fix 8.3px overflow
+        : (isDesktop
+              ? 0.85
+              : (isTablet ? 0.82 : 0.82)); // Adjusted for list mode
+    // Spacing between cards - responsive spacing for better visual balance
+    final crossAxisSpacing = ResponsiveHelper.getResponsiveSpacing(
+      context,
+      mobile: 28.0,
+      tablet: 48.0,
+      desktop: 56.0,
+    );
+    final mainAxisSpacing = ResponsiveHelper.getResponsiveSpacing(
+      context,
+      mobile: 20.0,
+      tablet: 20.0,
+      desktop: 24.0,
+    );
+    // For equal spacing: set padding to match crossAxisSpacing on desktop/tablet
+    // This ensures equal spacing between all columns including edges
+    final padding = isDesktop
+        ? crossAxisSpacing
+        : (isTablet ? crossAxisSpacing : 8.0);
 
     return LayoutBuilder(
       builder: (context, constraints) {
         // Calculate available width for grid items
-        final availableWidth = constraints.maxWidth - (padding * 2) - (crossAxisSpacing * (crossAxisCount - 1));
+        final availableWidth =
+            constraints.maxWidth -
+            (padding * 2) -
+            (crossAxisSpacing * (crossAxisCount - 1));
         final itemWidth = availableWidth / crossAxisCount;
-        
+
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),

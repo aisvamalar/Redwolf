@@ -39,6 +39,8 @@ class HeaderWidget extends StatelessWidget {
         ),
         // Contact Us Button - Opens WhatsApp
         Container(
+          width: isMobile ? null : 144,
+          height: isMobile ? null : 38,
           decoration: BoxDecoration(
             color: const Color(0xFFDC2626),
             borderRadius: BorderRadius.circular(8),
@@ -71,12 +73,16 @@ class HeaderWidget extends StatelessWidget {
                 }
               }
             },
-            icon: const FaIcon(FontAwesomeIcons.whatsapp, size: 18, color: Colors.white),
-            label: const Text(
+            icon: FaIcon(
+              FontAwesomeIcons.whatsapp,
+              size: isMobile ? 12 : 18,
+              color: Colors.white,
+            ),
+            label: Text(
               'Contact Us',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 14,
+                fontSize: isMobile ? 10 : 14,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -84,7 +90,11 @@ class HeaderWidget extends StatelessWidget {
               backgroundColor: Colors.transparent,
               foregroundColor: Colors.white,
               shadowColor: Colors.transparent,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: isMobile
+                  ? const EdgeInsets.symmetric(horizontal: 8, vertical: 4)
+                  : const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
