@@ -1309,12 +1309,26 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                           try {
                                             final userAgent = web_utils
                                                 .WebUtils.getUserAgent();
+                                            final userAgentLower = userAgent
+                                                .toLowerCase();
                                             print('User Agent: $userAgent');
                                             print(
-                                              'Contains "ipad": ${userAgent.contains('ipad')}',
+                                              'Contains "ipad": ${userAgentLower.contains('ipad')}',
                                             );
                                             print(
-                                              'Contains "iphone": ${userAgent.contains('iphone')}',
+                                              'Contains "iphone": ${userAgentLower.contains('iphone')}',
+                                            );
+                                            print(
+                                              'Contains "macintel": ${userAgentLower.contains('macintel')}',
+                                            );
+                                            print(
+                                              'Contains "macintosh": ${userAgentLower.contains('macintosh')}',
+                                            );
+                                            print(
+                                              'Has Touch Support: ${DeviceDetectionService.hasTouchSupport()}',
+                                            );
+                                            print(
+                                              'Max Touch Points: ${web_utils.WebUtils.getMaxTouchPoints()}',
                                             );
                                           } catch (e) {
                                             print(
@@ -1325,9 +1339,48 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                         print('=============================');
                                       }
 
+                                      // Enhanced iPad detection: Check for MacIntel/Macintosh with touch
+                                      bool isLikelyIPad = false;
+                                      if (kIsWeb && recheckTablet) {
+                                        try {
+                                          final hasTouch =
+                                              DeviceDetectionService.hasTouchSupport();
+                                          if (hasTouch) {
+                                            final userAgent =
+                                                web_utils
+                                                        .WebUtils.getUserAgent()
+                                                    .toLowerCase();
+                                            if (userAgent.contains(
+                                                  'macintel',
+                                                ) ||
+                                                userAgent.contains(
+                                                  'macintosh',
+                                                )) {
+                                              final maxTouchPoints = web_utils
+                                                  .WebUtils.getMaxTouchPoints();
+                                              if (maxTouchPoints > 1) {
+                                                isLikelyIPad = true;
+                                                if (kDebugMode) {
+                                                  print(
+                                                    'Enhanced iPad detection: MacIntel/Macintosh + touch + maxTouchPoints=$maxTouchPoints',
+                                                  );
+                                                }
+                                              }
+                                            }
+                                          }
+                                        } catch (e) {
+                                          if (kDebugMode) {
+                                            print(
+                                              'Error in enhanced iPad detection: $e',
+                                            );
+                                          }
+                                        }
+                                      }
+
                                       // If recheck shows it's iOS/iPad, use USDZ file with Apple Quick Look
                                       // Also check if it's a tablet with touch support (likely iPad)
                                       if (recheckIOS ||
+                                          isLikelyIPad ||
                                           (recheckTablet &&
                                               kIsWeb &&
                                               DeviceDetectionService.hasTouchSupport())) {
@@ -1386,8 +1439,11 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                         return;
                                       }
 
-                                      // Block only if confirmed non-iOS device
-                                      if (mounted) {
+                                      // Block only if confirmed non-iOS device (not iPad)
+                                      // Don't show banner if we detected it might be an iPad
+                                      if (mounted &&
+                                          !isLikelyIPad &&
+                                          !recheckIOS) {
                                         ScaffoldMessenger.of(
                                           context,
                                         ).showSnackBar(

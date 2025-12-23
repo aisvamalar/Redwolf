@@ -10,6 +10,14 @@ class WebUtils {
     return html.window.navigator.userAgent;
   }
   
+  static int getMaxTouchPoints() {
+    try {
+      return html.window.navigator.maxTouchPoints ?? 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+  
   static Future<bool> shareContent(String title, String text, String url) async {
     try {
       await html.window.navigator.share({
