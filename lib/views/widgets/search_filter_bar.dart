@@ -25,9 +25,7 @@ class SearchFilterBar extends StatelessWidget {
           Expanded(flex: 2, child: _buildCategoryDropdown(context, controller)),
           const SizedBox(width: 16),
           Expanded(flex: 2, child: _buildSortDropdown(context, controller)),
-          const SizedBox(width: 16),
-          // Compact layout toggle button
-          _buildLayoutToggleButton(context, controller),
+          // Grid toggle button removed for desktop/web
         ],
       );
     } else if (isTablet) {
@@ -42,14 +40,14 @@ class SearchFilterBar extends StatelessWidget {
               Expanded(child: _buildCategoryDropdown(context, controller)),
               const SizedBox(width: 12),
               Expanded(child: _buildSortDropdown(context, controller)),
-              const SizedBox(width: 12),
-              _buildLayoutToggleButton(context, controller),
+              // Grid toggle button removed for tablet/web
             ],
           ),
         ],
       );
     } else {
       // Mobile: Stacked vertically with better spacing
+      // Grid toggle button only shown on mobile
       return Column(
         children: [
           _buildSearchField(context, controller),
@@ -65,7 +63,7 @@ class SearchFilterBar extends StatelessWidget {
                 child: _buildSortDropdown(context, controller),
               ),
               const SizedBox(width: 12),
-              _buildLayoutToggleButton(context, controller),
+              _buildLayoutToggleButton(context, controller), // Only on mobile
             ],
           ),
         ],
@@ -75,11 +73,14 @@ class SearchFilterBar extends StatelessWidget {
 
   Widget _buildSearchField(BuildContext context, ProductController controller) {
     final isMobile = ResponsiveHelper.isMobile(context);
+    // Use exact same height as filter dropdowns for uniform appearance
+    final height = isMobile ? 40.0 : 44.0;
 
     return Container(
+      height: height, // Exact height matching filter dropdowns
       padding: EdgeInsets.symmetric(
         horizontal: isMobile ? 16 : 24,
-        vertical: isMobile ? 10 : 12,
+        vertical: 0,
       ),
       decoration: ShapeDecoration(
         color: Colors.white,
@@ -113,6 +114,12 @@ class SearchFilterBar extends StatelessWidget {
           Expanded(
             child: TextField(
               onChanged: (value) => controller.setSearchQuery(value),
+              style: TextStyle(
+                fontSize: isMobile ? 13 : 14,
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.w400,
+                height: 1.43,
+              ),
               decoration: InputDecoration(
                 hintText: 'Search...',
                 hintStyle: TextStyle(
@@ -124,6 +131,7 @@ class SearchFilterBar extends StatelessWidget {
                 ),
                 border: InputBorder.none,
                 contentPadding: EdgeInsets.zero,
+                isDense: true, // Reduce internal padding to match height
               ),
             ),
           ),
@@ -136,9 +144,14 @@ class SearchFilterBar extends StatelessWidget {
     BuildContext context,
     ProductController controller,
   ) {
-    // Build options from actual products so the list shows
-    // "Easel Standee", "Totem Standee", etc. instead of generic categories.
-    final products = controller.products;
+    // Extract unique categories from all products
+    final allProducts = controller.allProducts;
+    final uniqueCategories = allProducts
+        .map((p) => p.category.isNotEmpty ? p.category : 'Portable')
+        .toSet()
+        .toList()
+      ..sort();
+    
     final isMobile = ResponsiveHelper.isMobile(context);
     final textStyleValue = TextStyle(
       color: const Color(0xFF2C2C34),
@@ -185,11 +198,11 @@ class SearchFilterBar extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            ...products.map(
-              (product) => DropdownMenuItem<String>(
-                value: product.id,
+            ...uniqueCategories.map(
+              (category) => DropdownMenuItem<String>(
+                value: category,
                 child: Text(
-                  product.name,
+                  category,
                   style: textStyleValue,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -197,15 +210,13 @@ class SearchFilterBar extends StatelessWidget {
             ),
           ],
           selectedItemBuilder: (context) {
-            final items = <String>['all', ...products.where((p) => p.id != null).map((p) => p.id!)];
-            return items.map((id) {
-              final name = id == 'all'
-                  ? 'All'
-                  : products.firstWhere((p) => p.id == id).name;
+            final items = <String>['all', ...uniqueCategories];
+            return items.map((category) {
+              final displayName = category == 'all' ? 'All' : category;
               return Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  name,
+                  displayName,
                   style: textStyleValue,
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,

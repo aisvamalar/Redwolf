@@ -110,17 +110,20 @@ class ProductGrid extends StatelessWidget {
     final crossAxisCount = layout == ProductLayout.grid2
         ? (isDesktop ? 3 : (isTablet ? 2 : 2)) // 2 columns on mobile when grid mode
         : (isDesktop ? 3 : (isTablet ? 2 : 1)); // Single column on mobile when list mode
-    // Adjusted aspect ratios to match actual card content and eliminate extra space
+    // Adjusted aspect ratios to match actual card content with proper Figma spacing
     final childAspectRatio = layout == ProductLayout.grid2
-        ? (isDesktop ? 0.92 : (isTablet ? 0.90 : 0.88)) // Increased to reduce forced height
-        : (isDesktop ? 0.92 : (isTablet ? 0.90 : 0.95)); // Increased for list mode
-    final spacing = isDesktop ? 24.0 : (isTablet ? 20.0 : 16.0);
-    final padding = isDesktop ? 24.0 : (isTablet ? 20.0 : 16.0);
+        ? (isDesktop ? 0.85 : (isTablet ? 0.82 : 0.67)) // Reduced for mobile to fix 8.3px overflow
+        : (isDesktop ? 0.85 : (isTablet ? 0.82 : 0.82)); // Adjusted for list mode
+    // Spacing between cards
+    final crossAxisSpacing = isDesktop ? 24.0 : (isTablet ? 20.0 : 16.0);
+    final mainAxisSpacing = isDesktop ? 24.0 : (isTablet ? 20.0 : 20.0); // Increased vertical spacing on mobile
+    // Minimal padding on mobile - just enough for card spacing, no large margins
+    final padding = isDesktop ? 24.0 : (isTablet ? 20.0 : 8.0);
 
     return LayoutBuilder(
       builder: (context, constraints) {
         // Calculate available width for grid items
-        final availableWidth = constraints.maxWidth - (padding * 2) - (spacing * (crossAxisCount - 1));
+        final availableWidth = constraints.maxWidth - (padding * 2) - (crossAxisSpacing * (crossAxisCount - 1));
         final itemWidth = availableWidth / crossAxisCount;
         
         return GridView.builder(
@@ -129,8 +132,8 @@ class ProductGrid extends StatelessWidget {
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
             childAspectRatio: childAspectRatio,
-            crossAxisSpacing: spacing,
-            mainAxisSpacing: spacing,
+            crossAxisSpacing: crossAxisSpacing,
+            mainAxisSpacing: mainAxisSpacing,
           ),
           padding: EdgeInsets.all(padding),
           itemCount: productsWithModels.length,

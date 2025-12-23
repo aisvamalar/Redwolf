@@ -82,7 +82,7 @@ class SupabaseService {
       if (response == null || response.isEmpty) {
         print('⚠️ No products found in database!');
         print(
-          '   Please add products via admin panel or check if table exists',
+          '   Please check if products table exists and has data',
         );
         return [];
       }

@@ -159,7 +159,7 @@ class ARAnalyticsService {
     );
   }
 
-  /// Get AR usage analytics (for admin dashboard)
+  /// Get AR usage analytics
   static Future<Map<String, dynamic>?> getARAnalytics({
     String? productId,
     DateTime? startDate,

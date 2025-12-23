@@ -18,6 +18,7 @@ class ProductController extends ChangeNotifier {
   String? _errorMessage;
 
   List<Product> get products => _filteredProducts;
+  List<Product> get allProducts => _allProducts; // Expose all products for category extraction
   String get searchQuery => _searchQuery;
   String get selectedCategory => _selectedCategory;
   SortOption get sortOption => _sortOption;
@@ -45,7 +46,7 @@ class ProductController extends ChangeNotifier {
       // If no products from database, show error message
       if (_allProducts.isEmpty) {
         print('ℹ️ No published products in database');
-        _errorMessage = 'No products available. Please add products via admin panel.';
+        _errorMessage = 'No products available.';
       }
 
       _applyFilters();
@@ -277,13 +278,15 @@ class ProductController extends ChangeNotifier {
   void _applyFilters() {
     _filteredProducts = List.from(_allProducts);
 
-    // Apply filter based on the selected "category" value.
-    // We now use this field as a product selector:
+    // Apply filter based on the selected category value.
     // - 'all'  -> show all products
-    // - other -> filter by product.id (e.g. specific standee like Easel, Totem, etc.)
+    // - other -> filter by product.category field (e.g. "Touch display", "Portable", etc.)
     if (_selectedCategory != 'all') {
       _filteredProducts = _filteredProducts
-          .where((product) => product.id == _selectedCategory)
+          .where((product) {
+            final productCategory = product.category.isNotEmpty ? product.category : 'Portable';
+            return productCategory == _selectedCategory;
+          })
           .toList();
     }
 

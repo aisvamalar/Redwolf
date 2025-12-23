@@ -49,6 +49,7 @@ dependencies:
   vector_math: ^2.1.4
   permission_handler: ^10.4.5
   permission_handler_html: ^0.1.0
+  font_awesome_flutter: ^10.7.0
 
 dev_dependencies:
   flutter_test:

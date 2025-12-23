@@ -69,6 +69,8 @@ class ResponsiveHelper {
     if (width > 1400) return 1300;
     if (width > 1200) return 1200;
     if (width > 800) return width - 160;
+    // For mobile: use full width minus 32px (16px padding on each side)
+    if (isMobile(context)) return width - 32;
     return width - 64;
   }
 
@@ -99,6 +101,7 @@ class ResponsiveHelper {
     }
   }
 }
+
 
 
 

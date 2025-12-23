@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../utils/responsive_helper.dart';
 
 class HeaderWidget extends StatelessWidget {
@@ -36,15 +37,58 @@ class HeaderWidget extends StatelessWidget {
             },
           ),
         ),
-        // Admin Panel Link - Navigate to login
-        TextButton.icon(
-          onPressed: () {
-            context.push('/admin/login');
-          },
-          icon: const Icon(Icons.admin_panel_settings, size: 18),
-          label: const Text('Admin'),
-          style: TextButton.styleFrom(
-            foregroundColor: const Color(0xFFDC2626),
+        // Contact Us Button - Opens WhatsApp
+        Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFDC2626),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: ElevatedButton.icon(
+            onPressed: () async {
+              const whatsappUrl = 'https://wa.me/916369869996';
+              try {
+                final uri = Uri.parse(whatsappUrl);
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                } else {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Could not open WhatsApp. Please install WhatsApp or try again.'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error opening WhatsApp: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            icon: const FaIcon(FontAwesomeIcons.whatsapp, size: 18, color: Colors.white),
+            label: const Text(
+              'Contact Us',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.transparent,
+              foregroundColor: Colors.white,
+              shadowColor: Colors.transparent,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
           ),
         ),
       ],
