@@ -395,79 +395,91 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                 ),
                                 child: LayoutBuilder(
                                   builder: (context, constraints) {
-                                    return isDesktop
-                                        ? Row(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              // Left: Image Gallery
-                                              Flexible(
-                                                flex: 1,
-                                                child: _buildImageGallery(),
-                                              ),
-                                              SizedBox(
-                                                width:
-                                                    ResponsiveHelper.isTablet(
-                                                      context,
-                                                    )
-                                                    ? 32
-                                                    : 56,
-                                              ),
-                                              // Right: Product Details and Key Features
-                                              Flexible(
-                                                flex: 1,
-                                                child: SingleChildScrollView(
-                                                  child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      _buildProductDetails(),
-                                                      SizedBox(
-                                                        height:
-                                                            ResponsiveHelper.getResponsiveSpacing(
-                                                              context,
-                                                              mobile: 20,
-                                                              tablet: 20,
-                                                              desktop: 20,
-                                                            ),
-                                                      ),
-                                                      _buildKeyFeatures(),
-                                                    ],
+                                    final isTablet = ResponsiveHelper.isTablet(
+                                      context,
+                                    );
+
+                                    // Desktop: Side-by-side layout
+                                    if (isDesktop && !isTablet) {
+                                      return Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          // Left: Image Gallery
+                                          Flexible(
+                                            flex: 1,
+                                            child: _buildImageGallery(),
+                                          ),
+                                          const SizedBox(width: 56),
+                                          // Right: Product Details and Key Features
+                                          Flexible(
+                                            flex: 1,
+                                            child: SingleChildScrollView(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  _buildProductDetails(),
+                                                  SizedBox(
+                                                    height:
+                                                        ResponsiveHelper.getResponsiveSpacing(
+                                                          context,
+                                                          mobile: 20,
+                                                          tablet: 20,
+                                                          desktop: 20,
+                                                        ),
                                                   ),
-                                                ),
+                                                  _buildKeyFeatures(),
+                                                ],
                                               ),
-                                            ],
-                                          )
-                                        : Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              _buildImageGallery(),
-                                              SizedBox(
-                                                height:
-                                                    ResponsiveHelper.getResponsiveSpacing(
-                                                      context,
-                                                      mobile: 24,
-                                                      tablet: 28,
-                                                      desktop: 32,
-                                                    ),
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    }
+
+                                    // Tablet/iPad and Mobile: Centered column layout
+                                    return Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      children: [
+                                        // Centered image gallery
+                                        Center(child: _buildImageGallery()),
+                                        SizedBox(
+                                          height:
+                                              ResponsiveHelper.getResponsiveSpacing(
+                                                context,
+                                                mobile: 24,
+                                                tablet: 28,
+                                                desktop: 32,
                                               ),
-                                              _buildProductDetails(),
-                                              SizedBox(
-                                                height:
-                                                    ResponsiveHelper.getResponsiveSpacing(
-                                                      context,
-                                                      mobile: 24,
-                                                      tablet: 28,
-                                                      desktop: 32,
-                                                    ),
+                                        ),
+                                        // Product details (centered for tablet, left-aligned for mobile)
+                                        Align(
+                                          alignment: isTablet
+                                              ? Alignment.center
+                                              : Alignment.centerLeft,
+                                          child: _buildProductDetails(),
+                                        ),
+                                        SizedBox(
+                                          height:
+                                              ResponsiveHelper.getResponsiveSpacing(
+                                                context,
+                                                mobile: 24,
+                                                tablet: 28,
+                                                desktop: 32,
                                               ),
-                                              _buildKeyFeatures(),
-                                            ],
-                                          );
+                                        ),
+                                        // Key features (centered for tablet, left-aligned for mobile)
+                                        Align(
+                                          alignment: isTablet
+                                              ? Alignment.center
+                                              : Alignment.centerLeft,
+                                          child: _buildKeyFeatures(),
+                                        ),
+                                      ],
+                                    );
                                   },
                                 ),
                               ),
@@ -730,14 +742,22 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       );
     }
 
-    // Increased width for better visibility
-    // Re‑use the existing `isMobile` defined above.
-    final double mainWidth = isMobile
-        ? screenWidth * 0.85
-        : 400.0; // Increased from 0.65 and 280
+    final isTablet = ResponsiveHelper.isTablet(context);
 
+    // Responsive width calculation
+    final double mainWidth;
     if (isMobile) {
-      // Mobile: main image centered with thumbnails below (horizontal strip)
+      mainWidth = screenWidth * 0.85;
+    } else if (isTablet) {
+      // Tablet: Use 70% of screen width, max 500px for better visibility
+      mainWidth = (screenWidth * 0.7).clamp(400.0, 500.0);
+    } else {
+      // Desktop: Fixed width
+      mainWidth = 400.0;
+    }
+
+    // Mobile: main image centered with thumbnails below (horizontal strip)
+    if (isMobile) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -748,13 +768,24 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       );
     }
 
-    // Desktop / tablet: thumbnails column outside the product container on the left
-    // Make this column scrollable so ALL images are accessible.
+    // Tablet/iPad: Centered layout with thumbnails below
+    if (isTablet) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          buildMainImage(mainWidth),
+          const SizedBox(height: 20),
+          buildThumbnailsRow(),
+        ],
+      );
+    }
+
+    // Desktop: thumbnails column on the left, main image on the right
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          height: mainWidth * 0.9, // match the main image card height (reduced)
+          height: mainWidth * 0.9, // match the main image card height
           width: 56, // a bit wider than the thumbnail width
           child: ListView.builder(
             padding: EdgeInsets.zero,
@@ -945,23 +976,44 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                         );
                         var isIOS = DeviceDetectionService.isIOS(context);
 
-                        // Enhanced iPad detection: If product has USDZ file and device is tablet with touch,
-                        // it's likely an iPad (iPadOS 13+ might not report as "iPad" in user agent)
-                        if (!isIOS &&
-                            isTablet &&
-                            kIsWeb &&
-                            _product.usdzFileUrl != null &&
-                            _product.usdzFileUrl!.isNotEmpty &&
-                            _product.usdzFileUrl!.toUpperCase() != 'NULL') {
-                          final hasTouch =
-                              DeviceDetectionService.hasTouchSupport();
-                          if (hasTouch) {
-                            // Likely iPad - enable iOS mode for USDZ support
-                            isIOS = true;
+                        // Enhanced iPad detection: More aggressive check for iPadOS 13+
+                        // iPadOS 13+ Safari reports as "MacIntel" or "Macintosh" but has touch support
+                        if (!isIOS && kIsWeb) {
+                          try {
+                            final hasTouch =
+                                DeviceDetectionService.hasTouchSupport();
+                            if (hasTouch) {
+                              final userAgent =
+                                  web_utils.WebUtils.getUserAgent()
+                                      .toLowerCase();
+                              // Check for MacIntel/Macintosh with maxTouchPoints > 1
+                              if (userAgent.contains('macintel') ||
+                                  userAgent.contains('macintosh')) {
+                                final maxTouchPoints =
+                                    web_utils.WebUtils.getMaxTouchPoints();
+                                if (maxTouchPoints > 1) {
+                                  // Likely iPad - enable iOS mode for USDZ support
+                                  isIOS = true;
+                                  if (kDebugMode) {
+                                    print(
+                                      '🔍 Enhanced iPad detection (initial): MacIntel/Macintosh + touch + maxTouchPoints=$maxTouchPoints = treating as iPad',
+                                    );
+                                  }
+                                }
+                              }
+                              // Also check for explicit iPad in user agent
+                              if (userAgent.contains('ipad')) {
+                                isIOS = true;
+                                if (kDebugMode) {
+                                  print(
+                                    '🔍 Enhanced iPad detection (initial): Explicit iPad in user agent',
+                                  );
+                                }
+                              }
+                            }
+                          } catch (e) {
                             if (kDebugMode) {
-                              print(
-                                '🔍 Enhanced iPad detection: Tablet with touch + USDZ file = treating as iPad',
-                              );
+                              print('Error in initial iPad detection: $e');
                             }
                           }
                         }
@@ -1340,8 +1392,9 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                       }
 
                                       // Enhanced iPad detection: Check for MacIntel/Macintosh with touch
+                                      // This should work even if tablet detection fails
                                       bool isLikelyIPad = false;
-                                      if (kIsWeb && recheckTablet) {
+                                      if (kIsWeb) {
                                         try {
                                           final hasTouch =
                                               DeviceDetectionService.hasTouchSupport();
@@ -1350,6 +1403,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                                 web_utils
                                                         .WebUtils.getUserAgent()
                                                     .toLowerCase();
+                                            // Check for MacIntel/Macintosh (iPadOS 13+)
                                             if (userAgent.contains(
                                                   'macintel',
                                                 ) ||
@@ -1362,16 +1416,37 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                                 isLikelyIPad = true;
                                                 if (kDebugMode) {
                                                   print(
-                                                    'Enhanced iPad detection: MacIntel/Macintosh + touch + maxTouchPoints=$maxTouchPoints',
+                                                    '✅ Enhanced iPad detection: MacIntel/Macintosh + touch + maxTouchPoints=$maxTouchPoints = iPad detected!',
+                                                  );
+                                                }
+                                              } else {
+                                                if (kDebugMode) {
+                                                  print(
+                                                    '⚠️ MacIntel/Macintosh detected but maxTouchPoints=$maxTouchPoints (not iPad)',
                                                   );
                                                 }
                                               }
+                                            }
+                                            // Also check for explicit iPad in user agent (case-insensitive)
+                                            if (userAgent.contains('ipad')) {
+                                              isLikelyIPad = true;
+                                              if (kDebugMode) {
+                                                print(
+                                                  '✅ Explicit iPad detected in user agent',
+                                                );
+                                              }
+                                            }
+                                          } else {
+                                            if (kDebugMode) {
+                                              print(
+                                                '⚠️ No touch support detected',
+                                              );
                                             }
                                           }
                                         } catch (e) {
                                           if (kDebugMode) {
                                             print(
-                                              'Error in enhanced iPad detection: $e',
+                                              '❌ Error in enhanced iPad detection: $e',
                                             );
                                           }
                                         }

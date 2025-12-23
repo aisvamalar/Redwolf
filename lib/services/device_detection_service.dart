@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 
 // Conditional imports for web-only APIs
 import 'device_detection_service_stub.dart'
-    if (dart.library.html) 'device_detection_service_web.dart' as web_utils;
+    if (dart.library.html) 'device_detection_service_web.dart'
+    as web_utils;
 
 /// Service to detect device type and AR capabilities
 class DeviceDetectionService {
@@ -27,9 +28,9 @@ class DeviceDetectionService {
     if (kIsWeb) {
       try {
         final userAgent = web_utils.WebUtils.getUserAgent();
-        return userAgent.contains('mobile') && 
-               !userAgent.contains('tablet') &&
-               !userAgent.contains('ipad');
+        return userAgent.contains('mobile') &&
+            !userAgent.contains('tablet') &&
+            !userAgent.contains('ipad');
       } catch (e) {
         return false;
       }
@@ -42,9 +43,9 @@ class DeviceDetectionService {
     if (kIsWeb) {
       try {
         final userAgent = web_utils.WebUtils.getUserAgent();
-        return userAgent.contains('tablet') || 
-               userAgent.contains('ipad') ||
-               (userAgent.contains('android') && !userAgent.contains('mobile'));
+        return userAgent.contains('tablet') ||
+            userAgent.contains('ipad') ||
+            (userAgent.contains('android') && !userAgent.contains('mobile'));
       } catch (e) {
         return false;
       }
@@ -90,27 +91,28 @@ class DeviceDetectionService {
   /// For now, we'll rely on device type and camera availability
   static Future<bool> isWebXRSupported() async {
     if (!kIsWeb) return false;
-    
+
     try {
       final userAgent = web_utils.WebUtils.getUserAgent().toLowerCase();
-      
+
       // Check for explicit mobile/tablet devices
-      final hasMobileDevice = userAgent.contains('mobile') || 
-             userAgent.contains('tablet') ||
-             userAgent.contains('android') ||
-             userAgent.contains('iphone') ||
-             userAgent.contains('ipad');
-      
+      final hasMobileDevice =
+          userAgent.contains('mobile') ||
+          userAgent.contains('tablet') ||
+          userAgent.contains('android') ||
+          userAgent.contains('iphone') ||
+          userAgent.contains('ipad');
+
       if (hasMobileDevice) return true;
-      
+
       // Enhanced Apple device detection for iPadOS and touch-capable Macs
       final hasTouch = hasTouchSupport();
-      
+
       // iPadOS 13+ (Macintosh + touch)
       if (userAgent.contains('macintosh') && hasTouch) {
         return true;
       }
-      
+
       // Touch-capable Mac (MacIntel/Mac with maxTouchPoints > 1)
       if (userAgent.contains('macintel') || userAgent.contains('mac ')) {
         try {
@@ -122,7 +124,7 @@ class DeviceDetectionService {
           // Ignore errors in touch point detection
         }
       }
-      
+
       return false;
     } catch (e) {
       return false;
@@ -132,7 +134,7 @@ class DeviceDetectionService {
   /// Check if camera is available
   static Future<bool> isCameraAvailable() async {
     if (!kIsWeb) return false;
-    
+
     try {
       return await web_utils.WebUtils.checkCameraAvailability();
     } catch (e) {
@@ -146,11 +148,11 @@ class DeviceDetectionService {
     if (!isMobileOrTablet(context)) {
       return false;
     }
-    
+
     // Check for WebXR or model-viewer AR support
     final webXRSupported = await isWebXRSupported();
     final cameraAvailable = await isCameraAvailable();
-    
+
     // AR requires either WebXR or camera access capability
     return webXRSupported || cameraAvailable;
   }
@@ -182,27 +184,28 @@ class DeviceDetectionService {
   }
 
   /// Check if device is iOS (iPhone/iPad)
-  /// 
+  ///
   /// Detects iOS devices including:
   /// - iPhone/iPad/iPod (explicit user agent)
   /// - iPadOS 13+ (MacIntel/Macintosh with maxTouchPoints > 1)
-  /// 
+  ///
   /// This method works without requiring context, making it reliable for
   /// detecting iPad Safari which reports as MacIntel with desktop user agent.
   static bool isIOS(BuildContext? context) {
     if (kIsWeb) {
       try {
         final userAgent = web_utils.WebUtils.getUserAgent().toLowerCase();
-        
+
         // Check for explicit iOS device strings (iPhone, iPad, iPod)
-        final hasIOSDevice = userAgent.contains('iphone') || 
-                             userAgent.contains('ipad') ||
-                             userAgent.contains('ipod');
-        
+        final hasIOSDevice =
+            userAgent.contains('iphone') ||
+            userAgent.contains('ipad') ||
+            userAgent.contains('ipod');
+
         if (hasIOSDevice) {
           return true;
         }
-        
+
         // Enhanced Apple device detection for iPadOS 13+ and touch-capable Macs
         // iPadOS 13+ Safari reports as "MacIntel" or "Macintosh" but has touch support
         // Key indicator: MacIntel/Macintosh + maxTouchPoints > 1 = iPad
@@ -218,7 +221,7 @@ class DeviceDetectionService {
             // Ignore errors in touch point detection
           }
         }
-        
+
         return false;
       } catch (e) {
         return false;

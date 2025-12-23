@@ -533,6 +533,8 @@ class _AdminAddProductState extends State<AdminAddProduct> {
       // Upload thumbnail image (first image) if new image is selected
       if (_productImages[0] != null && _productImages[0]!.bytes != null) {
         final timestamp = DateTime.now().millisecondsSinceEpoch;
+        // Filename will be sanitized in uploadImage() method
+        // (spaces → underscores, lowercase, special chars removed)
         final fileName = 'thumbnail_${timestamp}_${_productImages[0]!.name}';
         final uploadedUrl = await supabase.uploadImage(
           fileBytes: Uint8List.fromList(_productImages[0]!.bytes!),
@@ -547,6 +549,7 @@ class _AdminAddProductState extends State<AdminAddProduct> {
       // Upload second image if new image is selected
       if (_productImages[1] != null && _productImages[1]!.bytes != null) {
         final timestamp = DateTime.now().millisecondsSinceEpoch;
+        // Filename will be sanitized in uploadImage() method
         final fileName = 'image2_${timestamp}_${_productImages[1]!.name}';
         final uploadedUrl = await supabase.uploadImage(
           fileBytes: Uint8List.fromList(_productImages[1]!.bytes!),
@@ -561,6 +564,7 @@ class _AdminAddProductState extends State<AdminAddProduct> {
       // Upload third image if new image is selected
       if (_productImages[2] != null && _productImages[2]!.bytes != null) {
         final timestamp = DateTime.now().millisecondsSinceEpoch;
+        // Filename will be sanitized in uploadImage() method
         final fileName = 'image3_${timestamp}_${_productImages[2]!.name}';
         final uploadedUrl = await supabase.uploadImage(
           fileBytes: Uint8List.fromList(_productImages[2]!.bytes!),
@@ -575,6 +579,8 @@ class _AdminAddProductState extends State<AdminAddProduct> {
       // Upload GLB file if new file is selected
       if (_glbFile != null && _glbFile!.bytes != null) {
         final timestamp = DateTime.now().millisecondsSinceEpoch;
+        // Filename will be sanitized in uploadGlbFile() method
+        // (spaces → underscores, lowercase, special chars removed)
         final fileName = 'model_${timestamp}_${_glbFile!.name}';
         final uploadedUrl = await supabase.uploadGlbFile(
           fileBytes: Uint8List.fromList(_glbFile!.bytes!),
@@ -587,11 +593,15 @@ class _AdminAddProductState extends State<AdminAddProduct> {
       }
 
       // Upload USDZ file if new file is selected (optional, for Apple devices)
+      // CRITICAL: Filename sanitization happens in uploadUsdzFile() to ensure
+      // iOS Safari AR Quick Look compatibility (no spaces/%20, lowercase, clean URLs)
       if (_usdzFile != null && _usdzFile!.bytes != null) {
         final timestamp = DateTime.now().millisecondsSinceEpoch;
+        // Filename will be sanitized in uploadUsdzFile() method
+        // This ensures: lowercase, spaces→underscores, special chars removed
         final fileName = 'model_${timestamp}_${_usdzFile!.name}';
         
-        // Safety check: Ensure file extension is .usdz
+        // Safety check: Ensure file extension is .usdz (before sanitization)
         final fileExtension = _usdzFile!.name.toLowerCase().split('.').last;
         if (fileExtension == 'usdz') {
           final uploadedUrl = await supabase.uploadUsdzFile(
@@ -603,6 +613,7 @@ class _AdminAddProductState extends State<AdminAddProduct> {
             usdzFileUrl = uploadedUrl;
             if (kDebugMode) {
               print('✅ USDZ file uploaded successfully: $uploadedUrl');
+              print('✅ Filename sanitized for iOS Safari AR Quick Look compatibility');
             }
           } else {
             if (kDebugMode) {
