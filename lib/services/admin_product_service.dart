@@ -113,10 +113,10 @@ class AdminProductService {
           print('⚠️ usdz_file_url column not found. Adding product without it...');
           productData.remove('usdz_file_url');
           response = await _supabase.client
-              .from(_tableName)
+          .from(_tableName)
               .insert(productData)
-              .select()
-              .single();
+          .select()
+          .single();
         } else {
           rethrow;
         }
@@ -186,11 +186,11 @@ class AdminProductService {
           print('⚠️ usdz_file_url column not found. Updating product without it...');
           productData.remove('usdz_file_url');
           response = await _supabase.client
-              .from(_tableName)
-              .update(productData)
-              .eq('id', id)
-              .select()
-              .single();
+          .from(_tableName)
+          .update(productData)
+          .eq('id', id)
+          .select()
+          .single();
         } else {
           rethrow;
         }

@@ -5,10 +5,7 @@ import '../../models/admin_category.dart';
 class ManageCategoryDialog extends StatefulWidget {
   final VoidCallback? onCategoriesChanged;
 
-  const ManageCategoryDialog({
-    super.key,
-    this.onCategoriesChanged,
-  });
+  const ManageCategoryDialog({super.key, this.onCategoriesChanged});
 
   @override
   State<ManageCategoryDialog> createState() => _ManageCategoryDialogState();
@@ -40,7 +37,9 @@ class _ManageCategoryDialogState extends State<ManageCategoryDialog> {
     });
 
     try {
-      final categories = await _categoryService.getCategories(forceRefresh: true);
+      final categories = await _categoryService.getCategories(
+        forceRefresh: true,
+      );
       setState(() {
         _categories = categories;
         _isLoading = false;
@@ -115,9 +114,7 @@ class _ManageCategoryDialogState extends State<ManageCategoryDialog> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Delete'),
           ),
         ],
@@ -159,10 +156,7 @@ class _ManageCategoryDialogState extends State<ManageCategoryDialog> {
               children: [
                 const Text(
                   'Manage Categories',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close),
@@ -180,7 +174,9 @@ class _ManageCategoryDialogState extends State<ManageCategoryDialog> {
                   itemCount: _categories.length,
                   itemBuilder: (context, index) {
                     final category = _categories[index];
-                    final isEditing = _editingControllers.containsKey(category.id);
+                    final isEditing = _editingControllers.containsKey(
+                      category.id,
+                    );
 
                     return ListTile(
                       title: isEditing
@@ -192,7 +188,9 @@ class _ManageCategoryDialogState extends State<ManageCategoryDialog> {
                               autofocus: true,
                               onSubmitted: (value) {
                                 _updateCategory(category.id, value);
-                                _editingControllers.remove(category.id)?.dispose();
+                                _editingControllers
+                                    .remove(category.id)
+                                    ?.dispose();
                               },
                             )
                           : Text(category.name),
@@ -268,10 +266,7 @@ class _AddCategoryFieldState extends State<_AddCategoryField> {
           ),
         ),
         const SizedBox(width: 8),
-        ElevatedButton(
-          onPressed: _handleAdd,
-          child: const Text('Add'),
-        ),
+        ElevatedButton(onPressed: _handleAdd, child: const Text('Add')),
       ],
     );
   }

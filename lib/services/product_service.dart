@@ -40,9 +40,9 @@ class ProductService {
       dynamic response;
       try {
         response = await _client
-            .from(_tableName)
-            .select('id, name, category, status, image_url, second_image_url, third_image_url, glb_file_url, usdz_file_url, description, specifications, key_features, created_at, updated_at')
-            .order('created_at', ascending: false);
+          .from(_tableName)
+          .select('id, name, category, status, image_url, second_image_url, third_image_url, glb_file_url, usdz_file_url, description, specifications, key_features, created_at, updated_at')
+          .order('created_at', ascending: false);
       } on PostgrestException catch (e) {
         // If usdz_file_url column doesn't exist (code 42703), retry without it
         if (e.code == '42703') {
@@ -158,10 +158,10 @@ class ProductService {
       dynamic response;
       try {
         response = await _client
-            .from(_tableName)
-            .select('id, name, category, status, image_url, second_image_url, third_image_url, glb_file_url, usdz_file_url, description, specifications, key_features, created_at, updated_at')
-            .eq('id', id)
-            .single();
+          .from(_tableName)
+          .select('id, name, category, status, image_url, second_image_url, third_image_url, glb_file_url, usdz_file_url, description, specifications, key_features, created_at, updated_at')
+          .eq('id', id)
+          .single();
       } on PostgrestException catch (e) {
         // If usdz_file_url column doesn't exist (code 42703), retry without it
         if (e.code == '42703') {

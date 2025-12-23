@@ -195,16 +195,16 @@ class _ProductCardState extends State<ProductCard> {
                 child: MouseRegion(
                   onEnter: (_) {
                     if (mounted) {
-                      setState(() {
-                        _isHovered = true;
-                      });
+                    setState(() {
+                      _isHovered = true;
+                    });
                     }
                   },
                   onExit: (_) {
                     if (mounted) {
-                      setState(() {
-                        _isHovered = false;
-                      });
+                    setState(() {
+                      _isHovered = false;
+                    });
                     }
                   },
                   child: Container(

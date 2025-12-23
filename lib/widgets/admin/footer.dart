@@ -67,5 +67,3 @@ class AdminFooter extends StatelessWidget {
     );
   }
 }
-
-

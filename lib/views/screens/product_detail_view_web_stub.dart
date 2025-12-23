@@ -6,20 +6,3 @@ class WebUtils {
   static Future<bool> copyToClipboard(String text) async => false;
   static Future<bool> openUsdzInAR(String usdzUrl) async => false;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

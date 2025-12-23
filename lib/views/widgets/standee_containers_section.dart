@@ -11,57 +11,62 @@ class StandeeContainersSection extends StatelessWidget {
       Product(
         id: 'standee_1',
         name: 'Easel Standee',
-        category: 'Standees',
-        status: 'Published',
         imageUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/Screenshot%202025-12-16%20193255.png',
         glbFileUrl:
-            'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/32_EASEL%20STANDEE%20.glb',
-        description: 'Elegant easel standee design perfect for retail displays and exhibitions.',
+            'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/32_EASEL%20STANDEE.glb',
+        category: 'Standees',
+        status: 'Published',
+        description:
+            'Elegant easel standee design perfect for retail displays and exhibitions.',
       ),
       Product(
         id: 'standee_2',
         name: 'Totem Standee',
-        category: 'Standees',
-        status: 'Published',
         imageUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/Screenshot%202025-12-16%20193437.png',
         glbFileUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/32_TOTEM%20STANDEE.glb',
-        description: 'Premium totem standee for high-traffic environments and brand visibility.',
+        category: 'Standees',
+        status: 'Published',
+        description:
+            'Premium totem standee for high-traffic environments and brand visibility.',
       ),
       Product(
         id: 'standee_3',
         name: 'Wall Mount',
-        category: 'Standees',
-        status: 'Published',
         imageUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/Screenshot%202025-12-16%20193658.png',
         glbFileUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/32_WALL%20MOUNT.glb',
-        description: 'Space-efficient wall mount design ideal for modern retail spaces.',
+        category: 'Standees',
+        status: 'Published',
+        description:
+            'Space-efficient wall mount design ideal for modern retail spaces.',
       ),
       Product(
         id: 'standee_4',
         name: 'Wall Mount with Stand',
-        category: 'Standees',
-        status: 'Published',
         imageUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/Screenshot%202025-12-16%20193719.png',
         glbFileUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/32_WALL%20MOUNT%20WITH%20STAND.glb',
-        description: 'Versatile wall mount with stand for flexible placement options.',
+        category: 'Standees',
+        status: 'Published',
+        description:
+            'Versatile wall mount with stand for flexible placement options.',
       ),
       Product(
         id: 'standee_5',
         name: 'Easel Standee 43',
-        category: 'Standees',
-        status: 'Published',
         imageUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/Screenshot%202025-12-16%20193744.png',
         glbFileUrl:
             'https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/glb/43_EASEL%20STANDEE.glb',
-        description: 'Enhanced easel standee design with improved stability and display quality.',
+        category: 'Standees',
+        status: 'Published',
+        description:
+            'Enhanced easel standee design with improved stability and display quality.',
       ),
     ];
   }
@@ -127,9 +132,13 @@ class StandeeContainersSection extends StatelessWidget {
                                 ),
                                 child: Center(
                                   child: CircularProgressIndicator(
-                                    value: loadingProgress.expectedTotalBytes != null
-                                        ? loadingProgress.cumulativeBytesLoaded /
-                                            loadingProgress.expectedTotalBytes!
+                                    value:
+                                        loadingProgress.expectedTotalBytes !=
+                                            null
+                                        ? loadingProgress
+                                                  .cumulativeBytesLoaded /
+                                              loadingProgress
+                                                  .expectedTotalBytes!
                                         : null,
                                   ),
                                 ),

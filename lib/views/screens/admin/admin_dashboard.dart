@@ -50,8 +50,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   // Realtime stream of products from Supabase
-  static final _productsStream = AdminSupabaseService()
-      .client
+  static final _productsStream = AdminSupabaseService().client
       .from('products')
       .stream(primaryKey: ['id'])
       .order('created_at', ascending: false);
@@ -61,7 +60,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth < 768;
-        
+
         if (isMobile) {
           return Scaffold(
             backgroundColor: const Color(0xFFF9FAFB),
@@ -82,15 +81,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
             body: _buildContent(context),
           );
         }
-        
+
         return Scaffold(
           backgroundColor: const Color(0xFFF9FAFB),
           body: Row(
             children: [
               const AdminSidebar(currentRoute: '/admin/dashboard'),
-              Expanded(
-                child: _buildContent(context),
-              ),
+              Expanded(child: _buildContent(context)),
             ],
           ),
         );
@@ -104,19 +101,26 @@ class _AdminDashboardState extends State<AdminDashboard> {
         StreamBuilder<List<Map<String, dynamic>>>(
           stream: _productsStream,
           builder: (context, snapshot) {
-            final isLoading = snapshot.connectionState == ConnectionState.waiting &&
+            final isLoading =
+                snapshot.connectionState == ConnectionState.waiting &&
                 !snapshot.hasData;
 
             final products = snapshot.data != null
                 ? snapshot.data!
-                    .map((row) => AdminProduct.fromJson(row))
-                    .toList()
+                      .map((row) => AdminProduct.fromJson(row))
+                      .toList()
                 : <AdminProduct>[];
 
             // Sort by most recent activity
             products.sort((a, b) {
-              final aTime = a.updatedAt ?? a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-              final bTime = b.updatedAt ?? b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+              final aTime =
+                  a.updatedAt ??
+                  a.createdAt ??
+                  DateTime.fromMillisecondsSinceEpoch(0);
+              final bTime =
+                  b.updatedAt ??
+                  b.createdAt ??
+                  DateTime.fromMillisecondsSinceEpoch(0);
               return bTime.compareTo(aTime);
             });
 
@@ -164,22 +168,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         );
                       } else {
                         return Row(
-                          children: cards
-                              .asMap()
-                              .entries
-                              .map((entry) {
-                                final index = entry.key;
-                                final card = entry.value;
-                                return Expanded(
-                                  child: Padding(
-                                    padding: EdgeInsets.only(
-                                      right: index < cards.length - 1 ? 16 : 0,
-                                    ),
-                                    child: card,
-                                  ),
-                                );
-                              })
-                              .toList(),
+                          children: cards.asMap().entries.map((entry) {
+                            final index = entry.key;
+                            final card = entry.value;
+                            return Expanded(
+                              child: Padding(
+                                padding: EdgeInsets.only(
+                                  right: index < cards.length - 1 ? 16 : 0,
+                                ),
+                                child: card,
+                              ),
+                            );
+                          }).toList(),
                         );
                       }
                     },
@@ -250,12 +250,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             );
           },
         ),
-        const Positioned(
-          bottom: 0,
-          left: 0,
-          right: 0,
-          child: AdminFooter(),
-        ),
+        const Positioned(bottom: 0, left: 0, right: 0, child: AdminFooter()),
       ],
     );
   }
@@ -288,9 +283,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       _buildMetricCard(
         icon: Icons.view_in_ar,
         title: 'AR Views',
-        value: isLoadingAnalytics
-            ? 'Loading...'
-            : _formatNumber(arViews),
+        value: isLoadingAnalytics ? 'Loading...' : _formatNumber(arViews),
         trend: 'past 30 days',
         trendColor: const Color(0xFFDC2626),
         trendIcon: Icons.trending_down,
@@ -321,10 +314,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFFE5E7EB),
-          width: 1,
-        ),
+        border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -338,11 +328,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   color: const Color(0xFFDC2626).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  icon,
-                  color: const Color(0xFFDC2626),
-                  size: 24,
-                ),
+                child: Icon(icon, color: const Color(0xFFDC2626), size: 24),
               ),
               const Icon(
                 Icons.info_outline,
@@ -377,11 +363,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    trendIcon,
-                    color: trendColor,
-                    size: 16,
-                  ),
+                  Icon(trendIcon, color: trendColor, size: 16),
                   const SizedBox(width: 4),
                   Text(
                     trend,
@@ -403,9 +385,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget _buildActivityItem(AdminProduct product) {
     final status = product.status;
     final isDraft = status.toLowerCase() == 'draft';
-    final statusColor = isDraft ? const Color(0xFF6B7280) : const Color(0xFF16A34A);
-    final statusBgColor =
-        isDraft ? const Color(0xFFF3F4F6) : const Color(0xECFDF3);
+    final statusColor = isDraft
+        ? const Color(0xFF6B7280)
+        : const Color(0xFF16A34A);
+    final statusBgColor = isDraft
+        ? const Color(0xFFF3F4F6)
+        : const Color(0xECFDF3);
 
     final activityTime = product.updatedAt ?? product.createdAt;
     final timeText = _formatTimeAgo(activityTime);
@@ -427,10 +412,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             const SizedBox(height: 4),
             Text(
               product.category,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Color(0xFF6B7280),
-              ),
+              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
             ),
           ],
         ),
@@ -455,10 +437,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             const SizedBox(width: 12),
             Text(
               timeText,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Color(0xFF9CA3AF),
-              ),
+              style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
             ),
           ],
         ),

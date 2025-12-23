@@ -799,17 +799,17 @@ class _AdminAddProductState extends State<AdminAddProduct> {
               ),
               const SizedBox(height: 12),
               _buildImageUploadSection(),
-                  const SizedBox(height: 24),
-                  const Text(
+              const SizedBox(height: 24),
+              const Text(
                     '3D Model for AR - GLB (Required)',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF374151),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildGlbUploadBox(),
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF374151),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildGlbUploadBox(),
                   const SizedBox(height: 24),
                   const Text(
                     '3D Model for AR - USDZ (Optional, for Apple devices)',
@@ -1263,13 +1263,13 @@ class _AdminAddProductState extends State<AdminAddProduct> {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (int i = 0; i < 3; i++) ...[
-            if (i > 0) const SizedBox(width: 12),
-            SizedBox(width: 150, child: _buildImageUploadBox(i)),
-          ],
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (int i = 0; i < 3; i++) ...[
+          if (i > 0) const SizedBox(width: 12),
+          SizedBox(width: 150, child: _buildImageUploadBox(i)),
         ],
+      ],
       ),
     );
   }

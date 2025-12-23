@@ -129,12 +129,12 @@ class _ARViewScreenState extends State<ARViewScreen> {
           return SizedBox(
             width: constraints.maxWidth > 0 ? constraints.maxWidth : double.infinity,
             height: constraints.maxHeight > 0 ? constraints.maxHeight : double.infinity,
-            child: SimpleARViewer(
-              modelUrl: widget.modelUrl,
-              altText: widget.product.name,
-              productName: widget.product.name,
-              onBackPressed: () => Navigator.of(context).pop(),
-            ),
+              child: SimpleARViewer(
+                modelUrl: widget.modelUrl,
+                altText: widget.product.name,
+                productName: widget.product.name,
+                onBackPressed: () => Navigator.of(context).pop(),
+              ),
           );
         },
       ),

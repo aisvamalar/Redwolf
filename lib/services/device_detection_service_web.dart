@@ -26,6 +26,14 @@ class WebUtils {
       return false;
     }
   }
+  
+  static int getMaxTouchPoints() {
+    try {
+      return html.window.navigator.maxTouchPoints ?? 0;
+    } catch (e) {
+      return 0;
+    }
+  }
 }
 
 
