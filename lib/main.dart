@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'controllers/product_controller.dart';
 import 'views/screens/home_view.dart';
+import 'views/screens/product_detail_view.dart';
 import 'services/product_service.dart';
 import 'config/supabase_config.dart';
 
@@ -29,6 +30,20 @@ final GoRouter _router = GoRouter(
   initialLocation: '/',
   routes: [
     GoRoute(path: '/', builder: (context, state) => const HomeView()),
+    GoRoute(
+      path: '/product/:id',
+      builder: (context, state) {
+        final productId = state.pathParameters['id'];
+        // For now, we'll need to get the product from the controller
+        // This is a temporary solution - ideally we'd pass the product data
+        final controller = Provider.of<ProductController>(context, listen: false);
+        final product = controller.products.firstWhere(
+          (p) => p.id == productId,
+          orElse: () => throw Exception('Product not found'),
+        );
+        return ProductDetailView(product: product);
+      },
+    ),
     // Admin panel routes removed - handled by separate codebase
   ],
 );

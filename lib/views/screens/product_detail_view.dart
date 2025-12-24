@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:go_router/go_router.dart';
 import '../../models/product.dart';
 import 'ar_view_screen.dart';
 import '../../services/product_detail_service.dart';
@@ -327,7 +328,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                     children: [
                                       InkWell(
                                         onTap: () =>
-                                            Navigator.of(context).pop(),
+                                            context.pop(),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
@@ -569,7 +570,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                         children: [
                                           InkWell(
                                             onTap: () =>
-                                                Navigator.of(context).pop(),
+                                                context.pop(),
                                             child: Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: [

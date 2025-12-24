@@ -56,7 +56,9 @@ class HeaderWidget extends StatelessWidget {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Could not open WhatsApp. Please install WhatsApp or try again.'),
+                        content: Text(
+                          'Could not open WhatsApp. Please install WhatsApp or try again.',
+                        ),
                         backgroundColor: Colors.red,
                       ),
                     );
@@ -91,8 +93,8 @@ class HeaderWidget extends StatelessWidget {
               foregroundColor: Colors.white,
               shadowColor: Colors.transparent,
               padding: isMobile
-                  ? const EdgeInsets.symmetric(horizontal: 8, vertical: 4)
-                  : const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  ? const EdgeInsets.symmetric(horizontal: 10, vertical: 6)
+                  : const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               shape: RoundedRectangleBorder(

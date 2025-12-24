@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../models/product.dart';
-import '../screens/product_detail_view.dart';
 import '../../services/background_removal_service.dart';
 
 class ProductCard extends StatefulWidget {
@@ -164,11 +164,7 @@ class _ProductCardState extends State<ProductCard> {
       color: Colors.white,
       child: InkWell(
         onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => ProductDetailView(product: widget.product),
-            ),
-          );
+          context.push('/product/${widget.product.id}');
         },
         borderRadius: BorderRadius.circular(12),
         child: ClipRRect(

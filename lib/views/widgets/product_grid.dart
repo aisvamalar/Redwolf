@@ -123,7 +123,7 @@ class ProductGrid extends StatelessWidget {
               ? 0.85
               : (isTablet
                     ? 0.82
-                    : 0.67)) // Reduced for mobile to fix 8.3px overflow
+                    : 0.75)) // Increased for mobile to make cards bigger
         : (isDesktop
               ? 0.85
               : (isTablet ? 0.82 : 0.82)); // Adjusted for list mode
