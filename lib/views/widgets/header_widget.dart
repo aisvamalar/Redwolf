@@ -93,8 +93,8 @@ class HeaderWidget extends StatelessWidget {
               foregroundColor: Colors.white,
               shadowColor: Colors.transparent,
               padding: isMobile
-                  ? const EdgeInsets.symmetric(horizontal: 10, vertical: 6)
-                  : const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  ? const EdgeInsets.symmetric(horizontal: 12, vertical: 8)
+                  : const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               shape: RoundedRectangleBorder(

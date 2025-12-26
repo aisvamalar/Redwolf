@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../controllers/product_controller.dart';
 import '../../utils/responsive_helper.dart';
-import 'product_card.dart';
 
 class ProductGrid extends StatelessWidget {
   const ProductGrid({super.key});
@@ -12,171 +12,141 @@ class ProductGrid extends StatelessWidget {
     final controller = Provider.of<ProductController>(context);
     final products = controller.products;
     final isMobile = ResponsiveHelper.isMobile(context);
-    final isTablet = ResponsiveHelper.isTablet(context);
-    final isDesktop = ResponsiveHelper.isDesktop(context);
 
+    // Loading State
     if (controller.isLoading) {
-      return Padding(
-        padding: EdgeInsets.all(isMobile ? 32.0 : 48.0),
-        child: const Center(
-          child: CircularProgressIndicator(color: Color(0xFFDC2626)),
-        ),
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFFDC2626)),
       );
     }
 
+    // Error State
     if (controller.errorMessage != null) {
-      return Padding(
-        padding: EdgeInsets.all(isMobile ? 32.0 : 48.0),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.error_outline,
-                size: isMobile ? 40 : 48,
-                color: Colors.grey[400],
-              ),
-              SizedBox(height: isMobile ? 12 : 16),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 0),
-                child: Text(
-                  controller.errorMessage!,
-                  style: TextStyle(
-                    fontSize: isMobile ? 14 : 16,
-                    color: Colors.grey[600],
+      return Center(
+        child: Text(
+          controller.errorMessage!,
+          style: const TextStyle(fontSize: 16, color: Colors.red),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+
+    // Filter: Only products with AR + specifically the 32" Easel Standee
+    final targetProduct = products.where((p) {
+      final hasAR =
+          (p.glbFileUrl?.isNotEmpty ?? false) ||
+          (p.usdzFileUrl?.isNotEmpty ?? false);
+      final is32Easel =
+          p.name.toLowerCase().contains('32') &&
+          p.name.toLowerCase().contains('easel');
+      return hasAR && is32Easel;
+    }).toList();
+
+    if (targetProduct.isEmpty) {
+      return const Center(
+        child: Text(
+          'Featured product coming soon',
+          style: TextStyle(fontSize: 18, color: Colors.grey),
+        ),
+      );
+    }
+
+    final product = targetProduct.first;
+
+    // Correct badge text
+    final String badgeText = product.name.toLowerCase().contains('easel')
+        ? 'Portable'
+        : 'Floor Standing';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16.0,
+      ), // Clean side margins only
+      child: Card(
+        elevation: 8,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Image Section
+            Expanded(
+              flex: 5,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.network(
+                    product.imageUrl,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, progress) =>
+                        progress == null
+                        ? child
+                        : const Center(child: CircularProgressIndicator()),
+                    errorBuilder: (_, __, ___) =>
+                        const Icon(Icons.error, size: 60),
                   ),
-                  textAlign: TextAlign.center,
-                ),
+                  const Positioned(
+                    top: 12,
+                    right: 12,
+                    child: Icon(
+                      Icons.view_in_ar,
+                      color: Colors.white,
+                      size: 40,
+                      shadows: [Shadow(blurRadius: 10, color: Colors.black54)],
+                    ),
+                  ),
+                ],
               ),
-              SizedBox(height: isMobile ? 12 : 16),
-              ElevatedButton(
-                onPressed: () => controller.refreshProducts(),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFDC2626),
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Retry'),
+            ),
+
+            // Text Section
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Chip(
+                    label: Text(
+                      badgeText,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    backgroundColor: Colors.grey[200],
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    product.name,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () {
+                        // Navigate to details or launch AR view
+                      },
+                      child: const Text(
+                        'view details →',
+                        style: TextStyle(
+                          color: Color(0xFFDC2626),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      );
-    }
-
-    if (products.isEmpty) {
-      return Padding(
-        padding: EdgeInsets.all(isMobile ? 32.0 : 48.0),
-        child: Center(
-          child: Text(
-            'No products found',
-            style: TextStyle(fontSize: isMobile ? 16 : 18, color: Colors.grey),
-          ),
-        ),
-      );
-    }
-
-    // Display all products from database in a grid
-    // Filter products that have GLB or USDZ file URLs (for AR viewing)
-    final productsWithModels = products
-        .where(
-          (p) =>
-              (p.glbFileUrl != null && p.glbFileUrl!.isNotEmpty) ||
-              (p.usdzFileUrl != null && p.usdzFileUrl!.isNotEmpty),
-        )
-        .toList();
-
-    // Debug: Log products with USDZ files
-    final usdzProducts = productsWithModels
-        .where((p) => p.usdzFileUrl != null && p.usdzFileUrl!.isNotEmpty)
-        .toList();
-    if (usdzProducts.isNotEmpty) {
-      print('📱 Found ${usdzProducts.length} product(s) with USDZ files:');
-      for (var product in usdzProducts) {
-        print('   - "${product.name}": ${product.usdzFileUrl}');
-      }
-    }
-
-    if (productsWithModels.isEmpty) {
-      return Padding(
-        padding: EdgeInsets.all(isMobile ? 32.0 : 48.0),
-        child: Center(
-          child: Text(
-            'No products with AR models available',
-            style: TextStyle(fontSize: isMobile ? 16 : 18, color: Colors.grey),
-          ),
-        ),
-      );
-    }
-
-    // Calculate grid layout based on controller layout preference
-    final layout = controller.layout;
-    final crossAxisCount = layout == ProductLayout.grid2
-        ? (isDesktop
-              ? 3
-              : (isTablet ? 2 : 2)) // 2 columns on mobile when grid mode
-        : (isDesktop
-              ? 3
-              : (isTablet ? 2 : 1)); // Single column on mobile when list mode
-    // Adjusted aspect ratios to match actual card content with proper Figma spacing
-    final childAspectRatio = layout == ProductLayout.grid2
-        ? (isDesktop
-              ? 0.85
-              : (isTablet
-                    ? 0.82
-                    : 0.75)) // Increased for mobile to make cards bigger
-        : (isDesktop
-              ? 0.85
-              : (isTablet ? 0.82 : 0.82)); // Adjusted for list mode
-    // Spacing between cards - responsive spacing for better visual balance
-    final crossAxisSpacing = ResponsiveHelper.getResponsiveSpacing(
-      context,
-      mobile: 28.0,
-      tablet: 48.0,
-      desktop: 56.0,
-    );
-    final mainAxisSpacing = ResponsiveHelper.getResponsiveSpacing(
-      context,
-      mobile: 20.0,
-      tablet: 20.0,
-      desktop: 24.0,
-    );
-    // For equal spacing: set padding to match crossAxisSpacing on desktop/tablet
-    // This ensures equal spacing between all columns including edges
-    final padding = isDesktop
-        ? crossAxisSpacing
-        : (isTablet ? crossAxisSpacing : 8.0);
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Calculate available width for grid items
-        final availableWidth =
-            constraints.maxWidth -
-            (padding * 2) -
-            (crossAxisSpacing * (crossAxisCount - 1));
-        final itemWidth = availableWidth / crossAxisCount;
-
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            childAspectRatio: childAspectRatio,
-            crossAxisSpacing: crossAxisSpacing,
-            mainAxisSpacing: mainAxisSpacing,
-          ),
-          padding: EdgeInsets.all(padding),
-          itemCount: productsWithModels.length,
-          itemBuilder: (context, index) {
-            return SizedBox(
-              width: itemWidth,
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: ProductCard(product: productsWithModels[index]),
-              ),
-            );
-          },
-        );
-      },
+      ),
     );
   }
 }
