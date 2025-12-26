@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../../controllers/product_controller.dart';
 import '../../utils/responsive_helper.dart';
+import 'product_card.dart';
 
 class ProductGrid extends StatelessWidget {
   const ProductGrid({super.key});
@@ -11,142 +11,119 @@ class ProductGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = Provider.of<ProductController>(context);
     final products = controller.products;
-    final isMobile = ResponsiveHelper.isMobile(context);
 
-    // Loading State
+    final bool isMobile = ResponsiveHelper.isMobile(context);
+    final bool isTablet = ResponsiveHelper.isTablet(context);
+    final bool isDesktop = ResponsiveHelper.isDesktop(context);
+
     if (controller.isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: Color(0xFFDC2626)),
+      return Padding(
+        padding: EdgeInsets.all(isMobile ? 32.0 : 48.0),
+        child: const Center(
+          child: CircularProgressIndicator(color: Color(0xFFDC2626)),
+        ),
       );
     }
 
-    // Error State
     if (controller.errorMessage != null) {
-      return Center(
-        child: Text(
-          controller.errorMessage!,
-          style: const TextStyle(fontSize: 16, color: Colors.red),
-          textAlign: TextAlign.center,
+      return Padding(
+        padding: EdgeInsets.all(isMobile ? 32.0 : 48.0),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: isMobile ? 40.0 : 48.0,
+                color: Colors.grey[400],
+              ),
+              SizedBox(height: isMobile ? 12.0 : 16.0),
+              Text(
+                controller.errorMessage!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: isMobile ? 14.0 : 16.0,
+                  color: Colors.grey[600],
+                ),
+              ),
+              SizedBox(height: isMobile ? 16.0 : 24.0),
+              ElevatedButton(
+                onPressed: controller.refreshProducts,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFDC2626),
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
         ),
       );
     }
 
-    // Filter: Only products with AR + specifically the 32" Easel Standee
-    final targetProduct = products.where((p) {
-      final hasAR =
-          (p.glbFileUrl?.isNotEmpty ?? false) ||
-          (p.usdzFileUrl?.isNotEmpty ?? false);
-      final is32Easel =
-          p.name.toLowerCase().contains('32') &&
-          p.name.toLowerCase().contains('easel');
-      return hasAR && is32Easel;
-    }).toList();
+    final productsWithModels = products
+        .where(
+          (p) =>
+              (p.glbFileUrl != null && p.glbFileUrl!.isNotEmpty) ||
+              (p.usdzFileUrl != null && p.usdzFileUrl!.isNotEmpty),
+        )
+        .toList();
 
-    if (targetProduct.isEmpty) {
-      return const Center(
-        child: Text(
-          'Featured product coming soon',
-          style: TextStyle(fontSize: 18, color: Colors.grey),
+    if (productsWithModels.isEmpty) {
+      return Padding(
+        padding: EdgeInsets.all(isMobile ? 32.0 : 48.0),
+        child: const Center(
+          child: Text(
+            'No products with AR models available',
+            style: TextStyle(color: Colors.grey),
+          ),
         ),
       );
     }
 
-    final product = targetProduct.first;
+    final layout = controller.layout;
 
-    // Correct badge text
-    final String badgeText = product.name.toLowerCase().contains('easel')
-        ? 'Portable'
-        : 'Floor Standing';
+    final int crossAxisCount = layout == ProductLayout.grid2
+        ? (isDesktop ? 3 : 2)
+        : (isDesktop ? 3 : (isTablet ? 2 : 1));
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 16.0,
-      ), // Clean side margins only
-      child: Card(
-        elevation: 8,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Image Section
-            Expanded(
-              flex: 5,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.network(
-                    product.imageUrl,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (context, child, progress) =>
-                        progress == null
-                        ? child
-                        : const Center(child: CircularProgressIndicator()),
-                    errorBuilder: (_, __, ___) =>
-                        const Icon(Icons.error, size: 60),
-                  ),
-                  const Positioned(
-                    top: 12,
-                    right: 12,
-                    child: Icon(
-                      Icons.view_in_ar,
-                      color: Colors.white,
-                      size: 40,
-                      shadows: [Shadow(blurRadius: 10, color: Colors.black54)],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+    // Aspect ratios must be double
+    final double childAspectRatio = layout == ProductLayout.grid2
+        ? (isDesktop ? 0.66 : (isTablet ? 0.64 : 0.62))
+        : (isDesktop ? 0.70 : (isTablet ? 0.68 : 0.72));
 
-            // Text Section
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Chip(
-                    label: Text(
-                      badgeText,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    backgroundColor: Colors.grey[200],
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    product.name,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () {
-                        // Navigate to details or launch AR view
-                      },
-                      child: const Text(
-                        'view details →',
-                        style: TextStyle(
-                          color: Color(0xFFDC2626),
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+    // Spacing must be double
+    final double crossAxisSpacing = ResponsiveHelper.getResponsiveSpacing(
+      context,
+      mobile: 16.0,
+      tablet: 24.0,
+      desktop: 32.0,
+    );
+
+    final double mainAxisSpacing = ResponsiveHelper.getResponsiveSpacing(
+      context,
+      mobile: 16.0,
+      tablet: 24.0,
+      desktop: 32.0,
+    );
+
+    // Padding must be double
+    final double padding = isDesktop ? 32.0 : (isTablet ? 24.0 : 16.0);
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.all(padding),
+      itemCount: productsWithModels.length,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        childAspectRatio: childAspectRatio,
+        crossAxisSpacing: crossAxisSpacing,
+        mainAxisSpacing: mainAxisSpacing,
       ),
+      itemBuilder: (context, index) {
+        return ProductCard(product: productsWithModels[index]);
+      },
     );
   }
 }

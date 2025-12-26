@@ -10,6 +10,7 @@ class HeaderWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final isMobile = ResponsiveHelper.isMobile(context);
     final isTablet = ResponsiveHelper.isTablet(context);
+
     final logoWidth = isMobile ? 120.0 : (isTablet ? 140.0 : 160.0);
     final logoHeight = isMobile ? 40.0 : (isTablet ? 46.0 : 52.21);
 
@@ -17,6 +18,7 @@ class HeaderWidget extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
+        // Logo
         Container(
           width: logoWidth,
           height: logoHeight,
@@ -37,10 +39,11 @@ class HeaderWidget extends StatelessWidget {
             },
           ),
         ),
-        // Contact Us Button - Opens WhatsApp
+
+        // Contact Us Button
         Container(
-          width: isMobile ? null : 144,
-          height: isMobile ? null : 38,
+          width: isMobile ? null : 144.0,
+          height: isMobile ? null : 38.0,
           decoration: BoxDecoration(
             color: const Color(0xFFDC2626),
             borderRadius: BorderRadius.circular(8),
@@ -77,14 +80,14 @@ class HeaderWidget extends StatelessWidget {
             },
             icon: FaIcon(
               FontAwesomeIcons.whatsapp,
-              size: isMobile ? 12 : 18,
+              size: isMobile ? 14.0 : 18.0,
               color: Colors.white,
             ),
             label: Text(
               'Contact Us',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: isMobile ? 10 : 14,
+                fontSize: isMobile ? 12.0 : 14.0,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -92,9 +95,15 @@ class HeaderWidget extends StatelessWidget {
               backgroundColor: Colors.transparent,
               foregroundColor: Colors.white,
               shadowColor: Colors.transparent,
+
+              // ✅ COMPACT MOBILE PADDING
               padding: isMobile
-                  ? const EdgeInsets.symmetric(horizontal: 12, vertical: 8)
-                  : const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  ? const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0)
+                  : const EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 10.0,
+                    ),
+
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               shape: RoundedRectangleBorder(

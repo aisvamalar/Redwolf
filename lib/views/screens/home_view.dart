@@ -48,9 +48,7 @@ class _HomeViewState extends State<HomeView> {
           return SingleChildScrollView(
             controller: _scrollController,
             child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: constraints.maxHeight,
-              ),
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
               child: isMobile
                   ? Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -68,7 +66,10 @@ class _HomeViewState extends State<HomeView> {
                               ),
                               decoration: const BoxDecoration(
                                 border: Border(
-                                  bottom: BorderSide(width: 1, color: Color(0xFFE5E5E5)),
+                                  bottom: BorderSide(
+                                    width: 1,
+                                    color: Color(0xFFE5E5E5),
+                                  ),
                                 ),
                               ),
                               child: const HeaderWidget(),
@@ -83,12 +84,13 @@ class _HomeViewState extends State<HomeView> {
                                   key: _productsKey,
                                   style: TextStyle(
                                     color: Colors.black,
-                                    fontSize: ResponsiveHelper.getResponsiveFontSize(
-                                      context,
-                                      mobile: 22,
-                                      tablet: 24,
-                                      desktop: 26,
-                                    ),
+                                    fontSize:
+                                        ResponsiveHelper.getResponsiveFontSize(
+                                          context,
+                                          mobile: 22,
+                                          tablet: 24,
+                                          desktop: 26,
+                                        ),
                                     fontFamily: 'Inter',
                                     fontWeight: FontWeight.w600,
                                     height: 1.23,
@@ -114,125 +116,136 @@ class _HomeViewState extends State<HomeView> {
                         ),
                         // Footer
                         Padding(
-                          padding: const EdgeInsets.only(
-                            top: 48,
-                            bottom: 24,
-                          ),
+                          padding: const EdgeInsets.only(top: 48, bottom: 24),
                           child: const Center(child: FooterWidget()),
                         ),
                       ],
                     )
-                    : Center(
-                        child: Container(
-                          width: maxWidth,
-                          clipBehavior: Clip.antiAlias,
-                          decoration: const BoxDecoration(color: Colors.white),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  // Header Section
-                                  Container(
-                                    width: double.infinity,
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: horizontalPadding,
-                                      vertical: isTablet ? 20 : 24,
-                                    ),
-                                    decoration: const BoxDecoration(
-                                      border: Border(
-                                        bottom: BorderSide(width: 1, color: Color(0xFFE5E5E5)),
-                                      ),
-                                    ),
-                                    child: Center(
-                                      child: ConstrainedBox(
-                                        constraints: BoxConstraints(maxWidth: maxWidth),
-                                        child: const HeaderWidget(),
+                  : Center(
+                      child: Container(
+                        width: maxWidth,
+                        clipBehavior: Clip.antiAlias,
+                        decoration: const BoxDecoration(color: Colors.white),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                // Header Section
+                                Container(
+                                  width: double.infinity,
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: horizontalPadding,
+                                    vertical: isTablet ? 20 : 24,
+                                  ),
+                                  decoration: const BoxDecoration(
+                                    border: Border(
+                                      bottom: BorderSide(
+                                        width: 1,
+                                        color: Color(0xFFE5E5E5),
                                       ),
                                     ),
                                   ),
-                                  // Hero Section
-                                  Padding(
-                                    padding: EdgeInsets.only(
-                                      left: horizontalPadding,
-                                      right: horizontalPadding,
-                                      top: isTablet ? 48 : 64,
-                                    ),
-                                    child: Center(
-                                      child: ConstrainedBox(
-                                        constraints: BoxConstraints(maxWidth: maxWidth),
-                                        child: HeroSection(onExplorePressed: _scrollToProducts),
+                                  child: Center(
+                                    child: ConstrainedBox(
+                                      constraints: BoxConstraints(
+                                        maxWidth: maxWidth,
                                       ),
+                                      child: const HeaderWidget(),
                                     ),
                                   ),
-                                  // Products Title
-                                  Padding(
-                                    padding: EdgeInsets.only(
-                                      top: isTablet ? 48 : 64,
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        'Explore Our Products',
-                                        key: _productsKey,
-                                        style: TextStyle(
-                                          color: Colors.black,
-                                          fontSize: ResponsiveHelper.getResponsiveFontSize(
-                                            context,
-                                            mobile: 22,
-                                            tablet: 24,
-                                            desktop: 26,
-                                          ),
-                                          fontFamily: 'Inter',
-                                          fontWeight: FontWeight.w600,
-                                          height: 1.23,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  // Search and Filter Bar
-                                  Padding(
-                                    padding: EdgeInsets.only(
-                                      left: horizontalPadding,
-                                      right: horizontalPadding,
-                                      top: 24,
-                                    ),
-                                    child: Center(
-                                      child: ConstrainedBox(
-                                        constraints: BoxConstraints(maxWidth: maxWidth),
-                                        child: const SearchFilterBar(),
-                                      ),
-                                    ),
-                                  ),
-                                  // Product Grid
-                                  Padding(
-                                    padding: EdgeInsets.only(
-                                      left: horizontalPadding,
-                                      right: horizontalPadding,
-                                      top: 24,
-                                    ),
-                                    child: Center(
-                                      child: ConstrainedBox(
-                                        constraints: BoxConstraints(maxWidth: maxWidth),
-                                        child: const ProductGrid(),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              // Footer
-                              Padding(
-                                padding: EdgeInsets.only(
-                                  top: isTablet ? 56 : 64,
-                                  bottom: 32,
                                 ),
-                                child: const Center(child: FooterWidget()),
+                                // Hero Section
+                                Padding(
+                                  padding: EdgeInsets.only(
+                                    left: horizontalPadding,
+                                    right: horizontalPadding,
+                                    top: isTablet ? 48 : 64,
+                                  ),
+                                  child: Center(
+                                    child: ConstrainedBox(
+                                      constraints: BoxConstraints(
+                                        maxWidth: maxWidth,
+                                      ),
+                                      child: HeroSection(
+                                        onExplorePressed: _scrollToProducts,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                // Products Title
+                                Padding(
+                                  padding: EdgeInsets.only(
+                                    top: isTablet ? 48 : 64,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      'Explore Our Products',
+                                      key: _productsKey,
+                                      style: TextStyle(
+                                        color: Colors.black,
+                                        fontSize:
+                                            ResponsiveHelper.getResponsiveFontSize(
+                                              context,
+                                              mobile: 22,
+                                              tablet: 24,
+                                              desktop: 26,
+                                            ),
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.w600,
+                                        height: 1.23,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                // Search and Filter Bar
+                                Padding(
+                                  padding: EdgeInsets.only(
+                                    left: horizontalPadding,
+                                    right: horizontalPadding,
+                                    top: 24,
+                                  ),
+                                  child: Center(
+                                    child: ConstrainedBox(
+                                      constraints: BoxConstraints(
+                                        maxWidth: maxWidth,
+                                      ),
+                                      child: const SearchFilterBar(),
+                                    ),
+                                  ),
+                                ),
+                                // Product Grid
+                                Padding(
+                                  padding: EdgeInsets.only(
+                                    left: horizontalPadding,
+                                    right: horizontalPadding,
+                                    top: 24,
+                                  ),
+                                  child: Center(
+                                    child: ConstrainedBox(
+                                      constraints: BoxConstraints(
+                                        maxWidth: maxWidth,
+                                      ),
+                                      child: const ProductGrid(),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            // Footer
+                            Padding(
+                              padding: EdgeInsets.only(
+                                top: isTablet ? 56 : 64,
+                                bottom: 32,
                               ),
-                            ],
-                          ),
+                              child: const Center(child: FooterWidget()),
+                            ),
+                          ],
                         ),
                       ),
+                    ),
             ),
           );
         },
