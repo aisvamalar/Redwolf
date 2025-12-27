@@ -40,7 +40,9 @@ final GoRouter _router = GoRouter(
       name: 'product-detail',
       builder: (context, state) {
         final productId = state.pathParameters['id'];
-        print('🔍 Route accessed with product ID: $productId');
+        print('🔍 PRODUCT ROUTE MATCHED! Product ID: $productId');
+        print('🔍 Full path: ${state.fullPath}');
+        print('🔍 URI: ${state.uri}');
         
         if (productId == null || productId.isEmpty) {
           print('❌ No product ID provided, redirecting to home');
@@ -137,39 +139,6 @@ final GoRouter _router = GoRouter(
             },
           );
         }
-      },
-    ),
-    // Catch-all route for unmatched paths
-    GoRoute(
-      path: '/:path(.*)',
-      name: 'not-found',
-      builder: (context, state) {
-        print('❌ Unmatched route: ${state.fullPath}');
-        return Scaffold(
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.error_outline, size: 64, color: Colors.orange),
-                const SizedBox(height: 16),
-                const Text(
-                  'Page not found',
-                  style: TextStyle(fontSize: 18),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Path: ${state.fullPath}',
-                  style: const TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => context.go('/'),
-                  child: const Text('Go to Home'),
-                ),
-              ],
-            ),
-          ),
-        );
       },
     ),
   ],

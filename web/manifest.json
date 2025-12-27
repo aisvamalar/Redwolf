@@ -1,11 +1,11 @@
 {
-    "name": "redwolf",
-    "short_name": "redwolf",
-    "start_url": ".",
+    "name": "RedWolf Media - Digital Signage Solutions",
+    "short_name": "RedWolf Media",
+    "start_url": "/",
     "display": "standalone",
     "background_color": "#ffffff",
-    "theme_color": "#ED1F24",
-    "description": "A new Flutter project.",
+    "theme_color": "#DC2626",
+    "description": "Explore our range of digital signage products including easel standees, totem displays, and wall mounts with AR viewing capabilities.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

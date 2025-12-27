@@ -271,18 +271,6 @@ class _ProductDetailViewState extends State<ProductDetailView> {
   }
 
   Future<void> _handleShare() async {
-    if (!kIsWeb) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Sharing is only available on web.'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-      return;
-    }
-
     try {
       // Construct the product-specific URL explicitly
       final productId = _product.id;
@@ -292,46 +280,192 @@ class _ProductDetailViewState extends State<ProductDetailView> {
             const SnackBar(
               content: Text('Product ID not available for sharing.'),
               duration: Duration(seconds: 2),
+              backgroundColor: Colors.red,
             ),
           );
         }
         return;
       }
 
-      // Get the base URL (origin) and construct the product URL
-      final baseUrl = web_utils.WebUtils.getBaseUrl();
-      final productUrl = '$baseUrl/product/$productId';
-
-      // Try Web Share API first
-      final shared = await web_utils.WebUtils.shareContent(
-        _product.name,
-        _product.description ?? '',
-        productUrl,
-      );
-
-      if (shared) return;
-
-      // Fallback: Copy to clipboard
-      final copied = await web_utils.WebUtils.copyToClipboard(productUrl);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              copied
-                  ? 'Product link copied to clipboard!'
-                  : 'Failed to share. Please copy the URL manually.',
-            ),
-            duration: const Duration(seconds: 2),
-          ),
-        );
+      // Get the base URL and construct the product URL
+      String productUrl;
+      if (kIsWeb) {
+        final baseUrl = web_utils.WebUtils.getBaseUrl();
+        productUrl = '$baseUrl/product/$productId';
+      } else {
+        // For mobile apps, use a default URL or your app's deep link
+        productUrl = 'https://redwolf-8ss1.vercel.app/product/$productId';
       }
-    } catch (e) {
-      print('Error sharing: $e');
+
+      print('🔗 Sharing product URL: $productUrl');
+
+      // Show loading indicator
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Failed to share. Please copy the URL manually.'),
-            duration: Duration(seconds: 2),
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+                SizedBox(width: 12),
+                Text('Preparing to share...'),
+              ],
+            ),
+            duration: Duration(milliseconds: 1500),
+            backgroundColor: Color(0xFF2196F3),
+          ),
+        );
+      }
+
+      bool shared = false;
+
+      if (kIsWeb) {
+        // Try Web Share API first (works on mobile browsers too)
+        shared = await web_utils.WebUtils.shareContent(
+          _product.name,
+          _product.description ?? 'Check out this product!',
+          productUrl,
+        );
+
+        if (!shared) {
+          // Fallback: Copy to clipboard
+          final copied = await web_utils.WebUtils.copyToClipboard(productUrl);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    Icon(
+                      copied ? Icons.check_circle : Icons.error,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        copied
+                            ? 'Product link copied to clipboard!'
+                            : 'Failed to copy. Please copy the URL manually.',
+                      ),
+                    ),
+                  ],
+                ),
+                duration: const Duration(seconds: 3),
+                backgroundColor: copied ? Colors.green : Colors.red,
+                action: copied
+                    ? null
+                    : SnackBarAction(
+                        label: 'Show URL',
+                        textColor: Colors.white,
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Product URL'),
+                              content: SelectableText(productUrl),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.of(context).pop(),
+                                  child: const Text('Close'),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            );
+          }
+        } else {
+          // Share API worked
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Row(
+                  children: [
+                    Icon(Icons.share, color: Colors.white, size: 20),
+                    SizedBox(width: 8),
+                    Text('Product shared successfully!'),
+                  ],
+                ),
+                duration: Duration(seconds: 2),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        }
+      } else {
+        // For mobile apps, use platform-specific sharing
+        // This would require adding share_plus package
+        // For now, show the URL in a dialog
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Share Product'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Copy this link to share:'),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: SelectableText(
+                      productUrl,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Close'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: productUrl));
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Link copied to clipboard!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  },
+                  child: const Text('Copy Link'),
+                ),
+              ],
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('❌ Error sharing: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Failed to share: ${e.toString()}')),
+              ],
+            ),
+            duration: const Duration(seconds: 3),
+            backgroundColor: Colors.red,
           ),
         );
       }
@@ -1400,14 +1534,16 @@ class _ProductDetailViewState extends State<ProductDetailView> {
           // Action buttons - responsive layout
           LayoutBuilder(
             builder: (context, constraints) {
-              final buttonSpacing = 16.0; // Consistent spacing
-              // Consistent button height for clean design
-              final buttonPadding = const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 16,
+              final buttonSpacing = 12.0; // Reduced spacing
+              // Smaller button padding for mobile
+              final buttonPadding = EdgeInsets.symmetric(
+                horizontal: isMobile ? 12 : 16,
+                vertical: isMobile ? 10 : 14,
               );
-              final buttonFontSize = 16.0; // Consistent font size
-              final iconSize = 18.0; // Consistent icon size
+              final buttonFontSize = isMobile
+                  ? 14.0
+                  : 16.0; // Smaller font on mobile
+              final iconSize = isMobile ? 16.0 : 18.0; // Smaller icon on mobile
 
               // Stack buttons vertically on narrow screens
               final isNarrowScreen = constraints.maxWidth < 400;
@@ -2870,20 +3006,22 @@ class _ProductDetailViewState extends State<ProductDetailView> {
               desktop: 28,
             ),
           ),
-          // Similar Products Grid - matching home screen 4-grid layout
+          // Similar Products Grid - responsive layout
           LayoutBuilder(
             builder: (context, constraints) {
-              // Use same grid configuration as home screen ProductGrid
+              // More conservative grid configuration for better mobile fit
               final crossAxisCount = isDesktop
                   ? 3
-                  : 2; // 2x2 grid on mobile/tablet, 3 columns on desktop
-
-              // Balanced aspect ratios to prevent overflow
-              final childAspectRatio = isDesktop
-                  ? 0.68 // Balanced for content fit
                   : (isTablet
-                        ? 0.62 // Balanced for content fit
-                        : 0.58); // Balanced for content fit
+                        ? 2
+                        : 1); // Single column on mobile for better fit
+
+              // More conservative aspect ratios to prevent overflow
+              final childAspectRatio = isDesktop
+                  ? 0.75 // More conservative for desktop
+                  : (isTablet
+                        ? 0.70 // More conservative for tablet
+                        : 0.85); // Better ratio for single column mobile
 
               // Use same spacing as home screen
               final crossAxisSpacing = ResponsiveHelper.getResponsiveSpacing(

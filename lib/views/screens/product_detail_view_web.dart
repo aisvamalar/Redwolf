@@ -43,22 +43,62 @@ class WebUtils {
     String url,
   ) async {
     try {
+      // Check if Web Share API is supported by trying to access it
+      print('🔗 Attempting to use Web Share API');
       await html.window.navigator.share({
         'title': title,
         'text': text,
         'url': url,
       });
+      print('✅ Web Share API successful');
       return true;
     } catch (e) {
+      print('❌ Web Share API error: $e');
+      // Check if user cancelled the share dialog
+      if (e.toString().contains('AbortError') ||
+          e.toString().contains('NotAllowedError')) {
+        print('ℹ️ User cancelled share dialog');
+        return true; // Don't show error for user cancellation
+      }
+      // Check if API is not supported
+      if (e.toString().contains('TypeError') ||
+          e.toString().contains('not supported')) {
+        print('❌ Web Share API not supported on this browser');
+      }
       return false;
     }
   }
 
   static Future<bool> copyToClipboard(String text) async {
     try {
-      await html.window.navigator.clipboard?.writeText(text);
-      return true;
+      // Check if Clipboard API is supported
+      if (html.window.navigator.clipboard != null) {
+        print('📋 Using Clipboard API');
+        await html.window.navigator.clipboard!.writeText(text);
+        print('✅ Clipboard API successful');
+        return true;
+      } else {
+        print('❌ Clipboard API not supported, trying fallback');
+        // Fallback: Create a temporary textarea element
+        final textarea = html.TextAreaElement();
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-999999px';
+        textarea.style.top = '-999999px';
+        html.document.body?.append(textarea);
+        textarea.focus();
+        textarea.select();
+
+        final success = html.document.execCommand('copy');
+        textarea.remove();
+
+        print(
+          success ? '✅ Fallback copy successful' : '❌ Fallback copy failed',
+        );
+        return success;
+      }
     } catch (e) {
+      print('❌ Clipboard error: $e');
       return false;
     }
   }
