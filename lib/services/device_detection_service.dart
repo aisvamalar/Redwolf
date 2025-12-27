@@ -226,4 +226,21 @@ class DeviceDetectionService {
     }
     return false;
   }
+
+  /// Simplified method to detect if device is probably an iPad
+  /// This consolidates the complex iPad detection logic for easier use
+  static bool isProbablyIPad(BuildContext? context) {
+    if (!kIsWeb) return false;
+    
+    try {
+      final userAgent = web_utils.WebUtils.getUserAgent().toLowerCase();
+      final touchPoints = web_utils.WebUtils.getMaxTouchPoints();
+      
+      return (userAgent.contains('ipad')) ||
+             (userAgent.contains('macintel') && touchPoints > 1) ||
+             (userAgent.contains('macintosh') && touchPoints > 1);
+    } catch (e) {
+      return false;
+    }
+  }
 }

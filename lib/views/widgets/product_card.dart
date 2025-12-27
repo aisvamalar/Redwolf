@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../models/product.dart';
 import '../../utils/responsive_helper.dart';
-import '../../views/screens/product_detail_view.dart';
 
 class ProductCard extends StatefulWidget {
   final Product product;
@@ -16,12 +16,7 @@ class _ProductCardState extends State<ProductCard> {
   bool _isZoomed = false;
 
   void _navigateToDetail() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ProductDetailView(product: widget.product),
-      ),
-    );
+    context.push('/product/${widget.product.id}');
   }
 
   @override
@@ -30,181 +25,117 @@ class _ProductCardState extends State<ProductCard> {
 
     return InkWell(
       onTap: _navigateToDetail,
-      borderRadius: BorderRadius.circular(12),
-      child: Card(
-        elevation: 0,
-        margin: EdgeInsets.zero,
-        color: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: Colors.grey[200]!, width: 1),
+      borderRadius: BorderRadius.zero,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: Colors.grey[200]!, width: 1),
         ),
-        clipBehavior: Clip.antiAlias,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Image section with zoom
-            AspectRatio(
-              aspectRatio: 1.0,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  MouseRegion(
-                    onEnter: (_) {
-                      setState(() {
-                        _isZoomed = true;
-                      });
+            /// IMAGE - Flexible to take available space
+            Expanded(
+              flex: 3,
+              child: MouseRegion(
+                onEnter: (_) => setState(() => _isZoomed = true),
+                onExit: (_) => setState(() => _isZoomed = false),
+                child: AnimatedScale(
+                  scale: _isZoomed ? 1.08 : 1.0,
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOut,
+                  child: Image.network(
+                    widget.product.imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.grey[100],
+                        child: const Icon(
+                          Icons.image_not_supported,
+                          size: 48,
+                          color: Colors.grey,
+                        ),
+                      );
                     },
-                    onExit: (_) {
-                      setState(() {
-                        _isZoomed = false;
-                      });
-                    },
-                    child: GestureDetector(
-                      onTap: _navigateToDetail, // Add navigation on tap
-                      onTapDown: (_) {
-                        setState(() {
-                          _isZoomed = true;
-                        });
-                      },
-                      onTapUp: (_) {
-                        setState(() {
-                          _isZoomed = false;
-                        });
-                      },
-                      onTapCancel: () {
-                        setState(() {
-                          _isZoomed = false;
-                        });
-                      },
-                      child: ClipRect(
-                        child: AnimatedScale(
-                          scale: _isZoomed ? 1.12 : 1.0,
-                          duration: const Duration(milliseconds: 250),
-                          curve: Curves.easeOut,
-                          child: Image.network(
-                            widget.product.imageUrl,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                color: Colors.grey[100],
-                                child: Center(
-                                  child: Icon(
-                                    Icons.image_not_supported,
-                                    color: Colors.grey[400],
-                                    size: isMobile ? 40 : 48,
-                                  ),
-                                ),
-                              );
-                            },
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return Container(
-                                color: Colors.grey[100],
-                                child: Center(
-                                  child: CircularProgressIndicator(
-                                    value:
-                                        loadingProgress.expectedTotalBytes !=
-                                            null
-                                        ? loadingProgress
-                                                  .cumulativeBytesLoaded /
-                                              loadingProgress
-                                                  .expectedTotalBytes!
-                                        : null,
-                                    color: const Color(0xFFDC2626),
-                                  ),
-                                ),
-                              );
-                            },
+                    loadingBuilder: (context, child, progress) {
+                      if (progress == null) return child;
+                      return Container(
+                        color: Colors.grey[100],
+                        child: const Center(
+                          child: CircularProgressIndicator(
+                            color: Colors.grey,
+                            strokeWidth: 2,
                           ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
-
-                  Positioned(
-                    top: 12,
-                    right: 12,
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.7),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        Icons.view_in_ar,
-                        color: Colors.white,
-                        size: isMobile ? 20 : 24,
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
 
-            // Content section
-            Padding(
-              padding: EdgeInsets.all(isMobile ? 12 : 16),
+            /// CONTENT - Minimal space for mobile
+            Container(
+              padding: EdgeInsets.all(isMobile ? 6 : 10),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Category tag - smaller on mobile
                   if (widget.product.category.isNotEmpty)
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isMobile ? 4 : 6,
+                        vertical: isMobile ? 1 : 2,
                       ),
                       decoration: BoxDecoration(
                         color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(2),
                       ),
                       child: Text(
                         widget.product.category,
                         style: TextStyle(
-                          fontSize: isMobile ? 11 : 12,
-                          color: Colors.grey[600],
+                          fontSize: isMobile ? 9 : 11,
+                          color: Colors.grey[700],
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
 
                   if (widget.product.category.isNotEmpty)
-                    SizedBox(height: isMobile ? 8 : 12),
+                    SizedBox(height: isMobile ? 3 : 4),
 
-                  // Product name with full display (no truncation)
+                  // Product name - single line, smaller on mobile
                   Text(
                     widget.product.name,
-                    maxLines: 3, // Allow up to 3 lines for full name display
-                    overflow: TextOverflow.visible, // Show full text
-                    textAlign: TextAlign.start,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: isMobile
-                          ? 14.0
-                          : 16.0, // Slightly smaller to fit more text
+                      fontSize: isMobile ? 12 : 16,
                       fontWeight: FontWeight.w600,
+                      height: 1.1,
                       color: Colors.black,
-                      height: 1.2, // Tighter line height for better spacing
                     ),
                   ),
 
-                  SizedBox(height: isMobile ? 8 : 12),
+                  SizedBox(height: isMobile ? 4 : 6),
 
+                  // View details CTA - smaller on mobile
                   Row(
-                    children: const [
+                    children: [
                       Text(
                         'view details',
                         style: TextStyle(
-                          color: Color(0xFFDC2626),
-                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFFDC2626),
+                          fontWeight: FontWeight.w600,
+                          fontSize: isMobile ? 11 : 13,
                         ),
                       ),
-                      SizedBox(width: 4),
+                      SizedBox(width: isMobile ? 2 : 4),
                       Icon(
                         Icons.arrow_forward,
-                        color: Color(0xFFDC2626),
-                        size: 16,
+                        size: isMobile ? 12 : 14,
+                        color: const Color(0xFFDC2626),
                       ),
                     ],
                   ),

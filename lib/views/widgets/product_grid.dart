@@ -88,15 +88,14 @@ class ProductGrid extends StatelessWidget {
         : (isDesktop ? 3 : (isTablet ? 2 : 1));
 
     // Aspect ratios must be double
-    // Smaller aspect ratio = more height for content (width/height)
-    // Adjusted to accommodate full product names without truncation
+    // Balanced ratios to prevent overflow while minimizing blank space
     final double childAspectRatio = layout == ProductLayout.grid2
         ? (isDesktop
-              ? 0.60
-              : (isTablet ? 0.58 : 0.50)) // Reduced for full names
+              ? 0.68
+              : (isTablet ? 0.62 : 0.58)) // Balanced for content fit
         : (isDesktop
-              ? 0.65
-              : (isTablet ? 0.62 : 0.60)); // Reduced for full names
+              ? 0.72
+              : (isTablet ? 0.68 : 0.62)); // Balanced for content fit
 
     // Spacing must be double
     final double crossAxisSpacing = ResponsiveHelper.getResponsiveSpacing(
