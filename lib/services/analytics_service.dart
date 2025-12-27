@@ -1,85 +1,76 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Service for tracking and retrieving analytics data
 class AnalyticsService {
-  final SupabaseClient _client = Supabase.instance.client;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
-  /// Track a product page view
+  /// Track when a user views a product detail page
   Future<void> trackProductView(String productId) async {
     try {
-      await _client.from('analytics').insert({
-        'event_type': 'product_view',
+      await _supabase.from('analytics').insert({
         'product_id': productId,
-        'created_at': DateTime.now().toIso8601String(),
+        'event_type': 'product_view',
       });
+      print('✅ Product view tracked for product: $productId');
     } catch (e) {
-      // Silently fail - analytics should not break the app
-      // Check if error is due to missing table (PGRST205) and ignore it
-      final errorString = e.toString();
-      if (errorString.contains('PGRST205') || 
-          errorString.contains('Could not find the table')) {
-        // Table doesn't exist - silently skip analytics
-        return;
-      }
-      // For other errors, log but don't break the app
-      print('Error tracking product view: $e');
+      print('❌ Error tracking product view: $e');
+      // Don't throw error - analytics shouldn't break the app
     }
   }
 
-  /// Track an AR view
+  /// Track when a user clicks "View in My Space" (AR button)
   Future<void> trackARView(String productId) async {
     try {
-      await _client.from('analytics').insert({
-        'event_type': 'ar_view',
+      await _supabase.from('analytics').insert({
         'product_id': productId,
-        'created_at': DateTime.now().toIso8601String(),
+        'event_type': 'ar_view',
       });
+      print('✅ AR view tracked for product: $productId');
     } catch (e) {
-      // Silently fail - analytics should not break the app
-      // Check if error is due to missing table (PGRST205) and ignore it
-      final errorString = e.toString();
-      if (errorString.contains('PGRST205') || 
-          errorString.contains('Could not find the table')) {
-        // Table doesn't exist - silently skip analytics
-        return;
+      print('❌ Error tracking AR view: $e');
+      // Don't throw error - analytics shouldn't break the app
+    }
+  }
+
+  /// Get analytics summary for admin panel
+  Future<Map<String, int>> getAnalyticsSummary() async {
+    try {
+      final response = await _supabase
+          .from('analytics')
+          .select('event_type')
+          .execute();
+
+      if (response.data != null) {
+        final data = response.data as List;
+        final Map<String, int> summary = {};
+        
+        for (final row in data) {
+          final eventType = row['event_type'] as String;
+          summary[eventType] = (summary[eventType] ?? 0) + 1;
+        }
+        
+        return summary;
       }
-      // For other errors, log but don't break the app
-      print('Error tracking AR view: $e');
+      return {};
+    } catch (e) {
+      print('❌ Error getting analytics summary: $e');
+      return {};
     }
   }
 
-  /// Get product page views count for the last 30 days
-  Future<int> getProductPageViews({int days = 30}) async {
+  /// Get analytics by product for admin panel
+  Future<List<Map<String, dynamic>>> getProductAnalytics() async {
     try {
-      final startDate = DateTime.now().subtract(Duration(days: days));
-      final response = await _client
-          .from('analytics')
-          .select('id')
-          .eq('event_type', 'product_view')
-          .gte('created_at', startDate.toIso8601String());
+      final response = await _supabase
+          .rpc('get_product_analytics')
+          .execute();
 
-      return response.length;
+      if (response.data != null) {
+        return List<Map<String, dynamic>>.from(response.data);
+      }
+      return [];
     } catch (e) {
-      print('Error fetching product page views: $e');
-      return 0;
-    }
-  }
-
-  /// Get AR views count for the last 30 days
-  Future<int> getARViews({int days = 30}) async {
-    try {
-      final startDate = DateTime.now().subtract(Duration(days: days));
-      final response = await _client
-          .from('analytics')
-          .select('id')
-          .eq('event_type', 'ar_view')
-          .gte('created_at', startDate.toIso8601String());
-
-      return response.length;
-    } catch (e) {
-      print('Error fetching AR views: $e');
-      return 0;
+      print('❌ Error getting product analytics: $e');
+      return [];
     }
   }
 }
-

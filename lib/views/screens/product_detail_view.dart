@@ -65,7 +65,8 @@ class _ProductDetailViewState extends State<ProductDetailView> {
 
   Future<void> _trackProductView() async {
     if (widget.product.id != null) {
-      await ProductDetailService.trackProductView(widget.product.id!);
+      final analyticsService = AnalyticsService();
+      await analyticsService.trackProductView(widget.product.id!);
     }
   }
 
