@@ -9,5 +9,6 @@ class WebUtils {
     String url,
   ) async => false;
   static Future<bool> copyToClipboard(String text) async => false;
+  static void navigateBack() {}
   static Future<bool> openUsdzInAR(String usdzUrl) async => false;
 }

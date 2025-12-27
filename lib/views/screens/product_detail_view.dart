@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
@@ -186,6 +187,20 @@ class _ProductDetailViewState extends State<ProductDetailView> {
     return false;
   }
 
+  /// Navigate back - handles both web and mobile properly
+  void _navigateBack() {
+    // Use GoRouter's pop method, which works for both web and mobile
+    if (context.canPop()) {
+      context.pop();
+    } else if (kIsWeb) {
+      // Fallback to browser history API if no route to pop (e.g., direct URL access)
+      web_utils.WebUtils.navigateBack();
+    } else {
+      // Fallback: navigate to home if we can't pop
+      context.go('/');
+    }
+  }
+
   List<String> get _productImages {
     // Use images from database: thumbnail, secondImageUrl, thirdImageUrl
     final List<String> imageList = [];
@@ -327,8 +342,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                         MainAxisAlignment.spaceBetween,
                                     children: [
                                       InkWell(
-                                        onTap: () =>
-                                            context.pop(),
+                                        onTap: _navigateBack,
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
@@ -569,8 +583,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                             MainAxisAlignment.spaceBetween,
                                         children: [
                                           InkWell(
-                                            onTap: () =>
-                                                context.pop(),
+                                            onTap: _navigateBack,
                                             child: Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
@@ -793,15 +806,8 @@ class _ProductDetailViewState extends State<ProductDetailView> {
 
   Widget _buildImageGallery() {
     final isMobile = ResponsiveHelper.isMobile(context);
+    final isTablet = ResponsiveHelper.isTablet(context);
     final screenWidth = MediaQuery.of(context).size.width;
-
-    // Responsive sizing
-    final thumbnailSize = ResponsiveHelper.getResponsiveSpacing(
-      context,
-      mobile: 48.0,
-      tablet: 56.0,
-      desktop: 64.0,
-    );
 
     // Safety check for images
     if (_productImages.isEmpty) {
@@ -812,210 +818,17 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       );
     }
 
-    final mainImageUrl = _productImages[_selectedImageIndex];
-
-    // Main hero product image (white card)
-    Widget buildMainImage(double maxWidth) {
-      // Increased size for better visibility
-      final imageWidth = maxWidth * 0.95; // Increased to 95% of max width
-      final imageHeight = imageWidth * 0.95; // Slightly taller than square
-      return Container(
-        width: imageWidth,
-        height: imageHeight,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 20,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            width: double.infinity,
-            height: double.infinity,
-            color: const Color(0xFFF8F9FA),
-            child: Image.network(
-              mainImageUrl,
-              fit: BoxFit
-                  .contain, // Changed from cover to contain to show full image
-              width: double.infinity,
-              height: double.infinity,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Container(
-                  color: const Color(0xFFF5F5F7),
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      value: loadingProgress.expectedTotalBytes != null
-                          ? loadingProgress.cumulativeBytesLoaded /
-                                loadingProgress.expectedTotalBytes!
-                          : null,
-                      strokeWidth: 2,
-                      color: const Color(0xFFED1F24),
-                    ),
-                  ),
-                );
-              },
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: const Color(0xFFF5F5F7),
-                  child: const Center(
-                    child: Icon(
-                      Icons.image_outlined,
-                      size: 64,
-                      color: Colors.grey,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-      );
-    }
-
-    // Thumbnail widget used in both mobile (horizontal) and desktop (vertical)
-    Widget buildThumbnailItem({
-      required String imageUrl,
-      required bool isSelected,
-      EdgeInsetsGeometry margin = EdgeInsets.zero,
-      double? width,
-      double? height,
-      VoidCallback? onTap,
-    }) {
-      return GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: width ?? thumbnailSize,
-          height: height ?? thumbnailSize,
-          margin: margin,
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8F9FA),
-            borderRadius: BorderRadius.circular(8),
-            border: isSelected
-                ? Border.all(color: const Color(0xFFED1F24), width: 2)
-                : Border.all(color: Colors.grey[300]!, width: 1),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.network(
-              imageUrl,
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-            ),
-          ),
-        ),
-      );
-    }
-
-    // Thumbnail row used on mobile (horizontal)
-    Widget buildThumbnailsRow() {
-      return SizedBox(
-        width: double.infinity,
-        height: thumbnailSize + 20,
-        child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          itemCount: _productImages.length,
-          physics: const BouncingScrollPhysics(),
-          itemBuilder: (context, index) {
-            final imageUrl = _productImages[index];
-            final isSelected = _selectedImageIndex == index;
-            return GestureDetector(
-              onTap: () {
-                setState(() {
-                  _selectedImageIndex = index;
-                });
-              },
-              child: Container(
-                width: thumbnailSize,
-                height: thumbnailSize,
-                margin: const EdgeInsets.only(right: 12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8F9FA),
-                  borderRadius: BorderRadius.circular(8),
-                  border: isSelected
-                      ? Border.all(color: const Color(0xFFED1F24), width: 2)
-                      : Border.all(color: Colors.grey[300]!, width: 1),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.06),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    imageUrl,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Container(
-                        color: const Color(0xFFF5F5F7),
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            value: loadingProgress.expectedTotalBytes != null
-                                ? loadingProgress.cumulativeBytesLoaded /
-                                      loadingProgress.expectedTotalBytes!
-                                : null,
-                            strokeWidth: 2,
-                          ),
-                        ),
-                      );
-                    },
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: const Color(0xFFF5F5F7),
-                        child: const Icon(Icons.image, color: Colors.grey),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      );
-    }
-
-    final isTablet = ResponsiveHelper.isTablet(context);
-
-    // Responsive width calculation
-    final double mainWidth;
-    if (isMobile) {
-      mainWidth = screenWidth * 0.85;
-    } else if (isTablet) {
-      // Tablet: Use 70% of screen width, max 500px for better visibility
-      mainWidth = (screenWidth * 0.7).clamp(400.0, 500.0);
-    } else {
-      // Desktop: Fixed width
-      mainWidth = 400.0;
-    }
+    final maxWidth = _getMaxWidth(context);
+    final mainWidth = isMobile ? screenWidth - 32 : maxWidth * 0.6;
 
     // Mobile: main image centered with thumbnails below (horizontal strip)
     if (isMobile) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          buildMainImage(mainWidth),
+          _buildMainImage(mainWidth),
           const SizedBox(height: 16),
-          buildThumbnailsRow(),
+          _buildThumbnailsRow(),
         ],
       );
     }
@@ -1025,9 +838,9 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          buildMainImage(mainWidth),
+          _buildMainImage(mainWidth),
           const SizedBox(height: 20),
-          buildThumbnailsRow(),
+          _buildThumbnailsRow(),
         ],
       );
     }
@@ -1037,8 +850,8 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          height: mainWidth * 0.9, // match the main image card height
-          width: 56, // a bit wider than the thumbnail width
+          height: mainWidth * 0.9,
+          width: 56,
           child: ListView.builder(
             padding: EdgeInsets.zero,
             itemCount: _productImages.length,
@@ -1046,7 +859,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
             itemBuilder: (context, index) {
               final imageUrl = _productImages[index];
               final isSelected = _selectedImageIndex == index;
-              return buildThumbnailItem(
+              return _buildThumbnailItem(
                 imageUrl: imageUrl,
                 isSelected: isSelected,
                 width: 48,
@@ -1062,8 +875,294 @@ class _ProductDetailViewState extends State<ProductDetailView> {
           ),
         ),
         const SizedBox(width: 24),
-        buildMainImage(mainWidth),
+        _buildMainImage(mainWidth),
       ],
+    );
+  }
+
+  Widget _buildMainImage(double maxWidth) {
+    // Increased size for better visibility
+    final imageWidth = maxWidth * 0.95; // Increased to 95% of max width
+    final imageHeight = imageWidth * 0.95; // Slightly taller than square
+
+    return Focus(
+      autofocus: false,
+      onKeyEvent: (node, event) {
+        if (_productImages.length > 1 && event is KeyDownEvent) {
+          if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+            setState(() {
+              _selectedImageIndex =
+                  (_selectedImageIndex + 1) % _productImages.length;
+            });
+            return KeyEventResult.handled;
+          } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+            setState(() {
+              _selectedImageIndex =
+                  (_selectedImageIndex - 1 + _productImages.length) %
+                  _productImages.length;
+            });
+            return KeyEventResult.handled;
+          }
+        }
+        return KeyEventResult.ignored;
+      },
+      child: GestureDetector(
+        // Enhanced swipe gesture detection for hand swipes
+        // Lower threshold (200 instead of 0) makes swipes more responsive
+        onHorizontalDragEnd: (details) {
+          if (_productImages.length > 1) {
+            // Swipe left (negative velocity) = next image
+            if (details.primaryVelocity! < -100) {
+              setState(() {
+                _selectedImageIndex =
+                    (_selectedImageIndex + 1) % _productImages.length;
+              });
+            }
+            // Swipe right (positive velocity) = previous image
+            else if (details.primaryVelocity! > 100) {
+              setState(() {
+                _selectedImageIndex =
+                    (_selectedImageIndex - 1 + _productImages.length) %
+                    _productImages.length;
+              });
+            }
+          }
+        },
+        child: SizedBox(
+          width: imageWidth,
+          height: imageHeight,
+          child: Stack(
+            children: [
+              // Main Image
+              Image.network(
+                _productImages[_selectedImageIndex],
+                fit: BoxFit.contain,
+                width: double.infinity,
+                height: double.infinity,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    color: const Color(0xFFF5F5F7),
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                                  loadingProgress.expectedTotalBytes!
+                            : null,
+                        strokeWidth: 2,
+                        color: const Color(0xFFED1F24),
+                      ),
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: const Color(0xFFF5F5F7),
+                    child: const Center(
+                      child: Icon(
+                        Icons.image_outlined,
+                        size: 64,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              // Navigation overlay - invisible clickable areas (for tap navigation)
+              Row(
+                children: [
+                  // Left side - previous image
+                  Expanded(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onTap: () {
+                        if (_productImages.length > 1) {
+                          setState(() {
+                            _selectedImageIndex =
+                                (_selectedImageIndex -
+                                    1 +
+                                    _productImages.length) %
+                                _productImages.length;
+                          });
+                        }
+                      },
+                      child: Container(
+                        color: Colors.transparent,
+                        height: double.infinity,
+                      ),
+                    ),
+                  ),
+
+                  // Right side - next image
+                  Expanded(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onTap: () {
+                        if (_productImages.length > 1) {
+                          setState(() {
+                            _selectedImageIndex =
+                                (_selectedImageIndex + 1) %
+                                _productImages.length;
+                          });
+                        }
+                      },
+                      child: Container(
+                        color: Colors.transparent,
+                        height: double.infinity,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              // Image indicator dots
+              if (_productImages.length > 1)
+                Positioned(
+                  bottom: 16,
+                  left: 0,
+                  right: 0,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(
+                      _productImages.length,
+                      (index) => Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: index == _selectedImageIndex
+                              ? const Color(0xFFED1F24)
+                              : Colors.white.withOpacity(0.5),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildThumbnailItem({
+    required String imageUrl,
+    required bool isSelected,
+    EdgeInsetsGeometry margin = EdgeInsets.zero,
+    double? width,
+    double? height,
+    VoidCallback? onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: width ?? 48,
+        height: height ?? 48,
+        margin: margin,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8F9FA),
+          borderRadius: BorderRadius.circular(8),
+          border: isSelected
+              ? Border.all(color: const Color(0xFFED1F24), width: 2)
+              : Border.all(color: Colors.grey[300]!, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildThumbnailsRow() {
+    final thumbnailSize = ResponsiveHelper.getResponsiveSpacing(
+      context,
+      mobile: 48.0,
+      tablet: 56.0,
+      desktop: 64.0,
+    );
+    return SizedBox(
+      width: double.infinity,
+      height: thumbnailSize + 20,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: _productImages.length,
+        physics: const BouncingScrollPhysics(),
+        itemBuilder: (context, index) {
+          final imageUrl = _productImages[index];
+          final isSelected = _selectedImageIndex == index;
+          return GestureDetector(
+            onTap: () {
+              setState(() {
+                _selectedImageIndex = index;
+              });
+            },
+            child: Container(
+              width: thumbnailSize,
+              height: thumbnailSize,
+              margin: const EdgeInsets.only(right: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8F9FA),
+                borderRadius: BorderRadius.circular(8),
+                border: isSelected
+                    ? Border.all(color: const Color(0xFFED1F24), width: 2)
+                    : Border.all(color: Colors.grey[300]!, width: 1),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  imageUrl,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      color: const Color(0xFFF5F5F7),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          value: loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded /
+                                    loadingProgress.expectedTotalBytes!
+                              : null,
+                          strokeWidth: 2,
+                        ),
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: const Color(0xFFF5F5F7),
+                      child: const Icon(Icons.image, color: Colors.grey),
+                    );
+                  },
+                ),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -1152,9 +1251,17 @@ class _ProductDetailViewState extends State<ProductDetailView> {
               final buttonPadding = isMobile
                   ? const EdgeInsets.symmetric(horizontal: 10, vertical: 8)
                   : (isDesktop
-                      ? const EdgeInsets.symmetric(horizontal: 20, vertical: 14)
-                      : const EdgeInsets.symmetric(horizontal: 16, vertical: 10));
-              final buttonFontSize = isMobile ? 11.0 : (isDesktop ? 16.0 : 14.0);
+                        ? const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 14,
+                          )
+                        : const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ));
+              final buttonFontSize = isMobile
+                  ? 11.0
+                  : (isDesktop ? 16.0 : 14.0);
               final iconSize = isMobile ? 14.0 : (isDesktop ? 20.0 : 18.0);
 
               return SizedBox(
@@ -2397,25 +2504,38 @@ class _ProductDetailViewState extends State<ProductDetailView> {
               desktop: 28,
             ),
           ),
-          // Similar Products Grid
+          // Similar Products Grid - matching home screen 4-grid layout
           LayoutBuilder(
             builder: (context, constraints) {
-              // Calculate grid layout
-              final crossAxisCount = isDesktop ? 3 : (isTablet ? 2 : 2);
-              // Adjusted aspect ratio to prevent card stretching and overflow
+              // Use same grid configuration as home screen ProductGrid
+              final crossAxisCount = isDesktop
+                  ? 3
+                  : 2; // 2x2 grid on mobile/tablet, 3 columns on desktop
+
+              // Adjusted aspect ratios to accommodate full product names
               final childAspectRatio = isDesktop
-                  ? 0.70
+                  ? 0.60 // Reduced for more height
                   : (isTablet
-                        ? 0.75
-                        : 0.68); // Reduced for mobile to fix overflow
-              final spacing = ResponsiveHelper.getResponsiveSpacing(
+                        ? 0.58 // Reduced for more height
+                        : 0.50); // Further reduced for mobile to show full names
+
+              // Use same spacing as home screen
+              final crossAxisSpacing = ResponsiveHelper.getResponsiveSpacing(
                 context,
-                mobile: 28.0,
-                tablet: 48.0,
-                desktop: 56.0,
+                mobile: 16.0,
+                tablet: 24.0,
+                desktop: 32.0,
               );
-              // For equal spacing: set padding to match spacing on desktop/tablet
-              final gridPadding = isDesktop ? spacing : (isTablet ? spacing : 0.0);
+
+              final mainAxisSpacing = ResponsiveHelper.getResponsiveSpacing(
+                context,
+                mobile: 16.0,
+                tablet: 24.0,
+                desktop: 32.0,
+              );
+
+              // Use same padding as home screen
+              final gridPadding = isDesktop ? 32.0 : (isTablet ? 24.0 : 16.0);
 
               return GridView.builder(
                 shrinkWrap: true,
@@ -2423,17 +2543,14 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: crossAxisCount,
                   childAspectRatio: childAspectRatio,
-                  crossAxisSpacing: spacing,
-                  mainAxisSpacing: spacing,
+                  crossAxisSpacing: crossAxisSpacing,
+                  mainAxisSpacing: mainAxisSpacing,
                 ),
                 padding: EdgeInsets.all(gridPadding),
                 itemCount: _similarProducts.length,
                 itemBuilder: (context, index) {
                   final product = _similarProducts[index];
-                  return Align(
-                    alignment: Alignment.topCenter,
-                    child: ProductCard(product: product),
-                  );
+                  return ProductCard(product: product);
                 },
               );
             },
