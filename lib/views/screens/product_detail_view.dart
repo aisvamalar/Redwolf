@@ -2979,12 +2979,12 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                         ? 3 // 3 columns for tablet (not 4-square)
                         : 2); // 2 columns (4-square grid) for mobile only
 
-              // Increased aspect ratios to prevent image cutoff (more vertical space)
+              // Reduced aspect ratios to increase card height and prevent overflow
               final childAspectRatio = isDesktop
-                  ? 0.68 // Same as homepage desktop
+                  ? 0.60 // Reduced for more height (was 0.68)
                   : (isTablet
-                        ? 0.68 // Increased for tablet to show full image
-                        : 0.75); // Increased for mobile to prevent image cutoff
+                        ? 0.58 // Reduced for more height (was 0.68)
+                        : 0.65); // Reduced for more height (was 0.75)
 
               // Use same spacing as home screen
               final crossAxisSpacing = ResponsiveHelper.getResponsiveSpacing(
