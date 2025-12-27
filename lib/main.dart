@@ -34,14 +34,55 @@ final GoRouter _router = GoRouter(
       path: '/product/:id',
       builder: (context, state) {
         final productId = state.pathParameters['id'];
-        // For now, we'll need to get the product from the controller
-        // This is a temporary solution - ideally we'd pass the product data
+        if (productId == null || productId.isEmpty) {
+          // Redirect to home if no product ID
+          return const HomeView();
+        }
+        
+        // Try to get product from controller first (faster)
         final controller = Provider.of<ProductController>(context, listen: false);
-        final product = controller.products.firstWhere(
-          (p) => p.id == productId,
-          orElse: () => throw Exception('Product not found'),
-        );
-        return ProductDetailView(product: product);
+        try {
+          final product = controller.products.firstWhere(
+            (p) => p.id == productId,
+          );
+          return ProductDetailView(product: product);
+        } catch (e) {
+          // Product not in controller - fetch from database
+          // Use a FutureBuilder to handle async loading
+          return FutureBuilder(
+            future: ProductService().getProductById(productId),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
+              
+              if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
+                return Scaffold(
+                  body: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text(
+                          'Product not found',
+                          style: TextStyle(fontSize: 18),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () => context.go('/'),
+                          child: const Text('Go to Home'),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+              
+              return ProductDetailView(product: snapshot.data!);
+            },
+          );
+        }
       },
     ),
     // Admin panel routes removed - handled by separate codebase

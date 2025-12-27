@@ -43,9 +43,9 @@ class HeaderWidget extends StatelessWidget {
         // Contact Us Button
         Container(
           constraints: BoxConstraints(
-            minWidth: isMobile ? 100.0 : 110.0,
+            minWidth: isMobile ? 100.0 : 130.0,
           ),
-          width: isMobile ? null : 110.0,
+          width: isMobile ? null : 130.0,
           height: isMobile ? null : 40.0,
           decoration: BoxDecoration(
             color: const Color(0xFFDC2626),
@@ -101,10 +101,10 @@ class HeaderWidget extends StatelessWidget {
               foregroundColor: Colors.white,
               shadowColor: Colors.transparent,
 
-              // ✅ COMPACT BUTTON PADDING - Mobile optimized
+              // ✅ INCREASED MOBILE PADDING
               padding: EdgeInsets.symmetric(
-                horizontal: isMobile ? 12.0 : 16.0,
-                vertical: 8.0,
+                horizontal: isMobile ? 18.0 : 16.0,
+                vertical: isMobile ? 12.0 : 8.0,
               ),
 
               minimumSize: Size.zero,
