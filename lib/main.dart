@@ -28,14 +28,22 @@ void main() async {
 
 final GoRouter _router = GoRouter(
   initialLocation: '/',
+  debugLogDiagnostics: true, // Enable debug logging
   routes: [
-    GoRoute(path: '/', builder: (context, state) => const HomeView()),
+    GoRoute(
+      path: '/',
+      name: 'home',
+      builder: (context, state) => const HomeView(),
+    ),
     GoRoute(
       path: '/product/:id',
+      name: 'product-detail',
       builder: (context, state) {
         final productId = state.pathParameters['id'];
+        print('🔍 Route accessed with product ID: $productId');
+        
         if (productId == null || productId.isEmpty) {
-          // Redirect to home if no product ID
+          print('❌ No product ID provided, redirecting to home');
           return const HomeView();
         }
         
@@ -45,28 +53,44 @@ final GoRouter _router = GoRouter(
           final product = controller.products.firstWhere(
             (p) => p.id == productId,
           );
+          print('✅ Product found in controller: ${product.name}');
           return ProductDetailView(product: product);
         } catch (e) {
+          print('⚠️ Product not in controller, fetching from database...');
           // Product not in controller - fetch from database
           // Use a FutureBuilder to handle async loading
           return FutureBuilder(
             future: ProductService().getProductById(productId),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
+                print('⏳ Loading product from database...');
                 return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
+                  body: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Loading product...'),
+                      ],
+                    ),
+                  ),
                 );
               }
               
-              if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
+              if (snapshot.hasError) {
+                print('❌ Error loading product: ${snapshot.error}');
                 return Scaffold(
                   body: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text(
-                          'Product not found',
-                          style: TextStyle(fontSize: 18),
+                        const Icon(Icons.error, size: 64, color: Colors.red),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error loading product: ${snapshot.error}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 16),
                         ),
                         const SizedBox(height: 16),
                         ElevatedButton(
@@ -79,13 +103,75 @@ final GoRouter _router = GoRouter(
                 );
               }
               
+              if (!snapshot.hasData || snapshot.data == null) {
+                print('❌ Product not found in database: $productId');
+                return Scaffold(
+                  body: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.search_off, size: 64, color: Colors.grey),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Product not found',
+                          style: TextStyle(fontSize: 18),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Product ID: $productId',
+                          style: const TextStyle(fontSize: 14, color: Colors.grey),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () => context.go('/'),
+                          child: const Text('Go to Home'),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+              
+              print('✅ Product loaded from database: ${snapshot.data!.name}');
               return ProductDetailView(product: snapshot.data!);
             },
           );
         }
       },
     ),
-    // Admin panel routes removed - handled by separate codebase
+    // Catch-all route for unmatched paths
+    GoRoute(
+      path: '/:path(.*)',
+      name: 'not-found',
+      builder: (context, state) {
+        print('❌ Unmatched route: ${state.fullPath}');
+        return Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 64, color: Colors.orange),
+                const SizedBox(height: 16),
+                const Text(
+                  'Page not found',
+                  style: TextStyle(fontSize: 18),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Path: ${state.fullPath}',
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => context.go('/'),
+                  child: const Text('Go to Home'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    ),
   ],
 );
 
