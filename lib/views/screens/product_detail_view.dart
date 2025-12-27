@@ -272,10 +272,11 @@ class _ProductDetailViewState extends State<ProductDetailView> {
 
   Future<void> _handleShare() async {
     try {
-      // Share the base website URL
-      const String shareUrl = 'https://redwolf-8ss1.vercel.app/';
+      // Format product details as structured text
+      final String productText = _formatProductDetailsForSharing();
+      final String productImageUrl = _product.imageUrl;
 
-      print('🔗 Sharing website URL: $shareUrl');
+      print('🔗 Sharing product details and image: ${_product.name}');
 
       // Show loading indicator
       if (mounted) {
@@ -292,7 +293,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                   ),
                 ),
                 SizedBox(width: 12),
-                Text('Preparing to share...'),
+                Text('Preparing to share product...'),
               ],
             ),
             duration: Duration(milliseconds: 1500),
@@ -305,15 +306,18 @@ class _ProductDetailViewState extends State<ProductDetailView> {
 
       if (kIsWeb) {
         // Try Web Share API first (works on mobile browsers too)
+        // Combine product text with image URL for sharing
+        final fullShareText = '$productText\n\n🖼️ Image: $productImageUrl';
+        
         shared = await web_utils.WebUtils.shareContent(
-          'RedWolf Media',
-          'Check out our amazing products!',
-          shareUrl,
+          _product.name,
+          fullShareText,
+          '', // Don't pass URL separately, it's included in the text
         );
 
         if (!shared) {
       // Fallback: Copy to clipboard
-          final copied = await web_utils.WebUtils.copyToClipboard(shareUrl);
+          final copied = await web_utils.WebUtils.copyToClipboard(fullShareText);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -328,8 +332,8 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                     Expanded(
                       child: Text(
               copied
-                            ? 'Website link copied to clipboard!'
-                            : 'Failed to copy. Please copy the URL manually.',
+                            ? 'Product details copied to clipboard!'
+                            : 'Failed to copy. Please copy manually.',
                       ),
                     ),
                   ],
@@ -339,14 +343,14 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                 action: copied
                     ? null
                     : SnackBarAction(
-                        label: 'Show URL',
+                        label: 'Show Details',
                         textColor: Colors.white,
                         onPressed: () {
                           showDialog(
                             context: context,
                             builder: (context) => AlertDialog(
-                              title: const Text('Website URL'),
-                              content: SelectableText(shareUrl),
+                              title: const Text('Product Details'),
+                              content: SelectableText(productText),
                               actions: [
                                 TextButton(
                                   onPressed: () => Navigator.of(context).pop(),
@@ -364,19 +368,17 @@ class _ProductDetailViewState extends State<ProductDetailView> {
           // Share API worked - no success message needed
         }
         } else {
-        // For mobile apps, use platform-specific sharing
-        // This would require adding share_plus package
-        // For now, show the URL in a dialog
+        // For mobile apps, show product details in a dialog
         if (mounted) {
           showDialog(
             context: context,
             builder: (context) => AlertDialog(
-              title: const Text('Share Website'),
+              title: const Text('Share Product'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Copy this link to share:'),
+                  const Text('Copy product details to share:'),
                   const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -386,8 +388,23 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                       border: Border.all(color: Colors.grey[300]!),
                     ),
                     child: SelectableText(
-                      shareUrl,
+                      productText,
                       style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Image URL:'),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.grey[200]!),
+                    ),
+                    child: SelectableText(
+                      productImageUrl,
+                      style: const TextStyle(fontSize: 12, color: Colors.blue),
                     ),
                   ),
                 ],
@@ -399,16 +416,17 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                 ),
                 ElevatedButton(
                   onPressed: () {
-                    Clipboard.setData(ClipboardData(text: shareUrl));
+                    final fullContent = '$productText\n\n🖼️ Image: $productImageUrl';
+                    Clipboard.setData(ClipboardData(text: fullContent));
                     Navigator.of(context).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Link copied to clipboard!'),
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+                        content: Text('Product details copied to clipboard!'),
                         backgroundColor: Colors.green,
                       ),
                     );
                   },
-                  child: const Text('Copy Link'),
+                  child: const Text('Copy Details'),
                 ),
               ],
             ),
@@ -2979,14 +2997,14 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                         ? 3 // 3 columns for tablet (not 4-square)
                         : 2); // 2 columns (4-square grid) for mobile only
 
-              // Reduced aspect ratios to increase card height and prevent overflow
+              // Use same aspect ratios as main product grid for consistency
               final childAspectRatio = isDesktop
-                  ? 0.60 // Reduced for more height (was 0.68)
+                  ? 0.68 // Same as main product grid desktop
                   : (isTablet
-                        ? 0.58 // Reduced for more height (was 0.68)
-                        : 0.65); // Reduced for more height (was 0.75)
+                        ? 0.62 // Same as main product grid tablet  
+                        : 0.58); // Same as main product grid mobile
 
-              // Use same spacing as home screen
+              // Use same spacing as main product grid
               final crossAxisSpacing = ResponsiveHelper.getResponsiveSpacing(
                 context,
                 mobile: 16.0,
@@ -3001,7 +3019,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                 desktop: 32.0,
               );
 
-              // Use same padding as home screen
+              // Use same padding as main product grid
               final gridPadding = isDesktop ? 32.0 : (isTablet ? 24.0 : 16.0);
 
               return GridView.builder(
@@ -3025,5 +3043,44 @@ class _ProductDetailViewState extends State<ProductDetailView> {
         ],
       ),
     );
+  }
+
+  /// Format product details as structured text for sharing
+  String _formatProductDetailsForSharing() {
+    final StringBuffer buffer = StringBuffer();
+    
+    // Product name with emoji
+    buffer.writeln('🏷️ Product: ${_product.name}');
+    
+    // Category if available
+    if (_product.category.isNotEmpty) {
+      buffer.writeln('📂 Category: ${_product.category}');
+    }
+    
+    // Description if available
+    if (_product.description != null && _product.description!.isNotEmpty) {
+      buffer.writeln('📝 Description: ${_product.description}');
+    }
+    
+    // Technical specs if available
+    if (_product.defaultTechnicalSpecs.isNotEmpty) {
+      buffer.writeln('\n⚙️ Technical Specifications:');
+      _product.defaultTechnicalSpecs.forEach((key, value) {
+        buffer.writeln('• $key: $value');
+      });
+    }
+    
+    // Key features if available
+    if (_product.defaultKeyFeatures.isNotEmpty) {
+      buffer.writeln('\n✨ Key Features:');
+      for (final feature in _product.defaultKeyFeatures) {
+        buffer.writeln('• $feature');
+      }
+    }
+    
+    // Add branding
+    buffer.writeln('\n🔗 From RedWolf Media - Creative Visibility');
+    
+    return buffer.toString();
   }
 }

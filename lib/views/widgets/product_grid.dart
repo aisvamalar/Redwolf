@@ -88,14 +88,14 @@ class ProductGrid extends StatelessWidget {
         : (isDesktop ? 3 : (isTablet ? 2 : 1));
 
     // Aspect ratios must be double
-    // Reduced ratios to increase card height and prevent overflow
+    // Balanced ratios to prevent overflow while minimizing blank space
     final double childAspectRatio = layout == ProductLayout.grid2
         ? (isDesktop
-              ? 0.60 // Reduced for more height (was 0.68)
-              : (isTablet ? 0.55 : 0.52)) // Reduced for more height
+              ? 0.68
+              : (isTablet ? 0.62 : 0.58)) // Balanced for content fit
         : (isDesktop
-              ? 0.65 // Reduced for more height (was 0.72)
-              : (isTablet ? 0.60 : 0.55)); // Reduced for more height
+              ? 0.72
+              : (isTablet ? 0.68 : 0.62)); // Balanced for content fit
 
     // Spacing must be double
     final double crossAxisSpacing = ResponsiveHelper.getResponsiveSpacing(
