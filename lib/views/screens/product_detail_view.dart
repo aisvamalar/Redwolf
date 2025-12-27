@@ -2972,8 +2972,12 @@ class _ProductDetailViewState extends State<ProductDetailView> {
           // Similar Products Grid - 2-column (4-square) grid matching homepage
           LayoutBuilder(
             builder: (context, constraints) {
-              // 2-column grid for all screen sizes (4-square grid)
-              final crossAxisCount = 2;
+              // 2-column grid (4-square) for mobile only, more columns for tablet/desktop
+              final crossAxisCount = isDesktop
+                  ? 3 // 3 columns for desktop (like homepage)
+                  : (isTablet
+                        ? 3 // 3 columns for tablet (not 4-square)
+                        : 2); // 2 columns (4-square grid) for mobile only
 
               // Increased aspect ratios to prevent image cutoff (more vertical space)
               final childAspectRatio = isDesktop

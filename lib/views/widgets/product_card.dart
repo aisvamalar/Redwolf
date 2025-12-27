@@ -36,7 +36,7 @@ class _ProductCardState extends State<ProductCard> {
           children: [
             /// IMAGE - With zoom animation on hover (container border preserved)
             Expanded(
-              flex: 2, // Reduced flex to give more space to content
+              flex: 3, // Increased flex to make image larger
               child: Container(
                 clipBehavior: Clip.hardEdge,
                 decoration: const BoxDecoration(),
@@ -49,7 +49,7 @@ class _ProductCardState extends State<ProductCard> {
                     curve: Curves.easeInOut,
                     child: Image.network(
                       widget.product.imageUrl,
-                      fit: BoxFit.contain, // Changed from cover to contain to show full image
+                      fit: BoxFit.cover, // Cover to make image larger and balance with product info
                       width: double.infinity,
                       height: double.infinity,
                       errorBuilder: (context, error, stackTrace) {
@@ -80,9 +80,11 @@ class _ProductCardState extends State<ProductCard> {
               ),
             ),
 
-            /// CONTENT - Increased size and spacing
-            Container(
-              padding: EdgeInsets.all(isMobile ? 16 : 20),
+            /// CONTENT - Reduced size to balance with larger image
+            Expanded(
+              flex: 1, // Fixed flex to make content section smaller
+              child: Container(
+                padding: EdgeInsets.all(isMobile ? 12 : 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -111,22 +113,22 @@ class _ProductCardState extends State<ProductCard> {
                   if (widget.product.category.isNotEmpty)
                     const SizedBox(height: 12),
 
-                  // Product name - reduced mobile font size
+                  // Product name - reduced font size
                   Text(
                     widget.product.name,
                     maxLines: 2, // Allow 2 lines for longer names
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: isMobile ? 14 : 22,
+                      fontSize: isMobile ? 13 : 18, // Reduced font sizes
                       fontWeight: FontWeight.w600,
                       height: 1.2,
                       color: Colors.black,
                     ),
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12), // Reduced spacing
 
-                  // View details CTA - larger size
+                  // View details CTA - reduced size
                   Row(
                     children: [
                       Text(
@@ -134,7 +136,7 @@ class _ProductCardState extends State<ProductCard> {
                         style: TextStyle(
                           color: const Color(0xFFDC2626),
                           fontWeight: FontWeight.w600,
-                          fontSize: isMobile ? 15 : 16,
+                          fontSize: isMobile ? 13 : 14, // Reduced font size
                         ),
                       ),
                       const SizedBox(width: 6),
@@ -146,6 +148,7 @@ class _ProductCardState extends State<ProductCard> {
                     ],
                   ),
                 ],
+              ),
               ),
             ),
           ],
