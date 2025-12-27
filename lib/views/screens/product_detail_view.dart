@@ -100,8 +100,8 @@ class _ProductDetailViewState extends State<ProductDetailView> {
 
       setState(() {
         _similarProducts = similar
-            .take(8)
-            .toList(); // Show max 8 similar products (2 rows of 4)
+            .take(6)
+            .toList(); // Show max 6 similar products
         _isLoadingSimilar = false;
       });
     } catch (e) {
@@ -272,26 +272,10 @@ class _ProductDetailViewState extends State<ProductDetailView> {
 
   Future<void> _handleShare() async {
     try {
-      // Construct the product-specific URL explicitly
-      final productId = _product.id;
-      if (productId == null || productId.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Product ID not available for sharing.'),
-            duration: Duration(seconds: 2),
-              backgroundColor: Colors.red,
-          ),
-        );
-      }
-      return;
-    }
+      // Share the base website URL
+      const String shareUrl = 'https://redwolf-8ss1.vercel.app/';
 
-      // Always use the production URL for sharing
-      const baseUrl = 'https://redwolf-8ss1.vercel.app';
-      final productUrl = '$baseUrl/product/$productId';
-
-      print('🔗 Sharing product URL: $productUrl');
+      print('🔗 Sharing website URL: $shareUrl');
 
       // Show loading indicator
       if (mounted) {
@@ -322,14 +306,14 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       if (kIsWeb) {
         // Try Web Share API first (works on mobile browsers too)
         shared = await web_utils.WebUtils.shareContent(
-          _product.name,
-          _product.description ?? 'Check out this product!',
-          productUrl,
+          'RedWolf Media',
+          'Check out our amazing products!',
+          shareUrl,
         );
 
         if (!shared) {
       // Fallback: Copy to clipboard
-          final copied = await web_utils.WebUtils.copyToClipboard(productUrl);
+          final copied = await web_utils.WebUtils.copyToClipboard(shareUrl);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -344,7 +328,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                     Expanded(
                       child: Text(
               copied
-                            ? 'Product link copied to clipboard!'
+                            ? 'Website link copied to clipboard!'
                             : 'Failed to copy. Please copy the URL manually.',
                       ),
                     ),
@@ -361,8 +345,8 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                           showDialog(
                             context: context,
                             builder: (context) => AlertDialog(
-                              title: const Text('Product URL'),
-                              content: SelectableText(productUrl),
+                              title: const Text('Website URL'),
+                              content: SelectableText(shareUrl),
                               actions: [
                                 TextButton(
                                   onPressed: () => Navigator.of(context).pop(),
@@ -377,24 +361,9 @@ class _ProductDetailViewState extends State<ProductDetailView> {
         );
       }
         } else {
-          // Share API worked
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-                content: Row(
-                  children: [
-                    Icon(Icons.share, color: Colors.white, size: 20),
-                    SizedBox(width: 8),
-                    Text('Product shared successfully!'),
-                  ],
-                ),
-            duration: Duration(seconds: 2),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
+          // Share API worked - no success message needed
         }
-      } else {
+        } else {
         // For mobile apps, use platform-specific sharing
         // This would require adding share_plus package
         // For now, show the URL in a dialog
@@ -402,7 +371,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
           showDialog(
             context: context,
             builder: (context) => AlertDialog(
-              title: const Text('Share Product'),
+              title: const Text('Share Website'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -417,7 +386,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                       border: Border.all(color: Colors.grey[300]!),
                     ),
                     child: SelectableText(
-                      productUrl,
+                      shareUrl,
                       style: const TextStyle(fontSize: 14),
                     ),
                   ),
@@ -430,7 +399,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                 ),
                 ElevatedButton(
                   onPressed: () {
-                    Clipboard.setData(ClipboardData(text: productUrl));
+                    Clipboard.setData(ClipboardData(text: shareUrl));
                     Navigator.of(context).pop();
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
@@ -3000,22 +2969,18 @@ class _ProductDetailViewState extends State<ProductDetailView> {
               desktop: 28,
             ),
           ),
-          // Similar Products Grid - responsive layout
+          // Similar Products Grid - 2-column (4-square) grid matching homepage
           LayoutBuilder(
             builder: (context, constraints) {
-              // 4-square grid configuration matching homepage
-              final crossAxisCount = isDesktop
-                  ? 4 // 4 columns for desktop (4-square grid)
-                  : (isTablet
-                        ? 3 // 3 columns for tablet
-                        : 2); // 2 columns for mobile
+              // 2-column grid for all screen sizes (4-square grid)
+              final crossAxisCount = 2;
 
-              // Match homepage aspect ratios for consistent look
+              // Increased aspect ratios to prevent image cutoff (more vertical space)
               final childAspectRatio = isDesktop
-                  ? 0.68 // Match homepage desktop ratio
+                  ? 0.68 // Same as homepage desktop
                   : (isTablet
-                        ? 0.62 // Match homepage tablet ratio
-                        : 0.58); // Match homepage mobile ratio
+                        ? 0.68 // Increased for tablet to show full image
+                        : 0.75); // Increased for mobile to prevent image cutoff
 
               // Use same spacing as home screen
               final crossAxisSpacing = ResponsiveHelper.getResponsiveSpacing(

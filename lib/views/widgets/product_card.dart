@@ -49,7 +49,7 @@ class _ProductCardState extends State<ProductCard> {
                     curve: Curves.easeInOut,
                     child: Image.network(
                       widget.product.imageUrl,
-                      fit: BoxFit.cover,
+                      fit: BoxFit.contain, // Changed from cover to contain to show full image
                       width: double.infinity,
                       height: double.infinity,
                       errorBuilder: (context, error, stackTrace) {
