@@ -284,24 +284,41 @@ class _ProductDetailViewState extends State<ProductDetailView> {
     }
 
     try {
-      final url = web_utils.WebUtils.getCurrentUrl();
+      // Construct the product-specific URL explicitly
+      final productId = _product.id;
+      if (productId == null || productId.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Product ID not available for sharing.'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+        return;
+      }
+
+      // Get the base URL (origin) and construct the product URL
+      final baseUrl = web_utils.WebUtils.getBaseUrl();
+      final productUrl = '$baseUrl/product/$productId';
+
       // Try Web Share API first
       final shared = await web_utils.WebUtils.shareContent(
         _product.name,
         _product.description ?? '',
-        url,
+        productUrl,
       );
 
       if (shared) return;
 
       // Fallback: Copy to clipboard
-      final copied = await web_utils.WebUtils.copyToClipboard(url);
+      final copied = await web_utils.WebUtils.copyToClipboard(productUrl);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               copied
-                  ? 'Link copied to clipboard!'
+                  ? 'Product link copied to clipboard!'
                   : 'Failed to share. Please copy the URL manually.',
             ),
             duration: const Duration(seconds: 2),

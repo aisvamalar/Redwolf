@@ -47,7 +47,7 @@ class SearchFilterBar extends StatelessWidget {
       );
     } else {
       // Mobile: Stacked vertically with better spacing
-      // Grid toggle button only shown on mobile
+      // Grid toggle button removed - always use 4-square grid
       return Column(
         children: [
           _buildSearchField(context, controller),
@@ -55,15 +55,10 @@ class SearchFilterBar extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Expanded(
-                child: _buildCategoryDropdown(context, controller),
-              ),
+              Expanded(child: _buildCategoryDropdown(context, controller)),
               const SizedBox(width: 12),
-              Expanded(
-                child: _buildSortDropdown(context, controller),
-              ),
-              const SizedBox(width: 12),
-              _buildLayoutToggleButton(context, controller), // Only on mobile
+              Expanded(child: _buildSortDropdown(context, controller)),
+              // Grid toggle button removed
             ],
           ),
         ],
@@ -146,12 +141,13 @@ class SearchFilterBar extends StatelessWidget {
   ) {
     // Extract unique categories from all products
     final allProducts = controller.allProducts;
-    final uniqueCategories = allProducts
-        .map((p) => p.category.isNotEmpty ? p.category : 'Portable')
-        .toSet()
-        .toList()
-      ..sort();
-    
+    final uniqueCategories =
+        allProducts
+            .map((p) => p.category.isNotEmpty ? p.category : 'Portable')
+            .toSet()
+            .toList()
+          ..sort();
+
     final isMobile = ResponsiveHelper.isMobile(context);
     final textStyleValue = TextStyle(
       color: const Color(0xFF2C2C34),
@@ -304,38 +300,38 @@ class SearchFilterBar extends StatelessWidget {
               ),
             ),
           ],
-                selectedItemBuilder: (context) {
-                  // All devices: Simple labels without "sort by:" prefix
-                  return [
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Default',
-                        style: sortTextStyle,
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    ),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        isMobile ? 'A-Z' : 'Name (A-Z)',
-                        style: sortTextStyle,
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    ),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        isMobile ? 'Z-A' : 'Name (Z-A)',
-                        style: sortTextStyle,
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    ),
-                  ];
-                },
+          selectedItemBuilder: (context) {
+            // All devices: Simple labels without "sort by:" prefix
+            return [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Default',
+                  style: sortTextStyle,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  isMobile ? 'A-Z' : 'Name (A-Z)',
+                  style: sortTextStyle,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  isMobile ? 'Z-A' : 'Name (Z-A)',
+                  style: sortTextStyle,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ),
+            ];
+          },
           onChanged: (value) {
             if (value != null) {
               controller.setSortOption(value);
@@ -345,94 +341,4 @@ class SearchFilterBar extends StatelessWidget {
       ),
     );
   }
-
-  /// Small pill button that toggles between list (single column)
-  /// and grid (two-column) layouts.
-  Widget _buildLayoutToggleButton(
-    BuildContext context,
-    ProductController controller,
-  ) {
-    final isGrid = controller.layout == ProductLayout.grid2;
-    final isMobile = ResponsiveHelper.isMobile(context);
-
-    return Container(
-      width: isMobile ? 40 : 44,
-      height: isMobile ? 40 : 44,
-      decoration: ShapeDecoration(
-        color: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: const BorderSide(color: Color(0xFFE5E5E5), width: 1),
-        ),
-        shadows: const [
-          BoxShadow(
-            color: Color(0x0F000000),
-            blurRadius: 40,
-            offset: Offset(0, 0),
-            spreadRadius: 0,
-          ),
-        ],
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: controller.toggleLayout,
-        child: Center(
-          child: _buildGridIcon(context, isGrid),
-        ),
-      ),
-    );
-  }
-
-  /// Build custom 4-square grid icon
-  /// Shows 4-square icon when NOT in grid mode (to switch TO grid)
-  /// Shows list icon when IN grid mode (to switch back to list)
-  Widget _buildGridIcon(BuildContext context, bool isGrid) {
-    final isMobile = ResponsiveHelper.isMobile(context);
-    final iconSize = isMobile ? 18.0 : 20.0;
-    
-    if (isGrid) {
-      // Currently in grid mode - show list icon to switch back to list
-      return Icon(
-        Icons.view_agenda_rounded,
-        size: iconSize,
-        color: const Color(0xFF2C2C34),
-      );
-    } else {
-      // Currently in list mode - show 4-square icon to switch to grid
-      return CustomPaint(
-        size: Size(iconSize, iconSize),
-        painter: GridIconPainter(),
-      );
-    }
-  }
-}
-
-/// Custom painter for 4-square grid icon
-class GridIconPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF2C2C34) // Dark grey
-      ..style = PaintingStyle.fill;
-
-    final squareSize = size.width / 2;
-    final gap = 2.0; // Gap between squares
-    final borderRadius = 1.5;
-
-    // Draw 4 rounded squares in a 2x2 grid with gaps
-    for (int row = 0; row < 2; row++) {
-      for (int col = 0; col < 2; col++) {
-        final x = col * squareSize + (col > 0 ? gap : 0);
-        final y = row * squareSize + (row > 0 ? gap : 0);
-        final rect = RRect.fromRectAndRadius(
-          Rect.fromLTWH(x, y, squareSize - gap, squareSize - gap),
-          Radius.circular(borderRadius),
-        );
-        canvas.drawRRect(rect, paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

@@ -6,6 +6,25 @@ class WebUtils {
     return html.window.location.href;
   }
 
+  /// Get the base URL (origin) of the website
+  static String getBaseUrl() {
+    try {
+      // Get origin (protocol + host + port if any)
+      return html.window.location.origin;
+    } catch (e) {
+      print('Error getting base URL: $e');
+      // Fallback: try to construct from current URL
+      try {
+        final href = html.window.location.href;
+        final uri = Uri.parse(href);
+        return '${uri.scheme}://${uri.host}${uri.hasPort ? ':${uri.port}' : ''}';
+      } catch (e2) {
+        print('Error parsing URL: $e2');
+        return ''; // Return empty string as last resort
+      }
+    }
+  }
+
   static String getUserAgent() {
     return html.window.navigator.userAgent;
   }

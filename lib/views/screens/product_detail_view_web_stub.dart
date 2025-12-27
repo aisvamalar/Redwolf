@@ -3,6 +3,7 @@ class WebUtils {
   static String getCurrentUrl() => '';
   static String getUserAgent() => '';
   static int getMaxTouchPoints() => 0;
+  static String getBaseUrl() => '';
   static Future<bool> shareContent(
     String title,
     String text,

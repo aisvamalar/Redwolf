@@ -13,7 +13,7 @@ class ProductController extends ChangeNotifier {
   String _searchQuery = '';
   String _selectedCategory = 'all';
   SortOption _sortOption = SortOption.defaultSort;
-  ProductLayout _layout = ProductLayout.singleColumn; // Start with list view (single column)
+  ProductLayout _layout = ProductLayout.grid2; // Start with 4-square grid view
   bool _isLoading = false;
   String? _errorMessage;
 
