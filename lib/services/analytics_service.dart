@@ -34,23 +34,17 @@ class AnalyticsService {
   /// Get analytics summary for admin panel
   Future<Map<String, int>> getAnalyticsSummary() async {
     try {
-      final response = await _supabase
-          .from('analytics')
-          .select('event_type')
-          .execute();
+      final response = await _supabase.from('analytics').select('event_type');
 
-      if (response.data != null) {
-        final data = response.data as List;
-        final Map<String, int> summary = {};
-        
-        for (final row in data) {
-          final eventType = row['event_type'] as String;
-          summary[eventType] = (summary[eventType] ?? 0) + 1;
-        }
-        
-        return summary;
+      final data = response as List;
+      final Map<String, int> summary = {};
+
+      for (final row in data) {
+        final eventType = row['event_type'] as String;
+        summary[eventType] = (summary[eventType] ?? 0) + 1;
       }
-      return {};
+
+      return summary;
     } catch (e) {
       print('❌ Error getting analytics summary: $e');
       return {};
@@ -60,14 +54,8 @@ class AnalyticsService {
   /// Get analytics by product for admin panel
   Future<List<Map<String, dynamic>>> getProductAnalytics() async {
     try {
-      final response = await _supabase
-          .rpc('get_product_analytics')
-          .execute();
-
-      if (response.data != null) {
-        return List<Map<String, dynamic>>.from(response.data);
-      }
-      return [];
+      final data = await _supabase.rpc('get_product_analytics');
+      return List<Map<String, dynamic>>.from(data);
     } catch (e) {
       print('❌ Error getting product analytics: $e');
       return [];

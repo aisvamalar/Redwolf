@@ -1606,12 +1606,28 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                         final isTablet = DeviceDetectionService.isTablet(
                           context,
                         );
-                              // Use simplified iPad detection method
-                              final isIOS =
-                                  DeviceDetectionService.isIOS(context) ||
-                                  DeviceDetectionService.isProbablyIPad(
-                                    context,
-                                  );
+                              // Enhanced iPad detection - combine multiple methods
+                              final isIOSByAgent = DeviceDetectionService.isIOS(context);
+                              final isProbablyIPad = DeviceDetectionService.isProbablyIPad(context);
+                              final isIOS = isIOSByAgent || isProbablyIPad;
+                              
+                              if (kDebugMode) {
+                                print('=== iPad Detection Debug ===');
+                                print('isIOSByAgent: $isIOSByAgent');
+                                print('isProbablyIPad: $isProbablyIPad');
+                                print('Final isIOS: $isIOS');
+                                if (kIsWeb) {
+                                  try {
+                                    final userAgent = web_utils.WebUtils.getUserAgent();
+                                    final maxTouchPoints = web_utils.WebUtils.getMaxTouchPoints();
+                                    print('User Agent: $userAgent');
+                                    print('Max Touch Points: $maxTouchPoints');
+                                  } catch (e) {
+                                    print('Error getting browser info: $e');
+                                  }
+                                }
+                                print('============================');
+                              }
 
                         // AR is only available on mobile, tablet, and iPad (not desktop)
                               final isARSupported =
@@ -1895,81 +1911,127 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                         }
                                       }
                                     } else if (isIOS && !isUsdzFile) {
-                                      // iOS device but no USDZ file available - show message that USDZ is recommended
-                                      if (mounted) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: const Text(
-                                              'For the best AR experience on Apple devices, a USDZ file is recommended. Opening web AR viewer...',
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                            backgroundColor: const Color(
-                                              0xFFED1F24,
-                                            ),
-                                            duration: const Duration(
-                                              seconds: 3,
-                                            ),
-                                                  behavior:
-                                                      SnackBarBehavior.floating,
-                                          ),
-                                        );
-                                      }
+                                      // iOS device but no USDZ file available
+                                      // For iPad, try to use GLB file with model-viewer or fallback to web AR
                                       if (kDebugMode) {
                                         print(
-                                          'iOS device detected but USDZ file not available. Using web AR viewer with GLB file: $_directModelUrl',
+                                          'iOS device detected but USDZ file not available. Using GLB file: $_directModelUrl',
                                         );
                                       }
-                                      // Google Scene Viewer doesn't work well on iPad Safari
-                                      // Use web AR viewer directly for better compatibility
+                                      
                                       try {
                                         // Track AR view before launching
                                         if (_product.id != null) {
                                           final analyticsService =
                                               AnalyticsService();
-                                                await analyticsService
-                                                    .trackARView(_product.id!);
+                                          await analyticsService
+                                              .trackARView(_product.id!);
                                         }
 
-                                        // Navigate directly to web AR viewer
-                                        // This works better on iPad Safari than Google Scene Viewer
-                                        if (mounted) {
-                                          Navigator.of(context).push(
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  ARViewScreen(
-                                                    product: _product,
-                                                          modelUrl:
-                                                              _directModelUrl,
+                                          // For iPad Safari, try specialized iPad GLB handling
+                                          final glbUrl = _product.glbFileUrl ?? _product.modelUrl;
+                                          if (glbUrl != null && glbUrl.isNotEmpty && mounted) {
+                                            if (kDebugMode) {
+                                              print('Trying to open GLB file on iPad: $glbUrl');
+                                            }
+                                            
+                                            // Try iPad-specific GLB handling first
+                                            if (kIsWeb) {
+                                              try {
+                                                // Show loading message for iPad users
+                                                if (mounted) {
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text(
+                                                        'Loading AR viewer for iPad...',
+                                                        style: TextStyle(color: Colors.white),
+                                                      ),
+                                                      backgroundColor: Color(0xFF2196F3),
+                                                      duration: Duration(seconds: 2),
+                                                    ),
+                                                  );
+                                                }
+                                                
+                                                final iPadLaunched = await web_utils.WebUtils.openGlbOnIPad(glbUrl);
+                                                if (iPadLaunched) {
+                                                  if (kDebugMode) {
+                                                    print('iPad GLB launch successful');
+                                                  }
+                                                  return; // Success, don't continue to fallback
+                                                }
+                                              } catch (e) {
+                                                if (kDebugMode) {
+                                                  print('iPad GLB launch failed: $e');
+                                                }
+                                              }
+                                            }
+                                            
+                                            // Fallback: Try regular URL launcher
+                                            try {
+                                              final uri = Uri.parse(glbUrl);
+                                              final launched = await launchUrl(
+                                                uri,
+                                                mode: LaunchMode.externalApplication,
+                                              );
+                                              
+                                              if (!launched) {
+                                                // If direct launch fails, use web AR viewer
+                                                if (kDebugMode) {
+                                                  print('Direct GLB launch failed, using web AR viewer');
+                                                }
+                                                Navigator.of(context).push(
+                                                  MaterialPageRoute(
+                                                    builder: (context) =>
+                                                        ARViewScreen(
+                                                          product: _product,
+                                                          modelUrl: glbUrl,
+                                                        ),
                                                   ),
-                                            ),
-                                          );
+                                                );
+                                              }
+                                            } catch (e) {
+                                              if (kDebugMode) {
+                                                print('Error launching GLB directly: $e');
+                                              }
+                                              // Final fallback to web AR viewer
+                                              Navigator.of(context).push(
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      ARViewScreen(
+                                                        product: _product,
+                                                        modelUrl: glbUrl,
+                                                      ),
+                                                ),
+                                              );
+                                            }
+                                          } else {
+                                          // No GLB file available
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'No 3D model file available for this product.',
+                                                  style: TextStyle(color: Colors.white),
+                                                ),
+                                                backgroundColor: Color(0xFFED1F24),
+                                                duration: Duration(seconds: 3),
+                                              ),
+                                            );
+                                          }
                                         }
                                       } catch (e) {
                                         if (kDebugMode) {
-                                          print(
-                                            'Error launching web AR viewer on iOS: $e',
-                                          );
+                                          print('Error in iPad AR fallback: $e');
                                         }
                                         if (mounted) {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
+                                          ScaffoldMessenger.of(context).showSnackBar(
                                             SnackBar(
                                               content: Text(
                                                 'Error opening AR viewer: ${e.toString()}',
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                ),
+                                                style: const TextStyle(color: Colors.white),
                                               ),
-                                                    backgroundColor:
-                                                        const Color(0xFFED1F24),
-                                              duration: const Duration(
-                                                seconds: 3,
-                                              ),
+                                              backgroundColor: const Color(0xFFED1F24),
+                                              duration: const Duration(seconds: 3),
                                             ),
                                           );
                                         }
@@ -2731,7 +2793,15 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       builder: (context, constraints) {
         // Prevent Row overflow on medium/narrow widths (common on web)
         final isDesktop = ResponsiveHelper.isDesktop(context);
+        final isTablet = ResponsiveHelper.isTablet(context);
         final canShowTwoColumns = isDesktop && constraints.maxWidth >= 520;
+        
+        // Determine alignment based on device type
+        // For tablets, center-align to match the parent Align widget
+        // For mobile and desktop, left-align
+        final crossAxisAlignment = isTablet 
+            ? CrossAxisAlignment.center 
+            : CrossAxisAlignment.start;
 
         Widget featureItem(String text) {
           return Padding(
@@ -2739,6 +2809,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
             child: Text(
               '• $text',
               softWrap: true,
+              textAlign: isTablet ? TextAlign.center : TextAlign.left,
               style: const TextStyle(
                 color: Color(0xFF1A1B2D),
                 fontSize: 14,
@@ -2750,11 +2821,12 @@ class _ProductDetailViewState extends State<ProductDetailView> {
         }
 
         return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: crossAxisAlignment,
           children: [
-            const Text(
+            Text(
               'Key Features',
-              style: TextStyle(
+              textAlign: isTablet ? TextAlign.center : TextAlign.left,
+              style: const TextStyle(
                 color: Color(0xFF090919),
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -2793,7 +2865,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
               )
             else
               Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: crossAxisAlignment,
                 children: features.map(featureItem).toList(),
               ),
           ],

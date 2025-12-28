@@ -37,6 +37,100 @@ class WebUtils {
     }
   }
 
+  /// Enhanced iPad detection
+  static bool isIPad() {
+    try {
+      final userAgent = getUserAgent().toLowerCase();
+      final maxTouchPoints = getMaxTouchPoints();
+
+      // Direct iPad detection
+      if (userAgent.contains('ipad')) {
+        return true;
+      }
+
+      // iPadOS 13+ detection (reports as Mac but has touch)
+      if ((userAgent.contains('macintel') || userAgent.contains('macintosh')) &&
+          maxTouchPoints > 1) {
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Try to open GLB file on iPad using model-viewer approach
+  static Future<bool> openGlbOnIPad(String glbUrl) async {
+    try {
+      if (!isIPad()) {
+        return false;
+      }
+
+      print('Attempting to open GLB file on iPad: $glbUrl');
+
+      // Method 1: Try to create a model-viewer element
+      try {
+        final modelViewer = html.Element.tag('model-viewer')
+          ..setAttribute('src', glbUrl)
+          ..setAttribute('ar', '')
+          ..setAttribute('ar-modes', 'webxr scene-viewer quick-look')
+          ..setAttribute('camera-controls', '')
+          ..setAttribute('auto-rotate', '')
+          ..style.width = '100%'
+          ..style.height = '400px'
+          ..style.position = 'fixed'
+          ..style.top = '50%'
+          ..style.left = '50%'
+          ..style.transform = 'translate(-50%, -50%)'
+          ..style.zIndex = '9999'
+          ..style.backgroundColor = 'white';
+
+        // Add to body
+        html.document.body?.append(modelViewer);
+
+        // Try to activate AR
+        final activateAR = html.document.createElement('script');
+        activateAR.text = '''
+          setTimeout(() => {
+            const viewer = document.querySelector('model-viewer');
+            if (viewer && viewer.canActivateAR) {
+              viewer.activateAR();
+            }
+          }, 1000);
+        ''';
+        html.document.head?.append(activateAR);
+
+        // Remove after delay
+        Future.delayed(const Duration(seconds: 10), () {
+          try {
+            modelViewer.remove();
+            activateAR.remove();
+          } catch (e) {
+            print('Error cleaning up model-viewer: $e');
+          }
+        });
+
+        return true;
+      } catch (e) {
+        print('Model-viewer approach failed: $e');
+      }
+
+      // Method 2: Try direct navigation
+      try {
+        html.window.location.href = glbUrl;
+        return true;
+      } catch (e) {
+        print('Direct navigation failed: $e');
+      }
+
+      return false;
+    } catch (e) {
+      print('Error opening GLB on iPad: $e');
+      return false;
+    }
+  }
+
   static Future<bool> shareContent(
     String title,
     String text,

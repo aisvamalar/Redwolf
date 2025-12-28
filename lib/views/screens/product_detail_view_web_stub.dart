@@ -12,4 +12,6 @@ class WebUtils {
   static Future<bool> copyToClipboard(String text) async => false;
   static void navigateBack() {}
   static Future<bool> openUsdzInAR(String usdzUrl) async => false;
+  static bool isIPad() => false;
+  static Future<bool> openGlbOnIPad(String glbUrl) async => false;
 }
