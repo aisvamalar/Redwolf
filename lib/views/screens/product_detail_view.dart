@@ -653,11 +653,9 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                                   desktop: 32,
                                                 ),
                                           ),
-                                          // Key features (centered for tablet, left-aligned for mobile)
+                                          // Key features (left-aligned for all devices)
                                           Align(
-                                            alignment: isTablet
-                                                ? Alignment.center
-                                                : Alignment.centerLeft,
+                                            alignment: Alignment.centerLeft,
                                             child: _buildKeyFeatures(),
                                           ),
                                         ],
@@ -906,11 +904,9 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                                       desktop: 32,
                                                     ),
                                               ),
-                                              // Key features (centered for tablet, left-aligned for mobile)
+                                              // Key features (left-aligned for all devices)
                                               Align(
-                                                alignment: isTablet
-                                                    ? Alignment.center
-                                                    : Alignment.centerLeft,
+                                                alignment: Alignment.centerLeft,
                                                 child: _buildKeyFeatures(),
                                               ),
                                             ],
@@ -1787,6 +1783,29 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                               // Simple USDZ AR launch (original working method)
                                               if (kIsWeb) {
                                                 // Use the original working method for iPad
+                                                if (kDebugMode) {
+                                                  print(
+                                                    '=== iPad AR Launch Debug ===',
+                                                  );
+                                                  print(
+                                                    'Product: ${_product.name}',
+                                                  );
+                                                  print(
+                                                    'USDZ URL from DB: ${_product.usdzFileUrl}',
+                                                  );
+                                                  print(
+                                                    'Direct URL being used: $directUrl',
+                                                  );
+                                                  print(
+                                                    'URL contains spaces: ${directUrl.contains(' ')}',
+                                                  );
+                                                  print(
+                                                    'URL length: ${directUrl.length}',
+                                                  );
+                                                  print(
+                                                    '============================',
+                                                  );
+                                                }
                                                 await web_utils
                                                     .WebUtils.openUsdzInAR(
                                                   directUrl,
@@ -2617,15 +2636,10 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       builder: (context, constraints) {
         // Prevent Row overflow on medium/narrow widths (common on web)
         final isDesktop = ResponsiveHelper.isDesktop(context);
-        final isTablet = ResponsiveHelper.isTablet(context);
         final canShowTwoColumns = isDesktop && constraints.maxWidth >= 520;
 
-        // Determine alignment based on device type
-        // For tablets, center-align to match the parent Align widget
-        // For mobile and desktop, left-align
-        final crossAxisAlignment = isTablet
-            ? CrossAxisAlignment.center
-            : CrossAxisAlignment.start;
+        // Always left-align for all devices
+        final crossAxisAlignment = CrossAxisAlignment.start;
 
         Widget featureItem(String text) {
           return Padding(
@@ -2633,7 +2647,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
             child: Text(
               '• $text',
               softWrap: true,
-              textAlign: isTablet ? TextAlign.center : TextAlign.left,
+              textAlign: TextAlign.left,
               style: const TextStyle(
                 color: Color(0xFF1A1B2D),
                 fontSize: 14,
@@ -2649,7 +2663,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
           children: [
             Text(
               'Key Features',
-              textAlign: isTablet ? TextAlign.center : TextAlign.left,
+              textAlign: TextAlign.left,
               style: const TextStyle(
                 color: Color(0xFF090919),
                 fontSize: 16,
