@@ -225,57 +225,134 @@ class WebUtils {
   }
 
   static Future<bool> openUsdzInAR(String usdzUrl) async {
-    // Properly encode the URL to handle spaces and special characters
-    // PRESERVE CASE SENSITIVITY - critical for file names like "43_EASEL STANDEE.USDZ"
+    // CRITICAL: Clean and normalize the URL to fix common issues
+    // Issues that cause "Opening AR view..." freeze:
+    // 1. Trailing spaces in filename (e.g., "file .usdz")
+    // 2. Spaces in filename (should be encoded)
+    // 3. Mixed case (should be preserved but validated)
+    
+    // Step 1: Trim trailing spaces from the entire URL
+    String cleanedUrl = usdzUrl.trim();
+    
+    // Step 2: Check for problematic filename patterns
+    final uri = Uri.parse(cleanedUrl);
+    final pathSegments = uri.pathSegments;
+    if (pathSegments.isNotEmpty) {
+      final filename = pathSegments.last;
+      
+      // Check for trailing space in filename (common issue)
+      if (filename.endsWith(' ') || filename.endsWith('%20')) {
+        print('⚠️ WARNING: Filename has trailing space - this can cause AR to freeze!');
+        print('Original filename: "$filename"');
+        // Trim the trailing space from the last segment
+        final cleanedFilename = filename.trim();
+        pathSegments[pathSegments.length - 1] = cleanedFilename;
+        // Reconstruct URL with cleaned filename
+        final cleanedPath = '/' + pathSegments.join('/');
+        cleanedUrl = '${uri.scheme}://${uri.authority}$cleanedPath';
+        if (uri.hasQuery) cleanedUrl += '?${uri.query}';
+        if (uri.hasFragment) cleanedUrl += '#${uri.fragment}';
+        print('Cleaned filename: "$cleanedFilename"');
+      }
+      
+      // Check for spaces in filename (should be encoded)
+      if (filename.contains(' ')) {
+        print('⚠️ WARNING: Filename contains spaces - encoding them');
+        print('Original filename: "$filename"');
+      }
+      
+      // Check for uppercase in filename (less critical but can cause issues)
+      if (filename.contains(RegExp(r'[A-Z]'))) {
+        print('ℹ️ INFO: Filename contains uppercase letters');
+        print('Filename: "$filename"');
+        print('Note: For best compatibility, use lowercase filenames');
+      }
+    }
+    
+    // Step 3: Properly encode the URL to handle spaces and special characters
+    // PRESERVE CASE SENSITIVITY - critical for file names
+    // Database stores full URLs like: https://...supabase.co/.../products/usdz/model_1766844803168_model.usdz
     String encodedUrl;
 
-    // Check if URL needs encoding (has spaces or unencoded special chars)
-    if (usdzUrl.contains(' ') ||
-        (usdzUrl.contains('%') == false && usdzUrl.contains('&'))) {
+    // Check if URL is already fully encoded (no unencoded spaces)
+    // If URL contains %20 or other encoded characters, it might already be encoded
+    final hasUnencodedSpaces = cleanedUrl.contains(' ') && !cleanedUrl.contains('%20');
+    final needsEncoding = hasUnencodedSpaces || 
+                        (cleanedUrl.contains('%') == false && cleanedUrl.contains('&'));
+
+    if (needsEncoding) {
       // URL needs encoding - preserve case while encoding
       try {
         // Parse to get components
-        final uri = Uri.parse(usdzUrl);
+        final uriToEncode = Uri.parse(cleanedUrl);
 
         // Encode path segments individually to preserve case
-        final encodedSegments = uri.pathSegments.map((segment) {
-          // Uri.encodeComponent preserves case of letters
+        // This handles full URLs from database correctly
+        final encodedSegments = uriToEncode.pathSegments.map((segment) {
+          // Check if segment is already encoded (contains %)
+          if (segment.contains('%')) {
+            // Already encoded, use as-is to avoid double encoding
+            return segment;
+          }
+          // Uri.encodeComponent preserves case of letters but encodes spaces
           return Uri.encodeComponent(segment);
         }).toList();
 
         // Reconstruct with preserved case
         final encodedPath = '/' + encodedSegments.join('/');
-        encodedUrl = '${uri.scheme}://${uri.authority}$encodedPath';
+        encodedUrl = '${uriToEncode.scheme}://${uriToEncode.authority}$encodedPath';
 
         // Preserve query and fragment
-        if (uri.hasQuery) encodedUrl += '?${uri.query}';
-        if (uri.hasFragment) encodedUrl += '#${uri.fragment}';
+        if (uriToEncode.hasQuery) encodedUrl += '?${uriToEncode.query}';
+        if (uriToEncode.hasFragment) encodedUrl += '#${uriToEncode.fragment}';
 
         print('URL encoding - case preserved');
         print('Original: $usdzUrl');
+        print('Cleaned:  $cleanedUrl');
         print('Encoded:  $encodedUrl');
       } catch (e) {
         print('Error in URL parsing, using manual encoding: $e');
-        // Manual encoding: only encode spaces, preserve everything else
-        encodedUrl = usdzUrl.replaceAll(' ', '%20');
+        // Manual encoding: encode spaces, preserve everything else
+        encodedUrl = cleanedUrl.replaceAll(' ', '%20');
+        print('Using manual encoding: $encodedUrl');
       }
     } else {
       // URL is already properly encoded or doesn't need encoding
-      // Use as-is to preserve exact case
-      encodedUrl = usdzUrl;
+      // Use cleaned URL to preserve exact case
+      // This handles full URLs from database that are already correct
+      encodedUrl = cleanedUrl;
       print('URL already encoded or no encoding needed');
-      print('Using URL as-is: $encodedUrl');
+      print('Original: $usdzUrl');
+      print('Using:    $encodedUrl');
+      print('Note: Full URL from database - using as-is');
     }
 
     try {
       print('Opening USDZ in AR Quick Look');
       print('Original URL: $usdzUrl');
+      print('Cleaned URL: $cleanedUrl');
       print('Encoded URL: $encodedUrl');
 
       // Validate URL - ensure it's a USDZ file from the usdz/ folder
-      if (usdzUrl.isEmpty) {
-        print('Invalid USDZ URL: URL is empty');
+      if (usdzUrl.isEmpty || cleanedUrl.isEmpty) {
+        print('❌ Invalid USDZ URL: URL is empty');
         return false;
+      }
+      
+      // Additional validation: Check for common issues
+      print('=== USDZ URL Validation ===');
+      print('✅ URL is not empty');
+      
+      // Check if URL points to Supabase storage
+      final isSupabaseUrl = encodedUrl.contains('supabase.co') || 
+                           encodedUrl.contains('supabase');
+      if (isSupabaseUrl) {
+        print('✅ URL points to Supabase storage');
+        print('⚠️ IMPORTANT: Ensure Supabase storage bucket has correct MIME type:');
+        print('   Content-Type: model/vnd.usdz+zip');
+        print('   Content-Disposition: inline');
+      } else {
+        print('⚠️ URL does not appear to be from Supabase storage');
       }
 
       print('Encoded USDZ URL: $encodedUrl');

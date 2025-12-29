@@ -49,13 +49,26 @@ class Product {
     }
 
     // Extract and construct USDZ file URL
+    // Database typically stores FULL URLs like:
+    // "https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/usdz/model_1766844803168_model.usdz"
+    // 
+    // Database can also store just the filename (legacy):
+    // "model_1766400844390_32_EASEL STANDEE.usdz" (case-sensitive!)
+    // 
+    // CRITICAL: For AR Quick Look on iPad, the filename must match exactly (case-sensitive)
+    // Full URLs from database are used as-is (no modification needed)
     String? usdzFileUrl = json['usdz_file_url']?.toString();
     // Handle case where database stores "NULL" as string instead of null
     if (usdzFileUrl != null &&
         usdzFileUrl.isNotEmpty &&
         usdzFileUrl.toUpperCase() != 'NULL' &&
         !usdzFileUrl.startsWith('http')) {
+      // Database stores just filename - construct full URL preserving case
       usdzFileUrl = _constructStorageUrl('usdz', usdzFileUrl);
+    } else if (usdzFileUrl != null &&
+        usdzFileUrl.startsWith('http')) {
+      // Database stores full URL - use as-is (case is already preserved)
+      // No modification needed
     } else if (usdzFileUrl != null &&
         (usdzFileUrl.isEmpty || usdzFileUrl.toUpperCase() == 'NULL')) {
       // Treat "NULL" string or empty string as null
@@ -112,24 +125,38 @@ class Product {
         ? fileName.substring(1)
         : fileName;
     
-    // Normalize file name to lowercase to avoid case sensitivity issues
-    // But preserve the path structure if fileName contains folders
+    // CRITICAL: For USDZ files, preserve case sensitivity
+    // Supabase storage is case-sensitive, and AR Quick Look requires exact filename match
+    // The actual file in Supabase is: model_1766400844390_32_EASEL STANDEE.usdz
+    // We must preserve the exact case and spaces (they will be URL-encoded)
     String normalizedFileName;
-    if (cleanFileName.contains('/')) {
-      // If fileName already contains folder path, normalize only the filename part
-      final parts = cleanFileName.split('/');
-      final lastPart = parts.last.toLowerCase();
-      normalizedFileName = '${parts.sublist(0, parts.length - 1).join('/')}/$lastPart';
+    if (folder == 'usdz') {
+      // For USDZ files: preserve case and spaces (will be URL-encoded)
+      // This is critical for AR Quick Look to work on iPad
+      normalizedFileName = cleanFileName;
     } else {
-      normalizedFileName = cleanFileName.toLowerCase();
+      // For other files (GLB, images): normalize to lowercase to avoid case sensitivity issues
+      if (cleanFileName.contains('/')) {
+        // If fileName already contains folder path, normalize only the filename part
+        final parts = cleanFileName.split('/');
+        final lastPart = parts.last.toLowerCase();
+        normalizedFileName = '${parts.sublist(0, parts.length - 1).join('/')}/$lastPart';
+      } else {
+        normalizedFileName = cleanFileName.toLowerCase();
+      }
     }
     
     // Handle if fileName already contains folder path
     if (normalizedFileName.contains('/')) {
-      return '$baseUrl/$normalizedFileName';
+      // Encode each path segment separately to preserve case while encoding spaces
+      final pathSegments = normalizedFileName.split('/');
+      final encodedSegments = pathSegments.map((segment) => Uri.encodeComponent(segment)).toList();
+      final encodedPath = encodedSegments.join('/');
+      return '$baseUrl/$encodedPath';
     }
-    // Handle USDZ files in usdz folder
+    // Handle USDZ files in usdz folder - preserve case, encode spaces
     if (folder == 'usdz') {
+      // Encode the filename to handle spaces, but preserve case
       return '$baseUrl/$folder/${Uri.encodeComponent(normalizedFileName)}';
     }
     return '$baseUrl/$folder/${Uri.encodeComponent(normalizedFileName)}';

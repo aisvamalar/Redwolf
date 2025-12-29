@@ -1,0 +1,13 @@
+{
+  "headers": [
+    {
+      "source": "/(.*)\\.usdz",
+      "headers": [
+        { "key": "Content-Type", "value": "model/vnd.usdz+zip" },
+        { "key": "Content-Disposition", "value": "inline" },
+        { "key": "Accept-Ranges", "value": "bytes" }
+      ]
+    }
+  ]
+}
+
