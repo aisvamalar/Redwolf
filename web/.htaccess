@@ -41,3 +41,4 @@ RewriteRule ^(.*)$ index.html [QSA,L]
     ExpiresByType image/svg+xml "access plus 1 year"
 </IfModule>
 
+

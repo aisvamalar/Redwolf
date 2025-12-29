@@ -1756,8 +1756,27 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                           }
 
                                           // For iOS devices (iPhone/iPad), prioritize Apple Quick Look AR
+                                          // Also check explicitly for iPad on web (iPadOS 13+ might not be detected as iOS)
                                           // Try USDZ first, but also check if we should use Quick Look for other formats
-                                          if (isIOS && isUsdzFile) {
+                                          final isIPadOnWeb =
+                                              kIsWeb &&
+                                              web_utils.WebUtils.isIPad();
+                                          final shouldUseUsdzAR =
+                                              (isIOS || isIPadOnWeb) &&
+                                              isUsdzFile;
+
+                                          if (kDebugMode) {
+                                            print('=== AR Launch Decision ===');
+                                            print('isIOS: $isIOS');
+                                            print('isIPadOnWeb: $isIPadOnWeb');
+                                            print('isUsdzFile: $isUsdzFile');
+                                            print(
+                                              'shouldUseUsdzAR: $shouldUseUsdzAR',
+                                            );
+                                            print('========================');
+                                          }
+
+                                          if (shouldUseUsdzAR) {
                                             // For iOS devices (iPhone/iPad) with USDZ files, use Apple Quick Look AR
                                             // iOS Safari automatically opens USDZ files in AR Quick Look when linked directly
                                             // iPad Safari also supports AR Quick Look for USDZ files
@@ -1769,6 +1788,9 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                               if (kDebugMode) {
                                                 print(
                                                   'Launching USDZ AR with URL: $directUrl',
+                                                );
+                                                print(
+                                                  'Is iPad (web check): $isIPadOnWeb',
                                                 );
                                               }
 

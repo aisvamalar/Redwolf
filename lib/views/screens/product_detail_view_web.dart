@@ -324,15 +324,35 @@ class WebUtils {
       }
       print('=====================================');
 
-      // Method 1: Create an anchor element with rel="ar" attribute
+      // Check if this is specifically an iPad
+      final isIPadDevice = isIPad();
+      print('Is iPad device: $isIPadDevice');
+
+      // Method 1: For iPad, try direct navigation first (most reliable)
+      // iPad Safari will automatically open USDZ files in AR Quick Look when navigated to directly
+      if (isIPadDevice) {
+        try {
+          print('iPad detected - trying direct navigation to USDZ URL');
+          print('Navigating to: $encodedUrl');
+          // Use window.location.href for direct navigation
+          // This is the most reliable method for iPad Safari
+          html.window.location.href = encodedUrl;
+          print('Direct navigation initiated - AR Quick Look should open');
+          return true;
+        } catch (e) {
+          print('Direct navigation failed, trying anchor method: $e');
+          // Fall through to anchor method
+        }
+      }
+
+      // Method 2: Create an anchor element with rel="ar" attribute
       // This is Apple's recommended way to trigger AR Quick Look on iOS/iPad Safari
       // The rel="ar" attribute tells Safari to open the file in AR Quick Look
       // Note: Autorotate must be enabled in the USDZ file itself, not via URL
       final anchor = html.AnchorElement()
-        ..href =
-            encodedUrl // Use properly encoded URL
-        ..rel =
-            'ar' // Critical: This attribute triggers AR Quick Look
+        ..href = encodedUrl // Use properly encoded URL
+        ..rel = 'ar' // Critical: This attribute triggers AR Quick Look
+        ..download = '' // Prevent download, force AR Quick Look
         ..style.position = 'fixed'
         ..style.left = '0'
         ..style.top = '0'
@@ -342,16 +362,18 @@ class WebUtils {
         ..style.pointerEvents = 'none'
         ..setAttribute('aria-hidden', 'true');
 
-      // Add to document body
+      // Add to document body BEFORE clicking
       html.document.body?.append(anchor);
 
       print('Anchor element created with rel="ar"');
       print('Original URL: $usdzUrl');
       print('Encoded URL: $encodedUrl');
       print('Anchor href: ${anchor.href}');
+      print('Anchor rel: ${anchor.rel}');
 
       // Programmatically click the anchor
       // This must be triggered by user interaction (which it is, from button click)
+      // Use a synchronous click for better reliability
       anchor.click();
 
       print('Anchor clicked - AR Quick Look should open on iPad/iPhone');
