@@ -29,6 +29,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
   Product? _enhancedProduct;
   List<Product> _similarProducts = [];
   bool _isLoadingSimilar = false;
+  PageController? _imagePageController;
 
   @override
   void initState() {
@@ -560,44 +561,36 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       );
     }
 
-    final mainImageUrl = _productImages[_selectedImageIndex];
-
-    // Main hero product image (white card)
+    // Main hero product image slider (swipeable, no arrows, no white background)
     Widget buildMainImage(double maxWidth) {
       // Increased size for better visibility
       final imageWidth = maxWidth * 0.95; // Increased to 95% of max width
       final imageHeight = imageWidth * 0.95; // Slightly taller than square
-      return Container(
+
+      return SizedBox(
         width: imageWidth,
         height: imageHeight,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 20,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            width: double.infinity,
-            height: double.infinity,
-            color: const Color(0xFFF8F9FA),
-            child: Image.network(
-              mainImageUrl,
-              fit: BoxFit
-                  .contain, // Changed from cover to contain to show full image
+        child: PageView.builder(
+          controller: _imagePageController,
+          onPageChanged: (index) {
+            setState(() {
+              _selectedImageIndex = index;
+            });
+          },
+          itemCount: _productImages.length,
+          itemBuilder: (context, index) {
+            final imageUrl = _productImages[index];
+            return Container(
               width: double.infinity,
               height: double.infinity,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Container(
-                  color: const Color(0xFFF5F5F7),
-                  child: Center(
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.contain,
+                width: double.infinity,
+                height: double.infinity,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Center(
                     child: CircularProgressIndicator(
                       value: loadingProgress.expectedTotalBytes != null
                           ? loadingProgress.cumulativeBytesLoaded /
@@ -606,23 +599,20 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                       strokeWidth: 2,
                       color: const Color(0xFFED1F24),
                     ),
-                  ),
-                );
-              },
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: const Color(0xFFF5F5F7),
-                  child: const Center(
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return const Center(
                     child: Icon(
                       Icons.image_outlined,
                       size: 64,
                       color: Colors.grey,
                     ),
-                  ),
-                );
-              },
-            ),
-          ),
+                  );
+                },
+              ),
+            );
+          },
         ),
       );
     }
@@ -686,6 +676,11 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                 setState(() {
                   _selectedImageIndex = index;
                 });
+                _imagePageController?.animateToPage(
+                  index,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
               },
               child: Container(
                 width: thumbnailSize,
@@ -804,6 +799,11 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                   setState(() {
                     _selectedImageIndex = index;
                   });
+                  _imagePageController?.animateToPage(
+                    index,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  );
                 },
               );
             },
