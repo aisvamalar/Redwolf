@@ -51,10 +51,10 @@ class Product {
     // Extract and construct USDZ file URL
     // Database typically stores FULL URLs like:
     // "https://zsipfgtlfnfvmnrohtdo.supabase.co/storage/v1/object/public/products/products/usdz/model_1766844803168_model.usdz"
-    // 
+    //
     // Database can also store just the filename (legacy):
     // "model_1766400844390_32_EASEL STANDEE.usdz" (case-sensitive!)
-    // 
+    //
     // CRITICAL: For AR Quick Look on iPad, the filename must match exactly (case-sensitive)
     // Full URLs from database are used as-is (no modification needed)
     String? usdzFileUrl = json['usdz_file_url']?.toString();
@@ -65,8 +65,7 @@ class Product {
         !usdzFileUrl.startsWith('http')) {
       // Database stores just filename - construct full URL preserving case
       usdzFileUrl = _constructStorageUrl('usdz', usdzFileUrl);
-    } else if (usdzFileUrl != null &&
-        usdzFileUrl.startsWith('http')) {
+    } else if (usdzFileUrl != null && usdzFileUrl.startsWith('http')) {
       // Database stores full URL - use as-is (case is already preserved)
       // No modification needed
     } else if (usdzFileUrl != null &&
@@ -124,7 +123,7 @@ class Product {
     final cleanFileName = fileName.startsWith('/')
         ? fileName.substring(1)
         : fileName;
-    
+
     // CRITICAL: For USDZ files, preserve case sensitivity
     // Supabase storage is case-sensitive, and AR Quick Look requires exact filename match
     // The actual file in Supabase is: model_1766400844390_32_EASEL STANDEE.usdz
@@ -140,17 +139,20 @@ class Product {
         // If fileName already contains folder path, normalize only the filename part
         final parts = cleanFileName.split('/');
         final lastPart = parts.last.toLowerCase();
-        normalizedFileName = '${parts.sublist(0, parts.length - 1).join('/')}/$lastPart';
+        normalizedFileName =
+            '${parts.sublist(0, parts.length - 1).join('/')}/$lastPart';
       } else {
         normalizedFileName = cleanFileName.toLowerCase();
       }
     }
-    
+
     // Handle if fileName already contains folder path
     if (normalizedFileName.contains('/')) {
       // Encode each path segment separately to preserve case while encoding spaces
       final pathSegments = normalizedFileName.split('/');
-      final encodedSegments = pathSegments.map((segment) => Uri.encodeComponent(segment)).toList();
+      final encodedSegments = pathSegments
+          .map((segment) => Uri.encodeComponent(segment))
+          .toList();
       final encodedPath = encodedSegments.join('/');
       return '$baseUrl/$encodedPath';
     }
