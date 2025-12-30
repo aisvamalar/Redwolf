@@ -1820,7 +1820,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                             children: [
                               Flexible(
                                 child: Text(
-                                  isMobile ? 'View AR' : 'View In My Space',
+                                  'View in my space',
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: buttonFontSize,
