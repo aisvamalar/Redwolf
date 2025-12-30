@@ -43,44 +43,19 @@ class WebUtils {
       final userAgent = getUserAgent().toLowerCase();
       final maxTouchPoints = getMaxTouchPoints();
 
-      print('🔍 iPad Detection Debug:');
-      print('  User Agent: $userAgent');
-      print('  Max Touch Points: $maxTouchPoints');
-
       // Direct iPad detection
       if (userAgent.contains('ipad')) {
-        print('  ✅ iPad detected via user agent');
         return true;
       }
 
       // iPadOS 13+ detection (reports as Mac but has touch)
       if ((userAgent.contains('macintel') || userAgent.contains('macintosh')) &&
           maxTouchPoints > 1) {
-        print('  ✅ iPad detected via Mac + touch points');
         return true;
       }
 
-      // Additional iPad detection for Safari on iPad
-      // Check for Safari + touch support (common iPad pattern)
-      if (userAgent.contains('safari') &&
-          !userAgent.contains('chrome') &&
-          maxTouchPoints > 0) {
-        print('  ✅ iPad detected via Safari + touch');
-        return true;
-      }
-
-      // Check for mobile Safari patterns that might indicate iPad
-      if (userAgent.contains('mobile') &&
-          userAgent.contains('safari') &&
-          maxTouchPoints > 1) {
-        print('  ✅ iPad detected via mobile Safari + multi-touch');
-        return true;
-      }
-
-      print('  ❌ iPad not detected');
       return false;
     } catch (e) {
-      print('  ❌ iPad detection error: $e');
       return false;
     }
   }
@@ -249,18 +224,53 @@ class WebUtils {
     }
   }
 
-  /// Open USDZ file in AR Quick Look on iOS/iPad Safari
-  /// This creates an anchor element with rel="ar" attribute which triggers AR Quick Look
-  /// Apple's AR Quick Look requires:
-  /// 1. An anchor element with rel="ar" attribute
-  /// 2. The href pointing to a USDZ file (from products/usdz/ folder)
-  /// 3. User interaction (click) to trigger AR
-  ///
-  /// Note: Autorotate is controlled by the USDZ file itself, not URL parameters.
-  /// The USDZ file must have autorotate enabled in its metadata for it to work.
   static Future<bool> openUsdzInAR(String usdzUrl) async {
+    // Properly encode the URL to handle spaces and special characters
+    // PRESERVE CASE SENSITIVITY - critical for file names like "43_EASEL STANDEE.USDZ"
+    String encodedUrl;
+
+    // Check if URL needs encoding (has spaces or unencoded special chars)
+    if (usdzUrl.contains(' ') ||
+        (usdzUrl.contains('%') == false && usdzUrl.contains('&'))) {
+      // URL needs encoding - preserve case while encoding
+      try {
+        // Parse to get components
+        final uri = Uri.parse(usdzUrl);
+
+        // Encode path segments individually to preserve case
+        final encodedSegments = uri.pathSegments.map((segment) {
+          // Uri.encodeComponent preserves case of letters
+          return Uri.encodeComponent(segment);
+        }).toList();
+
+        // Reconstruct with preserved case
+        final encodedPath = '/' + encodedSegments.join('/');
+        encodedUrl = '${uri.scheme}://${uri.authority}$encodedPath';
+
+        // Preserve query and fragment
+        if (uri.hasQuery) encodedUrl += '?${uri.query}';
+        if (uri.hasFragment) encodedUrl += '#${uri.fragment}';
+
+        print('URL encoding - case preserved');
+        print('Original: $usdzUrl');
+        print('Encoded:  $encodedUrl');
+      } catch (e) {
+        print('Error in URL parsing, using manual encoding: $e');
+        // Manual encoding: only encode spaces, preserve everything else
+        encodedUrl = usdzUrl.replaceAll(' ', '%20');
+      }
+    } else {
+      // URL is already properly encoded or doesn't need encoding
+      // Use as-is to preserve exact case
+      encodedUrl = usdzUrl;
+      print('URL already encoded or no encoding needed');
+      print('Using URL as-is: $encodedUrl');
+    }
+
     try {
-      print('Opening USDZ in AR Quick Look: $usdzUrl');
+      print('Opening USDZ in AR Quick Look');
+      print('Original URL: $usdzUrl');
+      print('Encoded URL: $encodedUrl');
 
       // Validate URL - ensure it's a USDZ file from the usdz/ folder
       if (usdzUrl.isEmpty) {
@@ -268,26 +278,59 @@ class WebUtils {
         return false;
       }
 
-      final lowerUrl = usdzUrl.toLowerCase();
+      print('Encoded USDZ URL: $encodedUrl');
+
+      // Case-insensitive check for USDZ extension (but preserve case in URL)
+      final lowerUrl = encodedUrl.toLowerCase();
       if (!lowerUrl.contains('usdz')) {
         print('Invalid USDZ URL: URL does not contain .usdz extension');
-        print('URL: $usdzUrl');
+        print('Original URL: $usdzUrl');
+        print('Encoded URL: $encodedUrl');
         return false;
       }
 
-      // Verify URL points to Supabase storage usdz/ folder
-      if (!lowerUrl.contains('/usdz/') && !lowerUrl.contains('usdz%')) {
+      // Verify URL points to Supabase storage usdz/ folder (case-insensitive check)
+      final hasUsdzFolder =
+          lowerUrl.contains('/usdz/') ||
+          lowerUrl.contains('usdz%') ||
+          lowerUrl.contains('/usdz%2f'); // Encoded forward slash
+      if (!hasUsdzFolder) {
         print('Warning: USDZ URL may not be from usdz/ folder');
-        print('URL: $usdzUrl');
-        // Continue anyway as URL might be encoded
+        print('URL: $encodedUrl');
+        print('Lower URL: $lowerUrl');
+        // Continue anyway as URL might be encoded differently
       }
+
+      // Final check: ensure the encoded URL preserves the original case
+      print('=== Case Sensitivity Verification ===');
+      final originalHasUpper = usdzUrl.contains(RegExp(r'[A-Z]'));
+      final encodedHasUpper = encodedUrl.contains(RegExp(r'[A-Z]'));
+      final originalHasLower = usdzUrl.contains(RegExp(r'[a-z]'));
+      final encodedHasLower = encodedUrl.contains(RegExp(r'[a-z]'));
+
+      print('Original URL: $usdzUrl');
+      print('  Has uppercase: $originalHasUpper');
+      print('  Has lowercase: $originalHasLower');
+      print('Encoded URL: $encodedUrl');
+      print('  Has uppercase: $encodedHasUpper');
+      print('  Has lowercase: $encodedHasLower');
+
+      // Verify case is preserved
+      if (originalHasUpper != encodedHasUpper ||
+          originalHasLower != encodedHasLower) {
+        print('⚠️ WARNING: Case may not be fully preserved!');
+      } else {
+        print('✅ Case sensitivity preserved correctly');
+      }
+      print('=====================================');
 
       // Method 1: Create an anchor element with rel="ar" attribute
       // This is Apple's recommended way to trigger AR Quick Look on iOS/iPad Safari
       // The rel="ar" attribute tells Safari to open the file in AR Quick Look
       // Note: Autorotate must be enabled in the USDZ file itself, not via URL
       final anchor = html.AnchorElement()
-        ..href = usdzUrl
+        ..href =
+            encodedUrl // Use properly encoded URL
         ..rel =
             'ar' // Critical: This attribute triggers AR Quick Look
         ..style.position = 'fixed'
@@ -303,7 +346,9 @@ class WebUtils {
       html.document.body?.append(anchor);
 
       print('Anchor element created with rel="ar"');
-      print('USDZ URL: $usdzUrl');
+      print('Original URL: $usdzUrl');
+      print('Encoded URL: $encodedUrl');
+      print('Anchor href: ${anchor.href}');
 
       // Programmatically click the anchor
       // This must be triggered by user interaction (which it is, from button click)
@@ -329,20 +374,22 @@ class WebUtils {
       print('Error opening USDZ in AR with anchor method: $e');
       print('Stack trace: ${StackTrace.current}');
 
-      // Fallback 1: Try direct window.location navigation
+      // Fallback 1: Try direct window.location navigation with encoded URL
       // Safari might open USDZ files directly in AR Quick Look
       try {
-        print('Fallback 1: Trying window.location.href');
-        html.window.location.href = usdzUrl;
+        print('Fallback 1: Trying window.location.href with encoded URL');
+        print('Using encoded URL: $encodedUrl');
+        html.window.location.href = encodedUrl;
         return true;
       } catch (e2) {
         print('Error with window.location fallback: $e2');
 
-        // Fallback 2: Try window.open in new tab
+        // Fallback 2: Try window.open in new tab with encoded URL
         // Safari might detect USDZ and open in AR Quick Look
         try {
-          print('Fallback 2: Trying window.open');
-          html.window.open(usdzUrl, '_blank');
+          print('Fallback 2: Trying window.open with encoded URL');
+          print('Using encoded URL: $encodedUrl');
+          html.window.open(encodedUrl, '_blank');
           return true;
         } catch (e3) {
           print('Error with window.open fallback: $e3');
