@@ -6,6 +6,9 @@ import '../../services/device_detection_service.dart';
 import '../../services/ar_analytics_service.dart';
 import '../../services/analytics_service.dart';
 import 'ar_view_for_3d_objects.dart';
+import 'product_detail_view_web_stub.dart'
+    if (dart.library.html) 'product_detail_view_web.dart'
+    as web_utils;
 
 /// Full-screen AR view screen that shows native AR on mobile and web AR on web
 class ARViewScreen extends StatefulWidget {
@@ -78,7 +81,38 @@ class _ARViewScreenState extends State<ARViewScreen> {
     }
 
     // Web platform - use web-based AR viewer
+    // Check if device is iPad - iPad should use Apple Quick Look, not this screen
+    final isIPad = kIsWeb && web_utils.WebUtils.isIPad();
+    if (isIPad) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Please use the "View In My Space" button to open AR Quick Look. This screen is not needed for iPad.',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Color(0xFFED1F24),
+            duration: Duration(seconds: 5),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      });
+
+      // Show message while navigating back
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: const Center(
+          child: Text(
+            'Opening AR view...',
+            style: TextStyle(color: Colors.white, fontSize: 18),
+          ),
+        ),
+      );
+    }
+
     // Check if device is desktop - if so, show message and go back
+    // IMPORTANT: Only block if desktop AND not iPad (already handled above)
     if (DeviceDetectionService.isDesktop(context)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.of(context).pop();
