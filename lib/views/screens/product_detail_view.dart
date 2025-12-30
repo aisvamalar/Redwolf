@@ -136,10 +136,13 @@ class _ProductDetailViewState extends State<ProductDetailView> {
   String get _directModelUrl {
     // Check if device is iOS (iPhone/iPad)
     final isIOS = DeviceDetectionService.isIOS(context);
+    // CRITICAL: Also check for iPad explicitly on web (iPadOS 13+ reports as Mac)
+    final isIPadOnWeb = kIsWeb && web_utils.WebUtils.isIPad();
+    final isIOSOrIPad = isIOS || isIPadOnWeb;
 
-    // For iOS devices, prioritize USDZ file if available
+    // For iOS devices (including iPad), prioritize USDZ file if available
     // USDZ files are stored in products/usdz/ folder in Supabase storage
-    if (isIOS &&
+    if (isIOSOrIPad &&
         _product.usdzFileUrl != null &&
         _product.usdzFileUrl!.isNotEmpty &&
         _product.usdzFileUrl!.toUpperCase() != 'NULL' &&
@@ -148,6 +151,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
       // The URL should be: https://...supabase.co/storage/v1/object/public/products/usdz/filename.usdz
       if (kDebugMode) {
         print('Using USDZ file for AR Quick Look: ${_product.usdzFileUrl}');
+        print('Device detection - isIOS: $isIOS, isIPadOnWeb: $isIPadOnWeb');
       }
       return _product.usdzFileUrl!;
     }
@@ -1757,7 +1761,20 @@ class _ProductDetailViewState extends State<ProductDetailView> {
 
                                     // For iOS devices (iPhone/iPad), prioritize Apple Quick Look AR
                                     // Try USDZ first, but also check if we should use Quick Look for other formats
-                                    if (isIOS && isUsdzFile) {
+                                    // CRITICAL: Also check for iPad explicitly on web (iPadOS 13+ reports as Mac)
+                                    final isIPadOnWeb = kIsWeb && web_utils.WebUtils.isIPad();
+                                    final shouldUseUsdzAR = (isIOS || isIPadOnWeb) && isUsdzFile;
+                                    
+                                    if (kDebugMode) {
+                                      print('=== AR Launch Decision Debug ===');
+                                      print('isIOS: $isIOS');
+                                      print('isIPadOnWeb: $isIPadOnWeb');
+                                      print('isUsdzFile: $isUsdzFile');
+                                      print('shouldUseUsdzAR: $shouldUseUsdzAR');
+                                      print('================================');
+                                    }
+                                    
+                                    if (shouldUseUsdzAR) {
                                       // For iOS devices (iPhone/iPad) with USDZ files, use Apple Quick Look AR
                                       // iOS Safari automatically opens USDZ files in AR Quick Look when linked directly
                                       // iPad Safari also supports AR Quick Look for USDZ files
