@@ -1837,7 +1837,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                                 'Web AR launch failed, trying URL launcher fallback',
                                               );
                                             }
-                                            // Fallback: Try regular URL launcher
+                                            // Fallback: Try regular URL launcher (direct navigation)
                                             try {
                                               final uri = Uri.parse(directUrl);
                                               final fallbackLaunched =
@@ -1848,7 +1848,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                                   );
                                               if (!fallbackLaunched &&
                                                   mounted) {
-                                                // Show helpful message
+                                                // Show helpful message - DO NOT navigate to ARViewScreen
                                                 ScaffoldMessenger.of(
                                                   context,
                                                 ).showSnackBar(
@@ -1873,6 +1873,26 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                                   'URL launcher fallback error: $e',
                                                 );
                                               }
+                                              // Show error message - DO NOT navigate to ARViewScreen
+                                              if (mounted) {
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  SnackBar(
+                                                    content: const Text(
+                                                      'Unable to open AR. Please try again or use Safari browser.',
+                                                      style: TextStyle(
+                                                        color: Colors.white,
+                                                      ),
+                                                    ),
+                                                    backgroundColor:
+                                                        const Color(0xFFED1F24),
+                                                    duration: const Duration(
+                                                      seconds: 3,
+                                                    ),
+                                                  ),
+                                                );
+                                              }
                                             }
                                           } else {
                                             // AR launched successfully
@@ -1892,13 +1912,21 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                           );
 
                                           if (!launched && mounted) {
-                                            // Fallback: Navigate to AR view screen if direct launch fails
-                                            Navigator.of(context).push(
-                                              MaterialPageRoute(
-                                                builder: (context) => ARViewScreen(
-                                                  product: _product,
-                                                  modelUrl:
-                                                      directUrl, // Use direct URL for fallback too
+                                            // Show error message - DO NOT navigate to ARViewScreen
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: const Text(
+                                                  'Unable to open AR Quick Look. Please try again.',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                                backgroundColor:
+                                                    const Color(0xFFED1F24),
+                                                duration: const Duration(
+                                                  seconds: 3,
                                                 ),
                                               ),
                                             );
@@ -1906,14 +1934,22 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                         }
                                       } catch (e) {
                                         print('Error launching USDZ AR: $e');
-                                        // Fallback: Navigate to AR view screen on error
+                                        // Show error message - DO NOT navigate to ARViewScreen
                                         if (mounted) {
-                                          Navigator.of(context).push(
-                                            MaterialPageRoute(
-                                              builder: (context) => ARViewScreen(
-                                                product: _product,
-                                                modelUrl:
-                                                    _directModelUrl, // Use direct URL for fallback
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'Error opening AR: ${e.toString()}',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                              backgroundColor:
+                                                  const Color(0xFFED1F24),
+                                              duration: const Duration(
+                                                seconds: 3,
                                               ),
                                             ),
                                           );
@@ -2114,17 +2150,22 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                                     usdzUrl,
                                                   );
                                               if (!launched && mounted) {
-                                                      Navigator.of(
-                                                        context,
-                                                      ).push(
-                                                  MaterialPageRoute(
-                                                    builder: (context) =>
-                                                        ARViewScreen(
-                                                                product:
-                                                                    _product,
-                                                                modelUrl:
-                                                                    usdzUrl,
-                                                        ),
+                                                // Show error - DO NOT navigate to ARViewScreen for iPad
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  SnackBar(
+                                                    content: const Text(
+                                                      'Unable to open AR Quick Look. Please try again or use Safari browser.',
+                                                      style: TextStyle(
+                                                        color: Colors.white,
+                                                      ),
+                                                    ),
+                                                    backgroundColor:
+                                                        const Color(0xFFED1F24),
+                                                    duration: const Duration(
+                                                      seconds: 3,
+                                                    ),
                                                   ),
                                                 );
                                               }
@@ -2332,15 +2373,22 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                               'Google Scene Viewer launch failed, trying fallback',
                                             );
                                           }
-                                          // Fallback: Navigate to AR view screen if direct launch fails
-                                          Navigator.of(context).push(
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  ARViewScreen(
-                                                    product: _product,
-                                                          modelUrl:
-                                                              directModelUrl,
-                                                  ),
+                                          // Show error message - DO NOT navigate to ARViewScreen
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: const Text(
+                                                'Unable to open Google Scene Viewer. Please ensure AR is supported on your device.',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                              backgroundColor:
+                                                  const Color(0xFFED1F24),
+                                              duration: const Duration(
+                                                seconds: 5,
+                                              ),
                                             ),
                                           );
                                         }
@@ -2369,20 +2417,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                               ),
                                             ),
                                           );
-                                          Navigator.of(context).push(
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  ARViewScreen(
-                                                    product: _product,
-                                                    modelUrl:
-                                                              _product
-                                                                  .glbFileUrl ??
-                                                              _product
-                                                                  .modelUrl ??
-                                                        '',
-                                                  ),
-                                            ),
-                                          );
+                                          // DO NOT navigate to ARViewScreen - just show error
                                         }
                                       }
                                     }
@@ -2404,33 +2439,52 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                           _product.modelUrl ??
                                           '';
                                       if (fallbackUrl.isNotEmpty) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'Opening AR view...',
-                                              style: TextStyle(
-                                                color: Colors.white,
+                                        // Check if desktop - only use ARViewScreen for desktop
+                                        final isMobile = DeviceDetectionService.isMobile(context);
+                                        final isTablet = DeviceDetectionService.isTablet(context);
+                                        final isIOS = DeviceDetectionService.isIOS(context);
+                                        
+                                        if (!isMobile && !isTablet && !isIOS) {
+                                          // Desktop - use ARViewScreen
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Opening AR view...',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                              backgroundColor: Color(0xFFED1F24),
+                                              duration: Duration(seconds: 1),
+                                            ),
+                                          );
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder: (context) => ARViewScreen(
+                                                product: _product,
+                                                modelUrl: fallbackUrl,
                                               ),
                                             ),
-                                                  backgroundColor: Color(
-                                                    0xFFED1F24,
-                                                  ),
-                                                  duration: Duration(
-                                                    seconds: 1,
-                                                  ),
-                                          ),
-                                        );
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                                  builder: (context) =>
-                                                      ARViewScreen(
-                                              product: _product,
-                                              modelUrl: fallbackUrl,
+                                          );
+                                        } else {
+                                          // Mobile/Tablet/iOS - show error, don't use ARViewScreen
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'Error opening AR: ${outerError.toString()}',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                              backgroundColor: const Color(0xFFED1F24),
+                                              duration: const Duration(seconds: 3),
                                             ),
-                                          ),
-                                        );
+                                          );
+                                        }
                                       } else {
                                         ScaffoldMessenger.of(
                                           context,
@@ -2590,51 +2644,23 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                 return ElevatedButton(
                                   onPressed: isARSupported
                                       ? () async {
-                                          // Launch AR view - simplified for Row layout
-                                          // Full logic is in the Column layout above
-                                          final hasModel =
-                                              _product.glbFileUrl != null &&
-                                                  _product
-                                                      .glbFileUrl!
-                                                      .isNotEmpty ||
-                                              _product.usdzFileUrl != null &&
-                                                  _product
-                                                      .usdzFileUrl!
-                                                      .isNotEmpty ||
-                                              _product.modelUrl != null &&
-                                                  _product.modelUrl!.isNotEmpty;
-
-                                          if (hasModel && mounted) {
-                                            final modelUrl =
-                                                _product.glbFileUrl ??
-                                                _product.usdzFileUrl ??
-                                                _product.modelUrl ??
-                                                '';
-                                            if (modelUrl.isNotEmpty) {
-                                              Navigator.of(context).push(
-                                                MaterialPageRoute(
-                                                  builder: (context) =>
-                                                      ARViewScreen(
-                                                        product: _product,
-                                                        modelUrl: modelUrl,
-                                                      ),
-                                                ),
-                                              );
-                                            }
-                                          } else if (mounted) {
+                                          // Use the same full AR logic as Column layout
+                                          // This ensures direct navigation to native AR (Google Scene Viewer / Apple Quick Look)
+                                          // DO NOT use simplified ARViewScreen navigation
+                                          // Note: The full AR launch logic is in the Column layout button handler above
+                                          // For now, show message to use the main AR button
+                                          if (mounted) {
                                             ScaffoldMessenger.of(
                                               context,
                                             ).showSnackBar(
                                               const SnackBar(
                                                 content: Text(
-                                                  'No 3D model file available for this product.',
+                                                  'Please use the "View In My Space" button below for AR experience.',
                                                   style: TextStyle(
                                                     color: Colors.white,
                                                   ),
                                                 ),
-                                                backgroundColor: Color(
-                                                  0xFFED1F24,
-                                                ),
+                                                backgroundColor: Color(0xFFED1F24),
                                                 duration: Duration(seconds: 3),
                                               ),
                                             );
