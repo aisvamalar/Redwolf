@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/product.dart';
 import 'ar_view_screen.dart';
@@ -222,6 +223,50 @@ class _ProductDetailViewState extends State<ProductDetailView> {
     return ResponsiveHelper.getHorizontalPadding(context);
   }
 
+  /// Format product details as structured text for sharing
+  String _formatProductDetailsForSharing() {
+    final StringBuffer buffer = StringBuffer();
+
+    // Product name with emoji
+    buffer.writeln('🏷️ Product: ${_product.name}');
+
+    // Category if available
+    if (_product.category.isNotEmpty) {
+      buffer.writeln('📂 Category: ${_product.category}');
+    }
+
+    // Description if available
+    if (_product.description != null && _product.description!.isNotEmpty) {
+      buffer.writeln('📝 Description: ${_product.description}');
+    }
+
+    // Technical specs if available
+    if (_product.defaultTechnicalSpecs.isNotEmpty) {
+      buffer.writeln('\n⚙️ Technical Specifications:');
+      _product.defaultTechnicalSpecs.forEach((key, value) {
+        buffer.writeln('• $key: $value');
+      });
+    }
+
+    // Key features if available
+    if (_product.defaultKeyFeatures.isNotEmpty) {
+      buffer.writeln('\n✨ Key Features:');
+      for (final feature in _product.defaultKeyFeatures) {
+        buffer.writeln('• $feature');
+      }
+    }
+
+    // Add branding
+    buffer.writeln('\n🔗 From RedWolf Media - Creative Visibility');
+
+    // Add image URL
+    if (_product.imageUrl.isNotEmpty) {
+      buffer.writeln('\n🖼️ Image: ${_product.imageUrl}');
+    }
+
+    return buffer.toString();
+  }
+
   Future<void> _handleShare() async {
     if (!kIsWeb) {
       if (mounted) {
@@ -236,37 +281,184 @@ class _ProductDetailViewState extends State<ProductDetailView> {
     }
 
     try {
-      final url = web_utils.WebUtils.getCurrentUrl();
-      // Try Web Share API first
-      final shared = await web_utils.WebUtils.shareContent(
-        _product.name,
-        _product.description ?? '',
-        url,
-      );
+      // Format product details as structured text
+      final String productText = _formatProductDetailsForSharing();
+      final String productImageUrl = _product.imageUrl;
 
-      if (shared) return;
+      print('🔗 Sharing product details and image: ${_product.name}');
 
-      // Fallback: Copy to clipboard
-      final copied = await web_utils.WebUtils.copyToClipboard(url);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              copied
-                  ? 'Link copied to clipboard!'
-                  : 'Failed to share. Please copy the URL manually.',
-            ),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      print('Error sharing: $e');
+      // Show loading indicator
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Failed to share. Please copy the URL manually.'),
-            duration: Duration(seconds: 2),
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+                SizedBox(width: 12),
+                Text('Preparing to share product...'),
+              ],
+            ),
+            duration: Duration(milliseconds: 1500),
+            backgroundColor: Color(0xFF2196F3),
+          ),
+        );
+      }
+
+      bool shared = false;
+
+      if (kIsWeb) {
+        // Try Web Share API first (works on mobile browsers too)
+        // Product text already includes image URL from _formatProductDetailsForSharing()
+        final fullShareText = productText;
+
+        shared = await web_utils.WebUtils.shareContent(
+          _product.name,
+          fullShareText,
+          '', // Don't pass URL separately, it's included in the text
+        );
+
+        if (!shared) {
+          // Fallback: Copy to clipboard
+          final copied = await web_utils.WebUtils.copyToClipboard(
+            fullShareText,
+          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    Icon(
+                      copied ? Icons.check_circle : Icons.error,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        copied
+                            ? 'Product details copied to clipboard!'
+                            : 'Failed to copy. Please copy manually.',
+                      ),
+                    ),
+                  ],
+                ),
+                duration: const Duration(seconds: 3),
+                backgroundColor: copied ? Colors.green : Colors.red,
+                action: copied
+                    ? null
+                    : SnackBarAction(
+                        label: 'Show Details',
+                        textColor: Colors.white,
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Product Details'),
+                              content: SelectableText(productText),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.of(context).pop(),
+                                  child: const Text('Close'),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            );
+          }
+        } else {
+          // Share API worked - no success message needed
+        }
+      } else {
+        // For mobile apps, show product details in a dialog
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Share Product'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Copy product details to share:'),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: SelectableText(
+                      productText,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Image URL:'),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.grey[200]!),
+                    ),
+                    child: SelectableText(
+                      productImageUrl,
+                      style: const TextStyle(fontSize: 12, color: Colors.blue),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Close'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    final fullContent =
+                        '$productText\n\n🖼️ Image: $productImageUrl';
+                    Clipboard.setData(ClipboardData(text: fullContent));
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Product details copied to clipboard!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  },
+                  child: const Text('Copy Details'),
+                ),
+              ],
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('❌ Error sharing: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Failed to share: ${e.toString()}')),
+              ],
+            ),
+            duration: const Duration(seconds: 3),
+            backgroundColor: Colors.red,
           ),
         );
       }
