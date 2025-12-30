@@ -1696,7 +1696,9 @@ class _ProductDetailViewState extends State<ProductDetailView> {
 
                                     // Only consider it a USDZ file if the actual file being used is USDZ
                                     // Check the direct model URL that will be used for AR
+                                    // CRITICAL: Include hasUsdzFile to detect USDZ even if device detection fails
                                     final isUsdzFile =
+                                              hasUsdzFile ||
                                               isDirectModelUsdz ||
                                               isGlbFileUsdz;
 
@@ -1763,14 +1765,36 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                     // Try USDZ first, but also check if we should use Quick Look for other formats
                                     // CRITICAL: Also check for iPad explicitly on web (iPadOS 13+ reports as Mac)
                                     final isIPadOnWeb = kIsWeb && web_utils.WebUtils.isIPad();
-                                    final shouldUseUsdzAR = (isIOS || isIPadOnWeb) && isUsdzFile;
+                                    
+                                    // Aggressive USDZ detection: if we have USDZ file and touch support, try USDZ AR
+                                    final hasTouchSupport = kIsWeb && web_utils.WebUtils.getMaxTouchPoints() > 0;
+                                    final forceUsdzForTouch = kIsWeb && hasUsdzFile && hasTouchSupport;
+                                    
+                                    final shouldUseUsdzAR = (isIOS || isIPadOnWeb || forceUsdzForTouch) && isUsdzFile;
                                     
                                     if (kDebugMode) {
                                       print('=== AR Launch Decision Debug ===');
                                       print('isIOS: $isIOS');
                                       print('isIPadOnWeb: $isIPadOnWeb');
+                                      print('hasTouchSupport: $hasTouchSupport');
+                                      print('forceUsdzForTouch: $forceUsdzForTouch');
+                                      print('hasUsdzFile: $hasUsdzFile');
+                                      print('isDirectModelUsdz: $isDirectModelUsdz');
+                                      print('isGlbFileUsdz: $isGlbFileUsdz');
                                       print('isUsdzFile: $isUsdzFile');
                                       print('shouldUseUsdzAR: $shouldUseUsdzAR');
+                                      if (kIsWeb) {
+                                        final userAgent = web_utils.WebUtils.getUserAgent();
+                                        final maxTouchPoints = web_utils.WebUtils.getMaxTouchPoints();
+                                        print('User Agent: $userAgent');
+                                        print('Max Touch Points: $maxTouchPoints');
+                                        print('Contains "ipad": ${userAgent.toLowerCase().contains('ipad')}');
+                                        print('Contains "macintosh": ${userAgent.toLowerCase().contains('macintosh')}');
+                                        print('Contains "macintel": ${userAgent.toLowerCase().contains('macintel')}');
+                                      }
+                                      print('Product USDZ URL: ${_product.usdzFileUrl}');
+                                      print('Direct Model URL: $_directModelUrl');
+                                      print('🎯 DECISION: ${shouldUseUsdzAR ? "USDZ AR Quick Look" : "Web AR Viewer"}');
                                       print('================================');
                                     }
                                     

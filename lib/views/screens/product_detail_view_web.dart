@@ -43,19 +43,44 @@ class WebUtils {
       final userAgent = getUserAgent().toLowerCase();
       final maxTouchPoints = getMaxTouchPoints();
 
+      print('🔍 iPad Detection Debug:');
+      print('  User Agent: $userAgent');
+      print('  Max Touch Points: $maxTouchPoints');
+
       // Direct iPad detection
       if (userAgent.contains('ipad')) {
+        print('  ✅ iPad detected via user agent');
         return true;
       }
 
       // iPadOS 13+ detection (reports as Mac but has touch)
       if ((userAgent.contains('macintel') || userAgent.contains('macintosh')) &&
           maxTouchPoints > 1) {
+        print('  ✅ iPad detected via Mac + touch points');
         return true;
       }
 
+      // Additional iPad detection for Safari on iPad
+      // Check for Safari + touch support (common iPad pattern)
+      if (userAgent.contains('safari') &&
+          !userAgent.contains('chrome') &&
+          maxTouchPoints > 0) {
+        print('  ✅ iPad detected via Safari + touch');
+        return true;
+      }
+
+      // Check for mobile Safari patterns that might indicate iPad
+      if (userAgent.contains('mobile') &&
+          userAgent.contains('safari') &&
+          maxTouchPoints > 1) {
+        print('  ✅ iPad detected via mobile Safari + multi-touch');
+        return true;
+      }
+
+      print('  ❌ iPad not detected');
       return false;
     } catch (e) {
+      print('  ❌ iPad detection error: $e');
       return false;
     }
   }
