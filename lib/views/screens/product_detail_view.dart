@@ -699,26 +699,53 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 32),
                           child: Center(
-                            child: RichText(
-                              text: TextSpan(
-                                text: 'Built by ',
-                                style: TextStyle(
-                                  color: const Color(0xFFBABABA),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w400,
-                                ),
-                                children: const [
-                                  TextSpan(
-                                    text: 'Ruditech',
+                            child: MouseRegion(
+                              cursor: SystemMouseCursors.click,
+                              child: GestureDetector(
+                                onTap: () async {
+                                  final uri = Uri.parse(
+                                    'https://ruditech.com/',
+                                  );
+                                  if (!await launchUrl(
+                                    uri,
+                                    mode: LaunchMode.externalApplication,
+                                  )) {
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Could not open Ruditech website',
+                                          ),
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                                child: RichText(
+                                  text: TextSpan(
+                                    text: 'Built by ',
                                     style: TextStyle(
-                                      color: Color(0xFF5D8BFF),
+                                      color: const Color(0xFFBABABA),
+                                      fontSize: 14,
                                       fontWeight: FontWeight.w400,
-                                      decoration: TextDecoration.underline,
                                     ),
+                                    children: const [
+                                      TextSpan(
+                                        text: 'Ruditech',
+                                        style: TextStyle(
+                                          color: Color(0xFF5D8BFF),
+                                          fontWeight: FontWeight.w400,
+                                          decoration: TextDecoration.underline,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ],
+                                  textAlign: TextAlign.center,
+                                ),
                               ),
-                              textAlign: TextAlign.center,
                             ),
                           ),
                         ),

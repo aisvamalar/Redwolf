@@ -52,11 +52,11 @@ final GoRouter _router = GoRouter(
         // Try to get product from controller first (faster)
         final controller = Provider.of<ProductController>(context, listen: false);
         try {
-          final product = controller.products.firstWhere(
-            (p) => p.id == productId,
-          );
+        final product = controller.products.firstWhere(
+          (p) => p.id == productId,
+        );
           print('✅ Product found in controller: ${product.name}');
-          return ProductDetailView(product: product);
+        return ProductDetailView(product: product);
         } catch (e) {
           print('⚠️ Product not in controller, fetching from database...');
           // Product not in controller - fetch from database

@@ -105,7 +105,7 @@ class HeaderWidget extends StatelessWidget {
               padding: EdgeInsets.symmetric(
                 horizontal: isMobile ? 18.0 : 16.0,
                 vertical: isMobile ? 12.0 : 8.0,
-              ),
+                    ),
 
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
